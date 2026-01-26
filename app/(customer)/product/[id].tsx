@@ -1,26 +1,27 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Text, Button, Chip, IconButton, ActivityIndicator, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../../src/store';
 import { selectProductById, toggleFavorite } from '../../../src/store/slices/productsSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
 import { formatPrice } from '../../../src/constants';
 import { WeightOption } from '../../../src/types';
+import type { AppTheme } from '../../../src/theme';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
 
   const product = useAppSelector(selectProductById(id!));
   const favorites = useAppSelector((state) => state.products.favorites);
@@ -36,7 +37,7 @@ export default function ProductDetailScreen() {
   if (!product) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -62,92 +63,84 @@ export default function ProductDetailScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.imageContainer}>
-        <Text style={styles.placeholderText}>🌶️</Text>
-        <TouchableOpacity style={styles.favoriteButton} onPress={handleToggleFavorite}>
-          <Text style={styles.favoriteIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
-        </TouchableOpacity>
+        <MaterialCommunityIcons name="leaf" size={80} color={theme.colors.primary} />
+        <IconButton
+          icon={isFavorite ? 'heart' : 'heart-outline'}
+          iconColor={isFavorite ? theme.colors.error : '#666666'}
+          size={28}
+          mode="contained"
+          containerColor="#FFFFFF"
+          style={styles.favoriteButton}
+          onPress={handleToggleFavorite}
+        />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.name}>
+        <Text variant="headlineSmall" style={styles.name}>
           {isGujarati ? product.name_gu : product.name}
         </Text>
 
         {product.description && (
-          <Text style={styles.description}>
+          <Text variant="bodyMedium" style={styles.description}>
             {isGujarati ? product.description_gu : product.description}
           </Text>
         )}
 
-        <Text style={styles.sectionTitle}>{t('product.selectWeight')}</Text>
+        <Text variant="titleMedium" style={styles.sectionTitle}>{t('product.selectWeight')}</Text>
         <View style={styles.weightOptions}>
           {product.weight_options.map((option) => (
-            <TouchableOpacity
+            <Chip
               key={option.id}
-              style={[
-                styles.weightOption,
-                selectedWeight?.id === option.id && styles.weightOptionSelected,
-              ]}
+              selected={selectedWeight?.id === option.id}
               onPress={() => setSelectedWeight(option)}
+              style={styles.weightChip}
+              showSelectedOverlay
             >
-              <Text
-                style={[
-                  styles.weightText,
-                  selectedWeight?.id === option.id && styles.weightTextSelected,
-                ]}
-              >
-                {option.weight_grams}g
-              </Text>
-              <Text
-                style={[
-                  styles.priceText,
-                  selectedWeight?.id === option.id && styles.priceTextSelected,
-                ]}
-              >
-                {formatPrice(option.price_paise)}
-              </Text>
-            </TouchableOpacity>
+              {option.weight_grams}g - {formatPrice(option.price_paise)}
+            </Chip>
           ))}
         </View>
 
         <View style={styles.quantitySection}>
-          <Text style={styles.sectionTitle}>{t('product.quantity')}</Text>
+          <Text variant="titleMedium" style={styles.sectionTitle}>{t('product.quantity')}</Text>
           <View style={styles.quantityControl}>
-            <TouchableOpacity
-              style={styles.quantityButton}
+            <IconButton
+              icon="minus"
+              mode="contained-tonal"
+              size={20}
               onPress={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Text style={styles.quantityButtonText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.quantityValue}>{quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
+            />
+            <Text variant="titleLarge" style={styles.quantityValue}>{quantity}</Text>
+            <IconButton
+              icon="plus"
+              mode="contained-tonal"
+              size={20}
               onPress={() => setQuantity(quantity + 1)}
-            >
-              <Text style={styles.quantityButtonText}>+</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </View>
 
       <View style={styles.footer}>
         <View style={styles.totalContainer}>
-          <Text style={styles.totalLabel}>{t('cart.total')}</Text>
-          <Text style={styles.totalPrice}>
+          <Text variant="bodyLarge" style={styles.totalLabel}>{t('cart.total')}</Text>
+          <Text variant="headlineSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
             {selectedWeight
               ? formatPrice(selectedWeight.price_paise * quantity)
               : '-'}
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.addButton, !product.is_available && styles.addButtonDisabled]}
+        <Button
+          mode="contained"
+          icon="cart"
           onPress={handleAddToCart}
           disabled={!product.is_available || !selectedWeight}
+          style={styles.addButton}
+          contentStyle={styles.addButtonContent}
+          labelStyle={styles.addButtonLabel}
         >
-          <Text style={styles.addButtonText}>
-            {product.is_available ? t('product.addToCart') : t('product.outOfStock')}
-          </Text>
-        </TouchableOpacity>
+          {product.is_available ? t('product.addToCart') : t('product.outOfStock')}
+        </Button>
       </View>
     </ScrollView>
   );
@@ -170,45 +163,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  placeholderText: {
-    fontSize: 80,
-  },
   favoriteButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 44,
-    height: 44,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  favoriteIcon: {
-    fontSize: 24,
+    top: 8,
+    right: 8,
   },
   content: {
     padding: 16,
   },
   name: {
-    fontSize: 24,
     fontWeight: 'bold',
     color: '#333333',
     marginBottom: 8,
   },
   description: {
-    fontSize: 14,
     color: '#666666',
     lineHeight: 20,
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
     fontWeight: '600',
     color: '#333333',
     marginBottom: 12,
@@ -219,35 +192,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 24,
   },
-  weightOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
+  weightChip: {
     minWidth: 100,
-    alignItems: 'center',
-  },
-  weightOptionSelected: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF5F2',
-  },
-  weightText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-  },
-  weightTextSelected: {
-    color: '#FF6B35',
-  },
-  priceText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666666',
-    marginTop: 4,
-  },
-  priceTextSelected: {
-    color: '#FF6B35',
   },
   quantitySection: {
     marginBottom: 24,
@@ -256,23 +202,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  quantityButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityButtonText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333333',
-  },
   quantityValue: {
-    fontSize: 20,
     fontWeight: '600',
-    marginHorizontal: 24,
+    marginHorizontal: 16,
     color: '#333333',
   },
   footer: {
@@ -287,25 +219,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   totalLabel: {
-    fontSize: 16,
     color: '#666666',
   },
-  totalPrice: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-  },
   addButton: {
-    backgroundColor: '#FF6B35',
-    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  addButtonDisabled: {
-    backgroundColor: '#CCCCCC',
+  addButtonContent: {
+    paddingVertical: 8,
   },
-  addButtonText: {
-    color: '#FFFFFF',
+  addButtonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },

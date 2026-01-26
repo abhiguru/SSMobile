@@ -1,15 +1,14 @@
 import { useEffect } from 'react';
 import {
   View,
-  Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Card, Text, Button, Chip, FAB, ActivityIndicator, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../../src/store';
 import {
@@ -20,11 +19,13 @@ import {
   selectAddressesLoading,
 } from '../../../src/store/slices/addressesSlice';
 import { Address } from '../../../src/types';
+import type { AppTheme } from '../../../src/theme';
 
 export default function AddressesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const addresses = useAppSelector(selectAddresses);
   const isLoading = useAppSelector(selectAddressesLoading);
 
@@ -60,61 +61,59 @@ export default function AddressesScreen() {
   };
 
   const renderAddress = ({ item }: { item: Address }) => (
-    <View style={styles.addressCard}>
-      <View style={styles.addressHeader}>
-        <View style={styles.labelContainer}>
-          <Text style={styles.addressLabel}>
-            {item.label || item.full_name}
-          </Text>
-          {item.is_default && (
-            <View style={styles.defaultBadge}>
-              <Text style={styles.defaultBadgeText}>{t('addresses.default')}</Text>
-            </View>
-          )}
+    <Card mode="elevated" style={styles.addressCard}>
+      <Card.Content>
+        <View style={styles.addressHeader}>
+          <View style={styles.labelContainer}>
+            <Text variant="titleSmall">
+              {item.label || item.full_name}
+            </Text>
+            {item.is_default && (
+              <Chip compact style={styles.defaultChip} textStyle={styles.defaultChipText}>
+                {t('addresses.default')}
+              </Chip>
+            )}
+          </View>
         </View>
-      </View>
 
-      <Text style={styles.addressName}>{item.full_name}</Text>
-      <Text style={styles.addressLine}>
-        {item.address_line1}
-        {item.address_line2 ? `, ${item.address_line2}` : ''}
-      </Text>
-      <Text style={styles.addressLine}>
-        {item.city}{item.state ? `, ${item.state}` : ''} - {item.pincode}
-      </Text>
-      <Text style={styles.addressPhone}>{item.phone}</Text>
+        <Text variant="bodyMedium" style={styles.addressName}>{item.full_name}</Text>
+        <Text variant="bodySmall" style={styles.addressLine}>
+          {item.address_line1}
+          {item.address_line2 ? `, ${item.address_line2}` : ''}
+        </Text>
+        <Text variant="bodySmall" style={styles.addressLine}>
+          {item.city}{item.state ? `, ${item.state}` : ''} - {item.pincode}
+        </Text>
+        <Text variant="bodySmall" style={styles.addressPhone}>{item.phone}</Text>
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleEditAddress(item.id)}
-        >
-          <Text style={styles.actionButtonText}>{t('common.edit')}</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <Button mode="text" compact onPress={() => handleEditAddress(item.id)}>
+            {t('common.edit')}
+          </Button>
 
-        {!item.is_default && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleSetDefault(item.id)}
+          {!item.is_default && (
+            <Button mode="text" compact onPress={() => handleSetDefault(item.id)}>
+              {t('addresses.setAsDefault')}
+            </Button>
+          )}
+
+          <Button
+            mode="text"
+            compact
+            textColor={theme.colors.error}
+            onPress={() => handleDeleteAddress(item.id)}
           >
-            <Text style={styles.actionButtonText}>{t('addresses.setAsDefault')}</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteAddress(item.id)}
-        >
-          <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            {t('common.delete')}
+          </Button>
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   if (isLoading && addresses.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -123,12 +122,12 @@ export default function AddressesScreen() {
     <View style={styles.container}>
       {addresses.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📍</Text>
-          <Text style={styles.emptyTitle}>{t('addresses.empty')}</Text>
-          <Text style={styles.emptySubtitle}>{t('addresses.emptySubtitle')}</Text>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddAddress}>
-            <Text style={styles.addButtonText}>{t('addresses.addAddress')}</Text>
-          </TouchableOpacity>
+          <MaterialCommunityIcons name="map-marker-off" size={64} color="#999999" />
+          <Text variant="titleMedium" style={styles.emptyTitle}>{t('addresses.empty')}</Text>
+          <Text variant="bodyMedium" style={styles.emptySubtitle}>{t('addresses.emptySubtitle')}</Text>
+          <Button mode="contained" onPress={handleAddAddress} style={styles.addButton}>
+            {t('addresses.addAddress')}
+          </Button>
         </View>
       ) : (
         <>
@@ -140,12 +139,11 @@ export default function AddressesScreen() {
             refreshing={isLoading}
             onRefresh={() => dispatch(fetchAddresses())}
           />
-          <TouchableOpacity
-            style={styles.floatingAddButton}
+          <FAB
+            icon="plus"
+            style={styles.fab}
             onPress={handleAddAddress}
-          >
-            <Text style={styles.floatingAddButtonText}>+</Text>
-          </TouchableOpacity>
+          />
         </>
       )}
     </View>
@@ -168,47 +166,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#333333',
+    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 14,
     color: '#666666',
     textAlign: 'center',
     marginBottom: 24,
   },
   addButton: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
     borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   listContent: {
     padding: 16,
     paddingBottom: 80,
   },
   addressCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   addressHeader: {
     flexDirection: 'row',
@@ -220,85 +197,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  addressLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  defaultBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  defaultChip: {
     marginLeft: 8,
+    backgroundColor: '#E8F5E9',
+    height: 24,
   },
-  defaultBadgeText: {
+  defaultChipText: {
     fontSize: 10,
     color: '#4CAF50',
-    fontWeight: '600',
   },
   addressName: {
-    fontSize: 14,
     color: '#333333',
     marginBottom: 2,
   },
   addressLine: {
-    fontSize: 14,
     color: '#666666',
     lineHeight: 20,
   },
   addressPhone: {
-    fontSize: 14,
     color: '#666666',
     marginTop: 4,
   },
   actionButtons: {
     flexDirection: 'row',
-    marginTop: 16,
+    marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#EEEEEE',
-    gap: 12,
+    gap: 4,
   },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    backgroundColor: '#F5F5F5',
-  },
-  actionButtonText: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    backgroundColor: '#FFEBEE',
-  },
-  deleteButtonText: {
-    fontSize: 12,
-    color: '#E53935',
-    fontWeight: '500',
-  },
-  floatingAddButton: {
+  fab: {
     position: 'absolute',
     right: 16,
     bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     backgroundColor: '#FF6B35',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  floatingAddButtonText: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontWeight: '300',
-    marginTop: -2,
   },
 });

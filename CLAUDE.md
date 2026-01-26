@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Rules
+
+- **Do not create markdown files** (or any `.md` files) unless explicitly instructed to do so.
+- **Do not operate outside the `mobile/` directory.** The backend is maintained by a separate team. If a backend change is needed, mention it in the chat conversation — do not read, edit, or create files in the backend directory.
+
 ## Project Overview
 
 Masala Spice Shop - React Native Expo mobile app for a spice ordering MVP. Supports three user types: Customer, Admin, and Delivery Staff. No inventory tracking; admin controls product availability via simple on/off toggles.

@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text, Button } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 interface Props {
   children: ReactNode;
@@ -37,14 +39,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <Text style={styles.icon}>⚠️</Text>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#FF6B35" />
+          <Text variant="titleLarge" style={styles.title}>Something went wrong</Text>
+          <Text variant="bodyMedium" style={styles.message}>
             {this.state.error?.message || 'An unexpected error occurred'}
           </Text>
-          <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
-            <Text style={styles.buttonText}>Try Again</Text>
-          </TouchableOpacity>
+          <Button
+            mode="contained"
+            onPress={this.handleRetry}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Try Again
+          </Button>
         </View>
       );
     }
@@ -61,32 +68,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 24,
   },
-  icon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   title: {
-    fontSize: 20,
     fontWeight: 'bold',
     color: '#333333',
+    marginTop: 16,
     marginBottom: 8,
   },
   message: {
-    fontSize: 14,
     color: '#666666',
     textAlign: 'center',
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
     borderRadius: 8,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  buttonContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
 });
 

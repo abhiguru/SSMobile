@@ -1,15 +1,18 @@
-import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Text, Button, List, Divider, Switch, useTheme } from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
 import { changeLanguage } from '../../src/i18n';
+import type { AppTheme } from '../../src/theme';
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
 
   const isGujarati = i18n.language === 'gu';
@@ -27,41 +30,43 @@ export default function AdminSettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Phone</Text>
-          <Text style={styles.infoValue}>{user?.phone || '-'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Role</Text>
-          <Text style={styles.infoValue}>Admin</Text>
-        </View>
+        <Text variant="labelLarge" style={styles.sectionTitle}>Account</Text>
+        <List.Item title="Phone" description={user?.phone || '-'} />
+        <Divider />
+        <List.Item title="Role" description="Admin" />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>{t('profile.language')}</Text>
-          <View style={styles.languageToggle}>
-            <Text style={[styles.languageText, !isGujarati && styles.languageActive]}>
-              EN
-            </Text>
-            <Switch
-              value={isGujarati}
-              onValueChange={handleLanguageToggle}
-              trackColor={{ false: '#DDDDDD', true: '#FFAB91' }}
-              thumbColor={isGujarati ? '#FF6B35' : '#FFFFFF'}
-            />
-            <Text style={[styles.languageText, isGujarati && styles.languageActive]}>
-              ગુ
-            </Text>
-          </View>
-        </View>
+        <Text variant="labelLarge" style={styles.sectionTitle}>Preferences</Text>
+        <List.Item
+          title={t('profile.language')}
+          right={() => (
+            <View style={styles.languageToggle}>
+              <Text variant="bodyMedium" style={[styles.languageText, !isGujarati && styles.languageActive]}>
+                EN
+              </Text>
+              <Switch
+                value={isGujarati}
+                onValueChange={handleLanguageToggle}
+                color={theme.colors.primary}
+              />
+              <Text variant="bodyMedium" style={[styles.languageText, isGujarati && styles.languageActive]}>
+                gu
+              </Text>
+            </View>
+          )}
+        />
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>{t('auth.logout')}</Text>
-      </TouchableOpacity>
+      <Button
+        mode="text"
+        textColor={theme.colors.error}
+        onPress={handleLogout}
+        style={styles.logoutButton}
+        labelStyle={styles.logoutLabel}
+      >
+        {t('auth.logout')}
+      </Button>
     </View>
   );
 }
@@ -77,42 +82,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
     color: '#666666',
     paddingHorizontal: 16,
     paddingVertical: 8,
     textTransform: 'uppercase',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: '#333333',
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#666666',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#333333',
   },
   languageToggle: {
     flexDirection: 'row',
@@ -120,7 +93,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   languageText: {
-    fontSize: 14,
     color: '#999999',
   },
   languageActive: {
@@ -129,12 +101,9 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    alignItems: 'center',
   },
-  logoutText: {
+  logoutLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#E53935',
   },
 });

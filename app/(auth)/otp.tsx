@@ -1,37 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  TextInput as RNTextInput,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { verifyOtp, sendOtp, clearError } from '../../src/store/slices/authSlice';
 import { OTP_LENGTH, ERROR_CODES } from '../../src/constants';
+import type { AppTheme } from '../../src/theme';
 
 export default function OtpScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isLoading, error, pendingPhone } = useAppSelector((state) => state.auth);
+  const theme = useTheme<AppTheme>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRefs = useRef<(RNTextInput | null)[]>([]);
 
   useEffect(() => {
-    // Focus first input on mount
     inputRefs.current[0]?.focus();
   }, []);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) {
-      // Handle paste
       const otpArray = value.slice(0, OTP_LENGTH).split('');
       const newOtp = [...otp];
       otpArray.forEach((char, i) => {
@@ -49,7 +48,6 @@ export default function OtpScreen() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -77,7 +75,6 @@ export default function OtpScreen() {
     const result = await dispatch(verifyOtp({ phone: pendingPhone, otp: otpString }));
 
     if (verifyOtp.fulfilled.match(result)) {
-      // Router will auto-redirect based on role via index.tsx
       router.replace('/');
     }
   };
@@ -105,8 +102,10 @@ export default function OtpScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>{t('auth.enterOtp')}</Text>
-        <Text style={styles.subtitle}>
+        <Text variant="headlineSmall" style={styles.title}>
+          {t('auth.enterOtp')}
+        </Text>
+        <Text variant="bodyMedium" style={styles.subtitle}>
           {t('auth.otpSent')} {pendingPhone}
         </Text>
 
@@ -114,37 +113,45 @@ export default function OtpScreen() {
           {otp.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(ref) => { inputRefs.current[index] = ref; }}
-              style={[styles.otpInput, digit && styles.otpInputFilled]}
+              ref={(ref: any) => { inputRefs.current[index] = ref; }}
+              mode="outlined"
               keyboardType="number-pad"
               maxLength={1}
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
-              editable={!isLoading}
+              disabled={isLoading}
+              style={styles.otpInput}
+              contentStyle={styles.otpInputContent}
+              outlineStyle={digit ? { borderColor: theme.colors.primary, borderWidth: 2 } : undefined}
             />
           ))}
         </View>
 
-        {error && <Text style={styles.error}>{getErrorMessage()}</Text>}
+        <HelperText type="error" visible={!!error} style={styles.errorText}>
+          {getErrorMessage()}
+        </HelperText>
 
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
+        <Button
+          mode="contained"
           onPress={handleVerify}
+          loading={isLoading}
           disabled={isLoading || otp.some((d) => !d)}
+          style={styles.button}
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
         >
-          <Text style={styles.buttonText}>
-            {isLoading ? t('common.loading') : t('auth.verifyOtp')}
-          </Text>
-        </TouchableOpacity>
+          {t('auth.verifyOtp')}
+        </Button>
 
-        <TouchableOpacity
-          style={styles.resendButton}
+        <Button
+          mode="text"
           onPress={handleResend}
           disabled={isLoading}
+          style={styles.resendButton}
         >
-          <Text style={styles.resendText}>{t('auth.resendOtp')}</Text>
-        </TouchableOpacity>
+          {t('auth.resendOtp')}
+        </Button>
       </View>
     </KeyboardAvoidingView>
   );
@@ -161,14 +168,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
     color: '#333333',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
     color: '#666666',
     textAlign: 'center',
     marginBottom: 32,
@@ -176,49 +181,34 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 8,
   },
   otpInput: {
     width: 48,
     height: 56,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    textAlign: 'center',
+  },
+  otpInputContent: {
     fontSize: 24,
     textAlign: 'center',
-    color: '#333333',
   },
-  otpInputFilled: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF5F2',
-  },
-  error: {
-    color: '#E53935',
-    fontSize: 14,
-    marginBottom: 16,
+  errorText: {
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#FF6B35',
-    paddingVertical: 16,
+    marginTop: 8,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  buttonDisabled: {
-    backgroundColor: '#FFAB91',
+  buttonContent: {
+    paddingVertical: 8,
   },
-  buttonText: {
-    color: '#FFFFFF',
+  buttonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },
   resendButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  resendText: {
-    color: '#FF6B35',
-    fontSize: 16,
+    marginTop: 8,
   },
 });

@@ -1,24 +1,25 @@
 import { useEffect } from 'react';
 import {
   View,
-  Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Card, Text, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { fetchOrders, selectOrders } from '../../src/store/slices/ordersSlice';
 import { formatPrice } from '../../src/constants';
 import { Order } from '../../src/types';
+import type { AppTheme } from '../../src/theme';
 
 export default function DeliveriesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const orders = useAppSelector(selectOrders);
   const { isLoading } = useAppSelector((state) => state.orders);
 
@@ -26,37 +27,43 @@ export default function DeliveriesScreen() {
     dispatch(fetchOrders());
   }, [dispatch]);
 
-  // Filter for deliveries assigned to this delivery person
   const activeDeliveries = orders.filter(
     (o) => o.status === 'out_for_delivery'
   );
 
   const renderDelivery = ({ item }: { item: Order }) => (
-    <TouchableOpacity
+    <Card
+      mode="elevated"
       style={styles.deliveryCard}
       onPress={() => router.push(`/(delivery)/${item.id}`)}
     >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
-        <Text style={styles.orderTotal}>{formatPrice(item.total_paise)}</Text>
-      </View>
+      <Card.Content>
+        <View style={styles.orderHeader}>
+          <Text variant="titleMedium" style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
+          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+            {formatPrice(item.total_paise)}
+          </Text>
+        </View>
 
-      <View style={styles.addressContainer}>
-        <Text style={styles.addressLabel}>Deliver to:</Text>
-        <Text style={styles.address}>{item.delivery_address}</Text>
-        <Text style={styles.pincode}>Pincode: {item.delivery_pincode}</Text>
-      </View>
+        <Divider style={styles.divider} />
 
-      <View style={styles.itemsContainer}>
-        <Text style={styles.itemCount}>{item.items.length} items</Text>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.addressContainer}>
+          <Text variant="labelSmall" style={styles.addressLabel}>Deliver to:</Text>
+          <Text variant="bodyMedium" style={styles.address}>{item.delivery_address}</Text>
+          <Text variant="bodySmall" style={styles.pincode}>Pincode: {item.delivery_pincode}</Text>
+        </View>
+
+        <Divider style={styles.divider} />
+
+        <Text variant="bodySmall" style={styles.itemCount}>{item.items.length} items</Text>
+      </Card.Content>
+    </Card>
   );
 
   if (isLoading && orders.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -64,8 +71,8 @@ export default function DeliveriesScreen() {
   if (activeDeliveries.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>🚚</Text>
-        <Text style={styles.emptyTitle}>{t('delivery.noDeliveries')}</Text>
+        <MaterialCommunityIcons name="truck-delivery" size={64} color="#999999" />
+        <Text variant="titleMedium" style={styles.emptyTitle}>{t('delivery.noDeliveries')}</Text>
       </View>
     );
   }
@@ -100,72 +107,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 18,
     color: '#666666',
+    marginTop: 16,
   },
   listContent: {
     padding: 16,
   },
   deliveryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
   },
   orderId: {
-    fontSize: 18,
     fontWeight: 'bold',
     color: '#333333',
   },
-  orderTotal: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B35',
+  divider: {
+    marginVertical: 12,
   },
   addressContainer: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   addressLabel: {
-    fontSize: 12,
     color: '#666666',
     marginBottom: 4,
   },
   address: {
-    fontSize: 14,
     color: '#333333',
     lineHeight: 20,
   },
   pincode: {
-    fontSize: 12,
     color: '#666666',
     marginTop: 4,
   },
-  itemsContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    paddingTop: 12,
-  },
   itemCount: {
-    fontSize: 14,
     color: '#666666',
   },
 });

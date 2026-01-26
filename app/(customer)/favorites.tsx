@@ -1,44 +1,51 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Card, Text, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
 import { selectFavoriteProducts } from '../../src/store/slices/productsSlice';
+import type { AppTheme } from '../../src/theme';
 
 export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const theme = useTheme<AppTheme>();
   const favorites = useAppSelector(selectFavoriteProducts);
 
   const isGujarati = i18n.language === 'gu';
 
   const renderProduct = ({ item }: { item: typeof favorites[0] }) => (
-    <TouchableOpacity
+    <Card
+      mode="elevated"
       style={styles.productCard}
       onPress={() => router.push(`/(customer)/product/${item.id}`)}
     >
-      <View style={styles.productImage}>
-        <Text style={styles.placeholderText}>🌶️</Text>
-      </View>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {isGujarati ? item.name_gu : item.name}
-        </Text>
-        {item.weight_options.length > 0 && (
-          <Text style={styles.productPrice}>
-            From ₹{(item.weight_options[0].price_paise / 100).toFixed(2)}
+      <Card.Content style={styles.productCardContent}>
+        <View style={styles.productImage}>
+          <MaterialCommunityIcons name="leaf" size={32} color={theme.colors.primary} />
+        </View>
+        <View style={styles.productInfo}>
+          <Text variant="titleSmall" numberOfLines={2} style={styles.productName}>
+            {isGujarati ? item.name_gu : item.name}
           </Text>
-        )}
-      </View>
-    </TouchableOpacity>
+          {item.weight_options.length > 0 && (
+            <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+              From ₹{(item.weight_options[0].price_paise / 100).toFixed(2)}
+            </Text>
+          )}
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   if (favorites.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>❤️</Text>
-        <Text style={styles.emptyTitle}>{t('favorites.empty')}</Text>
-        <Text style={styles.emptySubtitle}>{t('favorites.addFavorites')}</Text>
+        <MaterialCommunityIcons name="heart-off" size={64} color="#999999" />
+        <Text variant="titleMedium" style={styles.emptyTitle}>{t('favorites.empty')}</Text>
+        <Text variant="bodyMedium" style={styles.emptySubtitle}>{t('favorites.addFavorites')}</Text>
       </View>
     );
   }
@@ -66,34 +73,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#333333',
+    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 14,
     color: '#666666',
   },
   listContent: {
     padding: 16,
   },
   productCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  productCardContent: {
+    flexDirection: 'row',
   },
   productImage: {
     width: 80,
@@ -103,23 +99,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 32,
-  },
   productInfo: {
     flex: 1,
     marginLeft: 12,
     justifyContent: 'center',
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#333333',
     marginBottom: 4,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF6B35',
   },
 });

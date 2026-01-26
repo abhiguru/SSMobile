@@ -26,7 +26,10 @@ export const fetchOrders = createAsyncThunk(
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('[fetchOrders] response:', JSON.stringify(data).slice(0, 500));
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       return rejectWithValue('Failed to load orders');
     }
@@ -76,10 +79,12 @@ export const createOrder = createAsyncThunk(
       });
 
       const data = await response.json();
+      console.log('[createOrder] response:', JSON.stringify(data));
       if (!response.ok) {
         return rejectWithValue(data.code || data.message || 'Failed to create order');
       }
-      return data;
+      // Checkout endpoint may wrap the order in a key
+      return data.order || data;
     } catch (error) {
       return rejectWithValue('Network error. Please try again.');
     }

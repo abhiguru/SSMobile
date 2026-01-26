@@ -1,10 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, StyleSheet } from 'react-native';
-
-const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
-  <Text style={[styles.icon, focused && styles.iconFocused]}>{name}</Text>
-);
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function DeliveryLayout() {
   const { t } = useTranslation();
@@ -32,7 +28,9 @@ export default function DeliveryLayout() {
         options={{
           title: t('delivery.deliveries'),
           tabBarLabel: 'Deliveries',
-          tabBarIcon: ({ focused }) => <TabIcon name="🚚" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="truck-delivery" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -40,26 +38,18 @@ export default function DeliveryLayout() {
         options={{
           title: t('delivery.history'),
           tabBarLabel: 'History',
-          tabBarIcon: ({ focused }) => <TabIcon name="📋" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="clipboard-list" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="[id]"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
           title: 'Delivery Details',
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    fontSize: 20,
-    opacity: 0.7,
-  },
-  iconFocused: {
-    opacity: 1,
-  },
-});

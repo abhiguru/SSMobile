@@ -1,10 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, StyleSheet } from 'react-native';
-
-const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
-  <Text style={[styles.icon, focused && styles.iconFocused]}>{name}</Text>
-);
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function AdminLayout() {
   const { t } = useTranslation();
@@ -32,7 +28,9 @@ export default function AdminLayout() {
         options={{
           title: t('admin.dashboard'),
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ focused }) => <TabIcon name="📊" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="view-dashboard" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -40,7 +38,9 @@ export default function AdminLayout() {
         options={{
           title: t('admin.products'),
           tabBarLabel: 'Products',
-          tabBarIcon: ({ focused }) => <TabIcon name="🌶️" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="leaf" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -48,7 +48,9 @@ export default function AdminLayout() {
         options={{
           title: t('admin.orders'),
           tabBarLabel: 'Orders',
-          tabBarIcon: ({ focused }) => <TabIcon name="📦" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="package-variant" color={color} size={size} />
+          ),
           headerShown: false,
         }}
       />
@@ -57,7 +59,9 @@ export default function AdminLayout() {
         options={{
           title: t('admin.staff'),
           tabBarLabel: 'Staff',
-          tabBarIcon: ({ focused }) => <TabIcon name="👥" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account-group" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -65,19 +69,11 @@ export default function AdminLayout() {
         options={{
           title: t('admin.settings'),
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ focused }) => <TabIcon name="⚙️" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="cog" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    fontSize: 20,
-    opacity: 0.7,
-  },
-  iconFocused: {
-    opacity: 1,
-  },
-});

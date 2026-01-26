@@ -1,10 +1,5 @@
-// Environment detection
-const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
-
 // API Configuration
-export const API_BASE_URL = isDevelopment
-  ? 'http://localhost:8100'
-  : 'https://api-masala.gurucold.in';
+export const API_BASE_URL = 'https://api-masala.gurucold.in';
 
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzY5MzQxMDAwLCJleHAiOjE4OTM0NTYwMDB9.Aqgd7n3j-riUsqJ54DrU8FLgxtHx4K8vTp9Ij_h35nE';
 

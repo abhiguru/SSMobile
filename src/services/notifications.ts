@@ -1,20 +1,33 @@
-import * as Notifications from 'expo-notifications';
+import type * as ExpoNotifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Detect if running in Expo Go (notifications removed from Expo Go in SDK 53+)
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Lazy-load expo-notifications to avoid crash in Expo Go
+let Notifications: typeof ExpoNotifications | null = null;
+
+if (!isExpoGo) {
+  Notifications = require('expo-notifications') as typeof ExpoNotifications;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (!Notifications) {
+    console.log('Push notifications not available in Expo Go');
+    return null;
+  }
+
   let token: string | null = null;
 
   if (!Device.isDevice) {
@@ -36,7 +49,6 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   try {
-    // Get project ID from expo config or constants
     const projectId = Constants.expoConfig?.extra?.eas?.projectId
       ?? Constants.easConfig?.projectId
       ?? 'your-project-id';
@@ -49,7 +61,6 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     console.error('Error getting push token:', error);
   }
 
-  // Android requires a notification channel
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Default',
@@ -69,14 +80,20 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 export function addNotificationListener(
-  callback: (notification: Notifications.Notification) => void
+  callback: (notification: ExpoNotifications.Notification) => void
 ) {
+  if (!Notifications) {
+    return { remove: () => {} };
+  }
   return Notifications.addNotificationReceivedListener(callback);
 }
 
 export function addNotificationResponseListener(
-  callback: (response: Notifications.NotificationResponse) => void
+  callback: (response: ExpoNotifications.NotificationResponse) => void
 ) {
+  if (!Notifications) {
+    return { remove: () => {} };
+  }
   return Notifications.addNotificationResponseReceivedListener(callback);
 }
 
@@ -85,12 +102,16 @@ export async function schedulePushNotification(
   body: string,
   data?: Record<string, unknown>
 ) {
+  if (!Notifications) {
+    console.log('Notifications not available in Expo Go:', { title, body });
+    return;
+  }
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
       data,
     },
-    trigger: null, // Immediate
+    trigger: null,
   });
 }

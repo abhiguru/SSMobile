@@ -1,17 +1,30 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Text, Button, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+
+import type { AppTheme } from '../src/theme';
 
 export default function NotFoundScreen() {
   const router = useRouter();
+  const theme = useTheme<AppTheme>();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>404</Text>
-      <Text style={styles.title}>Page Not Found</Text>
-      <Text style={styles.subtitle}>The page you're looking for doesn't exist.</Text>
-      <TouchableOpacity style={styles.button} onPress={() => router.replace('/')}>
-        <Text style={styles.buttonText}>Go Home</Text>
-      </TouchableOpacity>
+      <MaterialCommunityIcons name="alert-circle-outline" size={64} color={theme.colors.primary} />
+      <Text variant="displaySmall" style={[styles.code, { color: theme.colors.primary }]}>404</Text>
+      <Text variant="headlineSmall" style={styles.title}>Page Not Found</Text>
+      <Text variant="bodyMedium" style={styles.subtitle}>
+        The page you're looking for doesn't exist.
+      </Text>
+      <Button
+        mode="contained"
+        onPress={() => router.replace('/')}
+        style={styles.button}
+        contentStyle={styles.buttonContent}
+      >
+        Go Home
+      </Button>
     </View>
   );
 }
@@ -24,33 +37,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 24,
   },
-  icon: {
-    fontSize: 64,
+  code: {
     fontWeight: 'bold',
-    color: '#FF6B35',
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
     color: '#333333',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
     color: '#666666',
     textAlign: 'center',
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
     borderRadius: 8,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  buttonContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
 });

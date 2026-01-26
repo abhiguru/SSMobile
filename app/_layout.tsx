@@ -3,10 +3,12 @@ import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
+import { PaperProvider } from 'react-native-paper';
 import { I18nextProvider } from 'react-i18next';
 
 import { store, useAppDispatch, useAppSelector } from '../src/store';
 import i18n from '../src/i18n';
+import { paperTheme } from '../src/theme';
 import { checkSession } from '../src/store/slices/authSlice';
 import { loadFavorites, syncFavoritesWithBackend } from '../src/store/slices/productsSlice';
 import { fetchAddresses } from '../src/store/slices/addressesSlice';
@@ -52,18 +54,20 @@ export default function RootLayout() {
     <View style={{ flex: 1 }}>
       <ErrorBoundary>
         <Provider store={store}>
-          <I18nextProvider i18n={i18n}>
-            <AppInitializer>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(customer)" />
-                <Stack.Screen name="(admin)" />
-                <Stack.Screen name="(delivery)" />
-              </Stack>
-            </AppInitializer>
-          </I18nextProvider>
+          <PaperProvider theme={paperTheme}>
+            <I18nextProvider i18n={i18n}>
+              <AppInitializer>
+                <StatusBar style="auto" />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(customer)" />
+                  <Stack.Screen name="(admin)" />
+                  <Stack.Screen name="(delivery)" />
+                </Stack>
+              </AppInitializer>
+            </I18nextProvider>
+          </PaperProvider>
         </Provider>
       </ErrorBoundary>
     </View>

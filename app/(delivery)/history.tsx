@@ -1,21 +1,24 @@
 import { useEffect } from 'react';
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Card, Text, ActivityIndicator, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { fetchOrders, selectOrders } from '../../src/store/slices/ordersSlice';
 import { formatPrice } from '../../src/constants';
 import { Order } from '../../src/types';
+import { StatusBadge } from '../../src/components/common/StatusBadge';
+import type { AppTheme } from '../../src/theme';
 
 export default function DeliveryHistoryScreen() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const orders = useAppSelector(selectOrders);
   const { isLoading } = useAppSelector((state) => state.orders);
 
@@ -23,50 +26,40 @@ export default function DeliveryHistoryScreen() {
     dispatch(fetchOrders());
   }, [dispatch]);
 
-  // Filter for completed/failed deliveries
   const completedDeliveries = orders.filter(
     (o) => o.status === 'delivered' || o.status === 'delivery_failed'
   );
 
-  const getStatusColor = (status: string) => {
-    return status === 'delivered' ? '#4CAF50' : '#E53935';
-  };
-
   const renderDelivery = ({ item }: { item: Order }) => (
-    <View style={styles.deliveryCard}>
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{t(`status.${item.status}`)}</Text>
+    <Card mode="elevated" style={styles.deliveryCard}>
+      <Card.Content>
+        <View style={styles.orderHeader}>
+          <Text variant="titleSmall" style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
+          <StatusBadge status={item.status} />
         </View>
-      </View>
 
-      <Text style={styles.date}>
-        {new Date(item.updated_at).toLocaleString()}
-      </Text>
+        <Text variant="bodySmall" style={styles.date}>
+          {new Date(item.updated_at).toLocaleString()}
+        </Text>
 
-      <View style={styles.addressContainer}>
-        <Text style={styles.address} numberOfLines={1}>
+        <Text variant="bodyMedium" numberOfLines={1} style={styles.address}>
           {item.delivery_address}
         </Text>
-      </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.itemCount}>{item.items.length} items</Text>
-        <Text style={styles.orderTotal}>{formatPrice(item.total_paise)}</Text>
-      </View>
-    </View>
+        <View style={styles.footer}>
+          <Text variant="bodySmall" style={styles.itemCount}>{item.items.length} items</Text>
+          <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+            {formatPrice(item.total_paise)}
+          </Text>
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   if (isLoading && orders.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -74,8 +67,8 @@ export default function DeliveryHistoryScreen() {
   if (completedDeliveries.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📋</Text>
-        <Text style={styles.emptyTitle}>No delivery history</Text>
+        <MaterialCommunityIcons name="clipboard-list" size={64} color="#999999" />
+        <Text variant="titleMedium" style={styles.emptyTitle}>No delivery history</Text>
       </View>
     );
   }
@@ -110,27 +103,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 18,
     color: '#666666',
+    marginTop: 16,
   },
   listContent: {
     padding: 16,
   },
   deliveryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -139,34 +120,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   orderId: {
-    fontSize: 16,
     fontWeight: 'bold',
     color: '#333333',
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   date: {
-    fontSize: 12,
     color: '#666666',
     marginBottom: 8,
   },
-  addressContainer: {
+  address: {
+    color: '#333333',
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
-  },
-  address: {
-    fontSize: 14,
-    color: '#333333',
   },
   footer: {
     flexDirection: 'row',
@@ -174,12 +140,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemCount: {
-    fontSize: 14,
     color: '#666666',
-  },
-  orderTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF6B35',
   },
 });

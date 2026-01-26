@@ -43,7 +43,8 @@ export const sendOtp = createAsyncThunk(
     try {
       const response = await sendOtpApi(phone);
       if (response.error) {
-        return rejectWithValue(response.error.code || response.error.message || 'Failed to send OTP');
+        console.log('send-otp error response:', JSON.stringify(response.error));
+        return rejectWithValue(response.error.message || response.error.code || 'Failed to send OTP');
       }
       return {
         phone,

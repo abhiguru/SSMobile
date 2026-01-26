@@ -1,15 +1,18 @@
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
+import { ActivityIndicator, useTheme } from 'react-native-paper';
 
 import { useAppSelector } from '../src/store';
+import type { AppTheme } from '../src/theme';
 
 export default function Index() {
   const { isAuthenticated, isLoading, role } = useAppSelector((state) => state.auth);
+  const theme = useTheme<AppTheme>();
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }

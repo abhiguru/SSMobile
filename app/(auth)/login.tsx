@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
@@ -12,25 +9,27 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { sendOtp, clearError } from '../../src/store/slices/authSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
+import type { AppTheme } from '../../src/theme';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
+  const theme = useTheme<AppTheme>();
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('9876543210');
   const [validationError, setValidationError] = useState('');
 
   const handleSendOtp = async () => {
     setValidationError('');
     dispatch(clearError());
 
-    // Validate phone number
     if (!PHONE_REGEX.test(phone)) {
       setValidationError(t('auth.invalidPhone'));
       return;
@@ -44,6 +43,8 @@ export default function LoginScreen() {
     }
   };
 
+  const hasError = !!(validationError || error);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -51,37 +52,43 @@ export default function LoginScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.content}>
-        <Text style={styles.title}>{t('home.title')}</Text>
-        <Text style={styles.subtitle}>{t('auth.enterPhone')}</Text>
+          <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.primary }]}>
+            {t('home.title')}
+          </Text>
+          <Text variant="bodyLarge" style={styles.subtitle}>
+            {t('auth.enterPhone')}
+          </Text>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label={t('auth.enterPhone')}
             placeholder="9876543210"
             keyboardType="phone-pad"
             maxLength={10}
             value={phone}
             onChangeText={setPhone}
-            editable={!isLoading}
+            disabled={isLoading}
             returnKeyType="done"
             onSubmitEditing={handleSendOtp}
+            left={<TextInput.Affix text={PHONE_PREFIX} />}
+            error={hasError}
+            style={styles.input}
           />
-        </View>
+          <HelperText type="error" visible={hasError}>
+            {validationError || error}
+          </HelperText>
 
-        {(validationError || error) && (
-          <Text style={styles.error}>{validationError || error}</Text>
-        )}
-
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleSendOtp}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>
-            {isLoading ? t('common.loading') : t('auth.sendOtp')}
-          </Text>
-        </TouchableOpacity>
+          <Button
+            mode="contained"
+            onPress={handleSendOtp}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+          >
+            {t('auth.sendOtp')}
+          </Button>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -99,55 +106,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6B35',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
     color: '#666666',
     textAlign: 'center',
     marginBottom: 32,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  prefix: {
-    fontSize: 18,
-    color: '#333333',
-    marginRight: 8,
-  },
   input: {
-    flex: 1,
-    fontSize: 18,
-    paddingVertical: 16,
-    color: '#333333',
-  },
-  error: {
-    color: '#E53935',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
   },
   button: {
-    backgroundColor: '#FF6B35',
-    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  buttonDisabled: {
-    backgroundColor: '#FFAB91',
+  buttonContent: {
+    paddingVertical: 8,
   },
-  buttonText: {
-    color: '#FFFFFF',
+  buttonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },

@@ -56,7 +56,32 @@ export const sendOtp = async (phone: string): Promise<SendOtpResponse> => {
     },
     body: JSON.stringify({ phone }),
   });
-  return response.json();
+
+  const data = await response.json();
+
+  // If HTTP error but no structured error in body, create one
+  if (!response.ok && !data.error) {
+    return {
+      success: false,
+      error: {
+        code: `HTTP_${response.status}`,
+        message: data.message || data.msg || `Server error (${response.status})`,
+      },
+    };
+  }
+
+  // Normalize error if it's a string rather than an object
+  if (data.error && typeof data.error === 'string') {
+    return {
+      success: false,
+      error: {
+        code: 'UNKNOWN',
+        message: data.error,
+      },
+    };
+  }
+
+  return data;
 };
 
 export const verifyOtp = async (
@@ -88,43 +113,59 @@ export const verifyOtp = async (
   return data;
 };
 
-// Token refresh
-export const refreshSession = async (): Promise<{ accessToken: string; refreshToken: string } | null> => {
-  const { refreshToken } = await getStoredTokens();
+// Token refresh with deduplication to prevent race conditions.
+// When multiple authenticated requests fail simultaneously (e.g. fetchProducts
+// and fetchCategories both get 401), they all call refreshSession(). Without
+// deduplication, the second refresh attempt uses an already-consumed refresh
+// token, fails, and clears the new tokens stored by the first attempt.
+let refreshPromise: Promise<{ accessToken: string; refreshToken: string } | null> | null = null;
 
-  if (!refreshToken) {
-    return null;
+export const refreshSession = (): Promise<{ accessToken: string; refreshToken: string } | null> => {
+  if (refreshPromise) {
+    return refreshPromise;
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/functions/v1/refresh-token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
+  refreshPromise = (async () => {
+    const { refreshToken } = await getStoredTokens();
 
-    if (!response.ok) {
-      await clearStoredTokens();
+    if (!refreshToken) {
       return null;
     }
 
-    const data = await response.json();
-    if (data.access_token && data.refresh_token) {
-      await storeTokens(data.access_token, data.refresh_token);
-      return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-      };
-    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/functions/v1/refresh-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
 
-    return null;
-  } catch (error) {
-    console.error('Failed to refresh session:', error);
-    return null;
-  }
+      if (!response.ok) {
+        await clearStoredTokens();
+        return null;
+      }
+
+      const data = await response.json();
+      if (data.access_token && data.refresh_token) {
+        await storeTokens(data.access_token, data.refresh_token);
+        return {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+      return null;
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
 };
 
 // Authenticated API helper with auto-refresh
@@ -133,14 +174,17 @@ export const authenticatedFetch = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   let { accessToken } = await getStoredTokens();
+  console.log(`[authenticatedFetch] ${endpoint} — stored token: ${accessToken ? 'yes' : 'no'}`);
 
   // If no stored token, try Supabase session
   if (!accessToken) {
     const session = await supabase.auth.getSession();
     accessToken = session.data.session?.access_token || null;
+    console.log(`[authenticatedFetch] ${endpoint} — supabase session token: ${accessToken ? 'yes' : 'no'}`);
   }
 
   if (!accessToken) {
+    console.log(`[authenticatedFetch] ${endpoint} — NO TOKEN, throwing`);
     throw new Error('Not authenticated');
   }
 
@@ -153,10 +197,13 @@ export const authenticatedFetch = async (
       ...options.headers,
     },
   });
+  console.log(`[authenticatedFetch] ${endpoint} — status: ${response.status}`);
 
   // If 401, try to refresh token and retry once
   if (response.status === 401) {
+    console.log(`[authenticatedFetch] ${endpoint} — got 401, attempting refresh`);
     const newTokens = await refreshSession();
+    console.log(`[authenticatedFetch] ${endpoint} — refresh result: ${newTokens ? 'success' : 'failed'}`);
     if (newTokens) {
       response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
@@ -167,6 +214,7 @@ export const authenticatedFetch = async (
           ...options.headers,
         },
       });
+      console.log(`[authenticatedFetch] ${endpoint} — retry status: ${response.status}`);
     }
   }
 

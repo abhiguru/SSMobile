@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import {
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Chip,
+  RadioButton,
+  Divider,
+  ActivityIndicator,
+  useTheme,
+} from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { selectCartItems, selectCartTotal, clearCart } from '../../src/store/slices/cartSlice';
@@ -30,11 +37,13 @@ import {
 } from '../../src/store/slices/settingsSlice';
 import { formatPrice } from '../../src/constants';
 import { Address } from '../../src/types';
+import type { AppTheme } from '../../src/theme';
 
 export default function CheckoutScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
 
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartTotal);
@@ -79,7 +88,6 @@ export default function CheckoutScreen() {
       return;
     }
 
-    // Check if pincode is serviceable
     if (!isPincodeServiceable(selectedAddress.pincode, appSettings)) {
       Alert.alert(t('common.error'), t('checkout.pincodeNotServiceable'));
       return;
@@ -124,7 +132,7 @@ export default function CheckoutScreen() {
   if (addressesLoading && addresses.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -138,143 +146,151 @@ export default function CheckoutScreen() {
         {/* Address Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
-            <TouchableOpacity onPress={handleAddAddress}>
-              <Text style={styles.addLink}>{t('checkout.addNew')}</Text>
-            </TouchableOpacity>
+            <Text variant="titleMedium" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
+            <Button mode="text" compact onPress={handleAddAddress}>
+              {t('checkout.addNew')}
+            </Button>
           </View>
 
           {addresses.length === 0 ? (
-            <TouchableOpacity style={styles.addAddressButton} onPress={handleAddAddress}>
-              <Text style={styles.addAddressText}>{t('checkout.addAddress')}</Text>
-            </TouchableOpacity>
+            <Button
+              mode="outlined"
+              icon="plus"
+              onPress={handleAddAddress}
+              style={styles.addAddressButton}
+            >
+              {t('checkout.addAddress')}
+            </Button>
           ) : (
-            addresses.map((address) => (
-              <TouchableOpacity
-                key={address.id}
-                style={[
-                  styles.addressCard,
-                  selectedAddressId === address.id && styles.addressCardSelected,
-                ]}
-                onPress={() => handleSelectAddress(address)}
-              >
-                <View style={styles.addressRadio}>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      selectedAddressId === address.id && styles.radioOuterSelected,
-                    ]}
-                  >
-                    {selectedAddressId === address.id && <View style={styles.radioInner} />}
-                  </View>
-                </View>
-                <View style={styles.addressContent}>
-                  <View style={styles.addressHeader}>
-                    <Text style={styles.addressLabel}>
-                      {address.label || address.full_name}
-                    </Text>
-                    {address.is_default && (
-                      <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultBadgeText}>{t('addresses.default')}</Text>
+            <RadioButton.Group
+              value={selectedAddressId || ''}
+              onValueChange={(value) => {
+                const addr = addresses.find((a) => a.id === value);
+                if (addr) handleSelectAddress(addr);
+              }}
+            >
+              {addresses.map((address) => (
+                <Card
+                  key={address.id}
+                  mode="outlined"
+                  style={[
+                    styles.addressCard,
+                    selectedAddressId === address.id && styles.addressCardSelected,
+                  ]}
+                  onPress={() => handleSelectAddress(address)}
+                >
+                  <Card.Content style={styles.addressCardContent}>
+                    <RadioButton.Android value={address.id} />
+                    <View style={styles.addressContent}>
+                      <View style={styles.addressHeader}>
+                        <Text variant="titleSmall">
+                          {address.label || address.full_name}
+                        </Text>
+                        {address.is_default && (
+                          <Chip compact style={styles.defaultChip} textStyle={styles.defaultChipText}>
+                            {t('addresses.default')}
+                          </Chip>
+                        )}
                       </View>
-                    )}
-                  </View>
-                  <Text style={styles.addressName}>{address.full_name}</Text>
-                  <Text style={styles.addressLine}>
-                    {address.address_line1}
-                    {address.address_line2 ? `, ${address.address_line2}` : ''}
-                  </Text>
-                  <Text style={styles.addressLine}>
-                    {address.city}{address.state ? `, ${address.state}` : ''} - {address.pincode}
-                  </Text>
-                  <Text style={styles.addressPhone}>{address.phone}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
+                      <Text variant="bodySmall" style={styles.addressName}>{address.full_name}</Text>
+                      <Text variant="bodySmall" style={styles.addressLine}>
+                        {address.address_line1}
+                        {address.address_line2 ? `, ${address.address_line2}` : ''}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.addressLine}>
+                        {address.city}{address.state ? `, ${address.state}` : ''} - {address.pincode}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.addressPhone}>{address.phone}</Text>
+                    </View>
+                  </Card.Content>
+                </Card>
+              ))}
+            </RadioButton.Group>
           )}
         </View>
 
         {/* Order Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
+          <Text variant="titleMedium" style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
           <TextInput
-            style={[styles.input, styles.notesInput]}
+            mode="outlined"
             placeholder={t('checkout.orderNotesPlaceholder')}
             value={notes}
             onChangeText={setNotes}
             multiline
             numberOfLines={3}
+            style={styles.notesInput}
           />
         </View>
 
         {/* Order Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('checkout.orderSummary')}</Text>
+          <Text variant="titleMedium" style={styles.sectionTitle}>{t('checkout.orderSummary')}</Text>
           {items.map((item) => (
             <View key={`${item.product_id}-${item.weight_option_id}`} style={styles.orderItem}>
-              <Text style={styles.itemName}>
+              <Text variant="bodyMedium" style={styles.itemName}>
                 {item.product.name} ({item.weight_option.weight_label || `${item.weight_option.weight_grams}g`})
               </Text>
-              <Text style={styles.itemQty}>x{item.quantity}</Text>
-              <Text style={styles.itemPrice}>
+              <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
+              <Text variant="bodyMedium" style={styles.itemPrice}>
                 {formatPrice(item.weight_option.price_paise * item.quantity)}
               </Text>
             </View>
           ))}
 
-          <View style={styles.summaryDivider} />
+          <Divider style={styles.divider} />
 
-          {/* Subtotal */}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('checkout.subtotal')}</Text>
-            <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
+            <Text variant="bodyMedium" style={styles.summaryLabel}>{t('checkout.subtotal')}</Text>
+            <Text variant="bodyMedium">{formatPrice(subtotal)}</Text>
           </View>
 
-          {/* Shipping */}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('checkout.shipping')}</Text>
+            <Text variant="bodyMedium" style={styles.summaryLabel}>{t('checkout.shipping')}</Text>
             {shippingCharge === 0 ? (
-              <Text style={styles.freeShipping}>{t('checkout.free')}</Text>
+              <Text variant="bodyMedium" style={{ color: theme.custom.success, fontWeight: '600' }}>
+                {t('checkout.free')}
+              </Text>
             ) : (
-              <Text style={styles.summaryValue}>{formatPrice(shippingCharge)}</Text>
+              <Text variant="bodyMedium">{formatPrice(shippingCharge)}</Text>
             )}
           </View>
 
-          {/* Free shipping message */}
           {shippingCharge > 0 && (
-            <Text style={styles.freeShippingHint}>
+            <Text variant="bodySmall" style={{ color: theme.colors.primary, marginBottom: 12 }}>
               {t('checkout.freeShippingHint', {
                 amount: formatPrice(appSettings.free_shipping_threshold_paise - subtotal),
               })}
             </Text>
           )}
 
-          {/* Total */}
+          <Divider style={styles.divider} />
+
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{t('cart.total')}</Text>
-            <Text style={styles.totalAmount}>{formatPrice(total)}</Text>
+            <Text variant="titleMedium" style={styles.totalLabel}>{t('cart.total')}</Text>
+            <Text variant="headlineSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+              {formatPrice(total)}
+            </Text>
           </View>
 
-          {/* Minimum order warning */}
           {!minOrderMet && (
-            <Text style={styles.minOrderWarning}>
+            <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8, textAlign: 'center' }}>
               {t('checkout.minOrderWarning', { amount: formatPrice(appSettings.min_order_paise) })}
             </Text>
           )}
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.placeOrderButton,
-            (ordersLoading || !selectedAddressId || !minOrderMet) && styles.buttonDisabled,
-          ]}
+        <Button
+          mode="contained"
           onPress={handlePlaceOrder}
+          loading={ordersLoading}
           disabled={ordersLoading || !selectedAddressId || !minOrderMet}
+          style={styles.placeOrderButton}
+          contentStyle={styles.placeOrderContent}
+          labelStyle={styles.placeOrderLabel}
         >
-          <Text style={styles.placeOrderText}>
-            {ordersLoading ? t('common.loading') : t('checkout.placeOrder')}
-          </Text>
-        </TouchableOpacity>
+          {t('checkout.placeOrder')}
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -302,34 +318,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#333333',
   },
-  addLink: {
-    fontSize: 14,
-    color: '#FF6B35',
-    fontWeight: '500',
-  },
   addAddressButton: {
-    borderWidth: 2,
-    borderColor: '#FF6B35',
     borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-  },
-  addAddressText: {
-    color: '#FF6B35',
-    fontSize: 16,
-    fontWeight: '500',
+    padding: 8,
   },
   addressCard: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
-    padding: 12,
     marginBottom: 12,
   },
   addressCardSelected: {
@@ -337,80 +333,41 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#FFF5F2',
   },
-  addressRadio: {
-    marginRight: 12,
-    paddingTop: 2,
-  },
-  radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#DDDDDD',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: '#FF6B35',
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF6B35',
+  addressCardContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   addressContent: {
     flex: 1,
+    marginLeft: 4,
   },
   addressHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
   },
-  addressLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  defaultBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  defaultChip: {
     marginLeft: 8,
+    backgroundColor: '#E8F5E9',
+    height: 24,
   },
-  defaultBadgeText: {
+  defaultChipText: {
     fontSize: 10,
     color: '#4CAF50',
-    fontWeight: '600',
   },
   addressName: {
-    fontSize: 14,
     color: '#333333',
     marginBottom: 2,
   },
   addressLine: {
-    fontSize: 14,
     color: '#666666',
   },
   addressPhone: {
-    fontSize: 14,
     color: '#666666',
     marginTop: 4,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
   notesInput: {
-    height: 100,
-    textAlignVertical: 'top',
-    marginBottom: 0,
+    backgroundColor: '#FFFFFF',
   },
   orderItem: {
     flexDirection: 'row',
@@ -421,22 +378,17 @@ const styles = StyleSheet.create({
   },
   itemName: {
     flex: 1,
-    fontSize: 14,
     color: '#333333',
   },
   itemQty: {
-    fontSize: 14,
     color: '#666666',
     marginHorizontal: 12,
   },
   itemPrice: {
-    fontSize: 14,
     fontWeight: '600',
     color: '#333333',
   },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#EEEEEE',
+  divider: {
     marginVertical: 12,
   },
   summaryRow: {
@@ -446,61 +398,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryLabel: {
-    fontSize: 14,
     color: '#666666',
-  },
-  summaryValue: {
-    fontSize: 14,
-    color: '#333333',
-  },
-  freeShipping: {
-    fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  freeShippingHint: {
-    fontSize: 12,
-    color: '#FF6B35',
-    marginBottom: 12,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    marginTop: 4,
   },
   totalLabel: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#333333',
   },
-  totalAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-  },
-  minOrderWarning: {
-    fontSize: 12,
-    color: '#E53935',
-    marginTop: 8,
-    textAlign: 'center',
-  },
   placeOrderButton: {
-    backgroundColor: '#FF6B35',
     marginHorizontal: 16,
     marginBottom: 32,
-    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  buttonDisabled: {
-    backgroundColor: '#FFAB91',
+  placeOrderContent: {
+    paddingVertical: 8,
   },
-  placeOrderText: {
-    color: '#FFFFFF',
+  placeOrderLabel: {
     fontSize: 18,
     fontWeight: '600',
   },

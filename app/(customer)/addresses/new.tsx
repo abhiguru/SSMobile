@@ -1,28 +1,27 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Text, TextInput, Button, HelperText, Switch, useTheme } from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '../../../src/store';
 import { addAddress } from '../../../src/store/slices/addressesSlice';
 import { selectAppSettings, isPincodeServiceable } from '../../../src/store/slices/settingsSlice';
 import { PHONE_REGEX } from '../../../src/constants';
+import type { AppTheme } from '../../../src/theme';
 
 export default function NewAddressScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const appSettings = useAppSelector(selectAppSettings);
   const { isLoading } = useAppSelector((state) => state.addresses);
 
@@ -116,115 +115,129 @@ export default function NewAddressScreen() {
     >
       <ScrollView style={styles.container}>
         <View style={styles.section}>
-          <Text style={styles.label}>{t('addresses.label')}</Text>
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label={t('addresses.label')}
             placeholder={t('addresses.labelPlaceholder')}
             value={form.label}
             onChangeText={(text) => updateField('label', text)}
+            style={styles.input}
           />
 
-          <Text style={styles.label}>
-            {t('addresses.fullName')} <Text style={styles.required}>*</Text>
-          </Text>
           <TextInput
-            style={[styles.input, errors.full_name && styles.inputError]}
+            mode="outlined"
+            label={`${t('addresses.fullName')} *`}
             placeholder={t('addresses.fullNamePlaceholder')}
             value={form.full_name}
             onChangeText={(text) => updateField('full_name', text)}
+            error={!!errors.full_name}
+            style={styles.input}
           />
-          {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
+          <HelperText type="error" visible={!!errors.full_name}>
+            {errors.full_name}
+          </HelperText>
 
-          <Text style={styles.label}>
-            {t('addresses.phone')} <Text style={styles.required}>*</Text>
-          </Text>
           <TextInput
-            style={[styles.input, errors.phone && styles.inputError]}
+            mode="outlined"
+            label={`${t('addresses.phone')} *`}
             placeholder={t('addresses.phonePlaceholder')}
             value={form.phone}
             onChangeText={(text) => updateField('phone', text)}
             keyboardType="phone-pad"
             maxLength={14}
+            error={!!errors.phone}
+            style={styles.input}
           />
-          {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          <HelperText type="error" visible={!!errors.phone}>
+            {errors.phone}
+          </HelperText>
 
-          <Text style={styles.label}>
-            {t('checkout.addressLine1')} <Text style={styles.required}>*</Text>
-          </Text>
           <TextInput
-            style={[styles.input, errors.address_line1 && styles.inputError]}
+            mode="outlined"
+            label={`${t('checkout.addressLine1')} *`}
             placeholder={t('addresses.addressLine1Placeholder')}
             value={form.address_line1}
             onChangeText={(text) => updateField('address_line1', text)}
-          />
-          {errors.address_line1 && <Text style={styles.errorText}>{errors.address_line1}</Text>}
-
-          <Text style={styles.label}>{t('checkout.addressLine2')}</Text>
-          <TextInput
+            error={!!errors.address_line1}
             style={styles.input}
+          />
+          <HelperText type="error" visible={!!errors.address_line1}>
+            {errors.address_line1}
+          </HelperText>
+
+          <TextInput
+            mode="outlined"
+            label={t('checkout.addressLine2')}
             placeholder={t('addresses.addressLine2Placeholder')}
             value={form.address_line2}
             onChangeText={(text) => updateField('address_line2', text)}
+            style={styles.input}
           />
 
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <Text style={styles.label}>
-                {t('checkout.city')} <Text style={styles.required}>*</Text>
-              </Text>
               <TextInput
-                style={[styles.input, errors.city && styles.inputError]}
+                mode="outlined"
+                label={`${t('checkout.city')} *`}
                 placeholder={t('addresses.cityPlaceholder')}
                 value={form.city}
                 onChangeText={(text) => updateField('city', text)}
+                error={!!errors.city}
+                style={styles.input}
               />
-              {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
+              <HelperText type="error" visible={!!errors.city}>
+                {errors.city}
+              </HelperText>
             </View>
 
             <View style={styles.halfField}>
-              <Text style={styles.label}>{t('addresses.state')}</Text>
               <TextInput
-                style={styles.input}
+                mode="outlined"
+                label={t('addresses.state')}
                 placeholder={t('addresses.statePlaceholder')}
                 value={form.state}
                 onChangeText={(text) => updateField('state', text)}
+                style={styles.input}
               />
             </View>
           </View>
 
-          <Text style={styles.label}>
-            {t('checkout.pincode')} <Text style={styles.required}>*</Text>
-          </Text>
           <TextInput
-            style={[styles.input, errors.pincode && styles.inputError]}
+            mode="outlined"
+            label={`${t('checkout.pincode')} *`}
             placeholder={t('addresses.pincodePlaceholder')}
             value={form.pincode}
             onChangeText={(text) => updateField('pincode', text)}
             keyboardType="number-pad"
             maxLength={6}
+            error={!!errors.pincode}
+            style={styles.input}
           />
-          {errors.pincode && <Text style={styles.errorText}>{errors.pincode}</Text>}
+          <HelperText type="error" visible={!!errors.pincode}>
+            {errors.pincode}
+          </HelperText>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>{t('addresses.setAsDefault')}</Text>
+            <Text variant="bodyLarge">{t('addresses.setAsDefault')}</Text>
             <Switch
               value={form.is_default}
               onValueChange={(value) => updateField('is_default', value)}
-              trackColor={{ false: '#DDDDDD', true: '#FFAB91' }}
-              thumbColor={form.is_default ? '#FF6B35' : '#FFFFFF'}
+              color={theme.colors.primary}
             />
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.buttonDisabled]}
+        <Button
+          mode="contained"
           onPress={handleSave}
+          loading={isLoading}
           disabled={isLoading}
+          style={styles.saveButton}
+          contentStyle={styles.saveButtonContent}
+          labelStyle={styles.saveButtonLabel}
         >
-          <Text style={styles.saveButtonText}>
-            {isLoading ? t('common.loading') : t('common.save')}
-          </Text>
-        </TouchableOpacity>
+          {t('common.save')}
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -240,33 +253,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#E53935',
-  },
   input: {
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 16,
     backgroundColor: '#FFFFFF',
-  },
-  inputError: {
-    borderColor: '#E53935',
     marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#E53935',
-    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
@@ -281,23 +270,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  switchLabel: {
-    fontSize: 16,
-    color: '#333333',
-  },
   saveButton: {
-    backgroundColor: '#FF6B35',
     marginHorizontal: 16,
     marginBottom: 32,
-    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  buttonDisabled: {
-    backgroundColor: '#FFAB91',
+  saveButtonContent: {
+    paddingVertical: 8,
   },
-  saveButtonText: {
-    color: '#FFFFFF',
+  saveButtonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },

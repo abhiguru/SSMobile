@@ -1,6 +1,8 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Card, Text, Button, IconButton, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import {
@@ -10,11 +12,13 @@ import {
   removeFromCart,
 } from '../../src/store/slices/cartSlice';
 import { formatPrice } from '../../src/constants';
+import type { AppTheme } from '../../src/theme';
 
 export default function CartScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme<AppTheme>();
   const items = useAppSelector(selectCartItems);
   const total = useAppSelector(selectCartTotal);
 
@@ -35,59 +39,63 @@ export default function CartScreen() {
   };
 
   const renderItem = ({ item }: { item: typeof items[0] }) => (
-    <View style={styles.cartItem}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>
-          {isGujarati ? item.product.name_gu : item.product.name}
-        </Text>
-        <Text style={styles.itemWeight}>{item.weight_option.weight_grams}g</Text>
-        <Text style={styles.itemPrice}>
-          {formatPrice(item.weight_option.price_paise)}
-        </Text>
-      </View>
-      <View style={styles.quantityContainer}>
-        <TouchableOpacity
-          style={styles.quantityButton}
-          onPress={() =>
-            handleQuantityChange(
-              item.product_id,
-              item.weight_option_id,
-              -1,
-              item.quantity
-            )
-          }
-        >
-          <Text style={styles.quantityButtonText}>-</Text>
-        </TouchableOpacity>
-        <Text style={styles.quantity}>{item.quantity}</Text>
-        <TouchableOpacity
-          style={styles.quantityButton}
-          onPress={() =>
-            handleQuantityChange(
-              item.product_id,
-              item.weight_option_id,
-              1,
-              item.quantity
-            )
-          }
-        >
-          <Text style={styles.quantityButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <Card mode="elevated" style={styles.cartItem}>
+      <Card.Content style={styles.cartItemContent}>
+        <View style={styles.itemInfo}>
+          <Text variant="titleSmall" style={styles.itemName}>
+            {isGujarati ? item.product.name_gu : item.product.name}
+          </Text>
+          <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_option.weight_grams}g</Text>
+          <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+            {formatPrice(item.weight_option.price_paise)}
+          </Text>
+        </View>
+        <View style={styles.quantityContainer}>
+          <IconButton
+            icon="minus"
+            mode="contained-tonal"
+            size={16}
+            onPress={() =>
+              handleQuantityChange(
+                item.product_id,
+                item.weight_option_id,
+                -1,
+                item.quantity
+              )
+            }
+          />
+          <Text variant="titleMedium" style={styles.quantity}>{item.quantity}</Text>
+          <IconButton
+            icon="plus"
+            mode="contained-tonal"
+            size={16}
+            onPress={() =>
+              handleQuantityChange(
+                item.product_id,
+                item.weight_option_id,
+                1,
+                item.quantity
+              )
+            }
+          />
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   if (items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>🛒</Text>
-        <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
-        <TouchableOpacity
-          style={styles.shopButton}
+        <MaterialCommunityIcons name="cart-off" size={64} color="#999999" />
+        <Text variant="titleMedium" style={styles.emptyTitle}>{t('cart.empty')}</Text>
+        <Button
+          mode="contained"
           onPress={() => router.push('/(customer)')}
+          style={styles.shopButton}
+          contentStyle={styles.shopButtonContent}
         >
-          <Text style={styles.shopButtonText}>{t('cart.startShopping')}</Text>
-        </TouchableOpacity>
+          {t('cart.startShopping')}
+        </Button>
       </View>
     );
   }
@@ -102,15 +110,20 @@ export default function CartScreen() {
       />
       <View style={styles.footer}>
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>{t('cart.total')}</Text>
-          <Text style={styles.totalAmount}>{formatPrice(total)}</Text>
+          <Text variant="titleMedium" style={styles.totalLabel}>{t('cart.total')}</Text>
+          <Text variant="headlineSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+            {formatPrice(total)}
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.checkoutButton}
+        <Button
+          mode="contained"
           onPress={() => router.push('/(customer)/checkout')}
+          style={styles.checkoutButton}
+          contentStyle={styles.checkoutButtonContent}
+          labelStyle={styles.checkoutButtonLabel}
         >
-          <Text style={styles.checkoutButtonText}>{t('cart.checkout')}</Text>
-        </TouchableOpacity>
+          {t('cart.checkout')}
+        </Button>
       </View>
     </View>
   );
@@ -127,81 +140,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  emptyText: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 18,
     color: '#666666',
+    marginTop: 16,
     marginBottom: 24,
   },
   shopButton: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
     borderRadius: 8,
   },
-  shopButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  shopButtonContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   listContent: {
     padding: 16,
   },
   cartItem: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  cartItemContent: {
+    flexDirection: 'row',
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#333333',
     marginBottom: 4,
   },
   itemWeight: {
-    fontSize: 14,
     color: '#666666',
     marginBottom: 4,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF6B35',
   },
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  quantityButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityButtonText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333333',
-  },
   quantity: {
-    fontSize: 18,
     fontWeight: '600',
-    marginHorizontal: 16,
+    marginHorizontal: 8,
     color: '#333333',
   },
   footer: {
@@ -217,23 +194,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   totalLabel: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#333333',
   },
-  totalAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-  },
   checkoutButton: {
-    backgroundColor: '#FF6B35',
-    paddingVertical: 16,
     borderRadius: 8,
-    alignItems: 'center',
   },
-  checkoutButtonText: {
-    color: '#FFFFFF',
+  checkoutButtonContent: {
+    paddingVertical: 8,
+  },
+  checkoutButtonLabel: {
     fontSize: 18,
     fontWeight: '600',
   },

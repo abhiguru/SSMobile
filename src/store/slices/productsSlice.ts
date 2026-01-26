@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { Product, Category } from '../../types';
 import { authenticatedFetch } from '../../services/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,12 +30,18 @@ export const fetchProducts = createAsyncThunk(
       const url = includeUnavailable
         ? baseUrl
         : `${baseUrl}&is_available=eq.true&is_active=eq.true`;
+      console.log('[fetchProducts] calling authenticatedFetch');
       const response = await authenticatedFetch(url);
       if (!response.ok) {
+        const body = await response.text();
+        console.error(`[fetchProducts] HTTP ${response.status}: ${body}`);
         throw new Error('Failed to fetch products');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log(`[fetchProducts] success — ${data.length} products`);
+      return data;
     } catch (error) {
+      console.error('[fetchProducts] error:', error);
       return rejectWithValue('Failed to load products');
     }
   }
@@ -45,14 +51,20 @@ export const fetchCategories = createAsyncThunk(
   'products/fetchCategories',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('[fetchCategories] calling authenticatedFetch');
       const response = await authenticatedFetch(
         '/rest/v1/categories?is_active=eq.true&order=display_order'
       );
       if (!response.ok) {
+        const body = await response.text();
+        console.error(`[fetchCategories] HTTP ${response.status}: ${body}`);
         throw new Error('Failed to fetch categories');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log(`[fetchCategories] success — ${data.length} categories`);
+      return data;
     } catch (error) {
+      console.error('[fetchCategories] error:', error);
       return rejectWithValue('Failed to load categories');
     }
   }
@@ -232,8 +244,10 @@ export const selectProductById = (productId: string) => (state: { products: Prod
 export const selectProductsByCategory = (categoryId: string) => (state: { products: ProductsState }) =>
   state.products.products.filter((p) => p.category_id === categoryId);
 
-export const selectFavoriteProducts = (state: { products: ProductsState }) =>
-  state.products.products.filter((p) => state.products.favorites.includes(p.id));
+export const selectFavoriteProducts = createSelector(
+  [selectProducts, selectFavorites],
+  (products, favorites) => products.filter((p) => favorites.includes(p.id))
+);
 
 export const { clearProductsError } = productsSlice.actions;
 export default productsSlice.reducer;

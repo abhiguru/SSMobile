@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Text } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function StaffScreen() {
   const { t } = useTranslation();
@@ -7,9 +9,9 @@ export default function StaffScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.placeholder}>
-        <Text style={styles.icon}>👥</Text>
-        <Text style={styles.title}>{t('admin.staff')}</Text>
-        <Text style={styles.subtitle}>Staff management coming soon</Text>
+        <MaterialCommunityIcons name="account-group" size={64} color="#999999" />
+        <Text variant="headlineSmall" style={styles.title}>{t('admin.staff')}</Text>
+        <Text variant="bodyMedium" style={styles.subtitle}>Staff management coming soon</Text>
       </View>
     </View>
   );
@@ -26,18 +28,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  icon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
     color: '#333333',
+    marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
     color: '#666666',
   },
 });

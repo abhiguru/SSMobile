@@ -1,22 +1,22 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { View, Text, StyleSheet } from 'react-native';
+import { View } from 'react-native';
+import { Badge } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
 import { selectCartItemCount } from '../../src/store/slices/cartSlice';
-
-// Simple icon components (replace with proper icons later)
-const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
-  <Text style={[styles.icon, focused && styles.iconFocused]}>{name}</Text>
-);
 
 const CartBadge = () => {
   const count = useAppSelector(selectCartItemCount);
   if (count === 0) return null;
   return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
-    </View>
+    <Badge
+      size={18}
+      style={{ position: 'absolute', top: -4, right: -8 }}
+    >
+      {count > 9 ? '9+' : count}
+    </Badge>
   );
 };
 
@@ -46,7 +46,9 @@ export default function CustomerLayout() {
         options={{
           title: t('home.title'),
           tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon name="🏠" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -54,9 +56,9 @@ export default function CustomerLayout() {
         options={{
           title: t('cart.title'),
           tabBarLabel: 'Cart',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ color, size }) => (
             <View>
-              <TabIcon name="🛒" focused={focused} />
+              <MaterialCommunityIcons name="cart" color={color} size={size} />
               <CartBadge />
             </View>
           ),
@@ -67,7 +69,9 @@ export default function CustomerLayout() {
         options={{
           title: t('orders.title'),
           tabBarLabel: 'Orders',
-          tabBarIcon: ({ focused }) => <TabIcon name="📦" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="package-variant" color={color} size={size} />
+          ),
           headerShown: false,
         }}
       />
@@ -76,7 +80,9 @@ export default function CustomerLayout() {
         options={{
           title: t('favorites.title'),
           tabBarLabel: 'Favorites',
-          tabBarIcon: ({ focused }) => <TabIcon name="❤️" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="heart" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -84,56 +90,32 @@ export default function CustomerLayout() {
         options={{
           title: t('profile.title'),
           tabBarLabel: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon name="👤" focused={focused} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="product/[id]"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
           title: t('product.details'),
         }}
       />
       <Tabs.Screen
         name="checkout"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
           title: t('checkout.title'),
         }}
       />
       <Tabs.Screen
         name="addresses"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
           headerShown: false,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    fontSize: 20,
-    opacity: 0.7,
-  },
-  iconFocused: {
-    opacity: 1,
-  },
-  badge: {
-    position: 'absolute',
-    right: -8,
-    top: -4,
-    backgroundColor: '#E53935',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-});

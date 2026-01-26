@@ -5,6 +5,7 @@ import { Text, Button, List, Divider, Switch, Avatar, useTheme } from 'react-nat
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
+import { apiSlice } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import type { AppTheme } from '../../src/theme';
 
@@ -19,6 +20,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await dispatch(logout());
+    dispatch(apiSlice.util.resetApiState());
     router.replace('/');
   };
 
@@ -42,54 +44,23 @@ export default function ProfileScreen() {
           title={t('profile.language')}
           right={() => (
             <View style={styles.languageToggle}>
-              <Text variant="bodyMedium" style={[styles.languageText, !isGujarati && styles.languageActive]}>
-                EN
-              </Text>
-              <Switch
-                value={isGujarati}
-                onValueChange={handleLanguageToggle}
-                color={theme.colors.primary}
-              />
-              <Text variant="bodyMedium" style={[styles.languageText, isGujarati && styles.languageActive]}>
-                gu
-              </Text>
+              <Text variant="bodyMedium" style={[styles.languageText, !isGujarati && styles.languageActive]}>EN</Text>
+              <Switch value={isGujarati} onValueChange={handleLanguageToggle} color={theme.colors.primary} />
+              <Text variant="bodyMedium" style={[styles.languageText, isGujarati && styles.languageActive]}>gu</Text>
             </View>
           )}
         />
         <Divider />
-
-        <List.Item
-          title={t('profile.savedAddresses')}
-          right={() => <List.Icon icon="chevron-right" />}
-          onPress={() => router.push('/(customer)/addresses')}
-        />
+        <List.Item title={t('profile.savedAddresses')} right={() => <List.Icon icon="chevron-right" />} onPress={() => router.push('/(customer)/addresses')} />
         <Divider />
-
-        <List.Item
-          title={t('profile.notifications')}
-          right={() => <List.Icon icon="chevron-right" />}
-        />
+        <List.Item title={t('profile.notifications')} right={() => <List.Icon icon="chevron-right" />} />
         <Divider />
-
-        <List.Item
-          title={t('profile.aboutUs')}
-          right={() => <List.Icon icon="chevron-right" />}
-        />
+        <List.Item title={t('profile.aboutUs')} right={() => <List.Icon icon="chevron-right" />} />
         <Divider />
-
-        <List.Item
-          title={t('profile.help')}
-          right={() => <List.Icon icon="chevron-right" />}
-        />
+        <List.Item title={t('profile.help')} right={() => <List.Icon icon="chevron-right" />} />
       </View>
 
-      <Button
-        mode="text"
-        textColor={theme.colors.error}
-        onPress={handleLogout}
-        style={styles.logoutButton}
-        labelStyle={styles.logoutLabel}
-      >
+      <Button mode="text" textColor={theme.colors.error} onPress={handleLogout} style={styles.logoutButton} labelStyle={styles.logoutLabel}>
         {t('auth.logout')}
       </Button>
     </View>
@@ -97,46 +68,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  name: {
-    fontWeight: '600',
-    color: '#333333',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  phone: {
-    color: '#666666',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  languageToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  languageText: {
-    color: '#999999',
-  },
-  languageActive: {
-    color: '#FF6B35',
-    fontWeight: '600',
-  },
-  logoutButton: {
-    backgroundColor: '#FFFFFF',
-  },
-  logoutLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  header: { backgroundColor: '#FFFFFF', padding: 24, alignItems: 'center', marginBottom: 16 },
+  name: { fontWeight: '600', color: '#333333', marginTop: 12, marginBottom: 4 },
+  phone: { color: '#666666' },
+  section: { backgroundColor: '#FFFFFF', marginBottom: 16 },
+  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  languageText: { color: '#999999' },
+  languageActive: { color: '#FF6B35', fontWeight: '600' },
+  logoutButton: { backgroundColor: '#FFFFFF' },
+  logoutLabel: { fontSize: 16, fontWeight: '600' },
 });

@@ -11,8 +11,6 @@ import i18n from '../src/i18n';
 import { paperTheme } from '../src/theme';
 import { checkSession } from '../src/store/slices/authSlice';
 import { loadFavorites, syncFavoritesWithBackend } from '../src/store/slices/productsSlice';
-import { fetchAddresses } from '../src/store/slices/addressesSlice';
-import { fetchAppSettings } from '../src/store/slices/settingsSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 import { registerForPushNotificationsAsync } from '../src/services/notifications';
 import { registerPushToken } from '../src/services/supabase';
@@ -25,15 +23,12 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     dispatch(checkSession());
     dispatch(loadFavorites());
-    dispatch(fetchAppSettings());
+    // fetchAppSettings and fetchAddresses removed — RTK Query auto-fetches on component mount
   }, [dispatch]);
 
   // Post-authentication setup
   useEffect(() => {
     if (isAuthenticated) {
-      // Fetch user addresses
-      dispatch(fetchAddresses());
-
       // Sync favorites with backend
       dispatch(syncFavoritesWithBackend());
 

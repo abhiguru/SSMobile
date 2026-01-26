@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -9,23 +8,32 @@ import { useTranslation } from 'react-i18next';
 import { Card, Chip, Text, Button, ActivityIndicator, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import { useAppDispatch, useAppSelector } from '../../src/store';
-import { fetchProducts, fetchCategories } from '../../src/store/slices/productsSlice';
+import { useGetProductsQuery, useGetCategoriesQuery } from '../../src/store/apiSlice';
 import type { AppTheme } from '../../src/theme';
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
-  const { products, categories, isLoading, error } = useAppSelector(
-    (state) => state.products
-  );
 
-  useEffect(() => {
-    dispatch(fetchProducts());
-    dispatch(fetchCategories());
-  }, [dispatch]);
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useGetProductsQuery();
+
+  const {
+    data: categories = [],
+    refetch: refetchCategories,
+  } = useGetCategoriesQuery();
+
+  const isLoading = productsLoading;
+  const error = productsError
+    ? (typeof productsError === 'object' && 'data' in productsError
+        ? String(productsError.data)
+        : 'Failed to load products')
+    : null;
 
   const isGujarati = i18n.language === 'gu';
 
@@ -78,8 +86,8 @@ export default function HomeScreen() {
         <Button
           mode="contained"
           onPress={() => {
-            dispatch(fetchProducts());
-            dispatch(fetchCategories());
+            refetchProducts();
+            refetchCategories();
           }}
         >
           {t('common.retry')}

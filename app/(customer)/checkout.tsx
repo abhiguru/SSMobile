@@ -23,19 +23,16 @@ import {
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { selectCartItems, selectCartTotal, clearCart } from '../../src/store/slices/cartSlice';
-import { createOrder } from '../../src/store/slices/ordersSlice';
 import {
-  selectAddresses,
   selectSelectedAddressId,
   setSelectedAddress,
-  fetchAddresses,
 } from '../../src/store/slices/addressesSlice';
 import {
-  selectAppSettings,
-  calculateShipping,
-  isPincodeServiceable,
-} from '../../src/store/slices/settingsSlice';
-import { formatPrice } from '../../src/constants';
+  useGetAddressesQuery,
+  useGetAppSettingsQuery,
+  useCreateOrderMutation,
+} from '../../src/store/apiSlice';
+import { formatPrice, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS } from '../../src/constants';
 import { Address } from '../../src/types';
 import type { AppTheme } from '../../src/theme';
 
@@ -47,11 +44,11 @@ export default function CheckoutScreen() {
 
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartTotal);
-  const addresses = useAppSelector(selectAddresses);
   const selectedAddressId = useAppSelector(selectSelectedAddressId);
-  const appSettings = useAppSelector(selectAppSettings);
-  const { isLoading: ordersLoading } = useAppSelector((state) => state.orders);
-  const { isLoading: addressesLoading } = useAppSelector((state) => state.addresses);
+
+  const { data: addresses = [], isLoading: addressesLoading } = useGetAddressesQuery();
+  const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
+  const [createOrder, { isLoading: ordersLoading }] = useCreateOrderMutation();
 
   const [notes, setNotes] = useState('');
 
@@ -60,11 +57,13 @@ export default function CheckoutScreen() {
   const total = subtotal + shippingCharge;
   const minOrderMet = subtotal >= appSettings.min_order_paise;
 
+  // Auto-select default address when addresses load
   useEffect(() => {
-    if (addresses.length === 0) {
-      dispatch(fetchAddresses());
+    if (!selectedAddressId && addresses.length > 0) {
+      const defaultAddr = addresses.find((a: Address) => a.is_default);
+      dispatch(setSelectedAddress(defaultAddr?.id || addresses[0].id));
     }
-  }, [dispatch, addresses.length]);
+  }, [addresses, selectedAddressId, dispatch]);
 
   const handleSelectAddress = (address: Address) => {
     dispatch(setSelectedAddress(address.id));
@@ -99,15 +98,13 @@ export default function CheckoutScreen() {
       quantity: item.quantity,
     }));
 
-    const result = await dispatch(
-      createOrder({
+    try {
+      await createOrder({
         items: orderItems,
         address_id: selectedAddressId,
         notes: notes || undefined,
-      })
-    );
+      }).unwrap();
 
-    if (createOrder.fulfilled.match(result)) {
       dispatch(clearCart());
       Alert.alert(t('checkout.orderPlaced'), '', [
         {
@@ -115,8 +112,10 @@ export default function CheckoutScreen() {
           onPress: () => router.replace('/(customer)/orders'),
         },
       ]);
-    } else if (createOrder.rejected.match(result)) {
-      const errorCode = result.payload as string;
+    } catch (error) {
+      const errorCode = typeof error === 'object' && error !== null && 'data' in error
+        ? String((error as { data: unknown }).data)
+        : '';
       let message = errorCode;
       if (errorCode === 'CHECKOUT_001') {
         message = t('checkout.missingAddress');
@@ -125,7 +124,7 @@ export default function CheckoutScreen() {
       } else if (errorCode === 'CHECKOUT_003') {
         message = t('checkout.minOrderNotMet', { amount: formatPrice(appSettings.min_order_paise) });
       }
-      Alert.alert(t('common.error'), message);
+      Alert.alert(t('common.error'), message || t('common.error'));
     }
   };
 

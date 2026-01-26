@@ -52,3 +52,20 @@ export const ERROR_CODES = {
   CHECKOUT_003: 'Minimum order amount not met',
   DELIVERY_001: 'Wrong delivery OTP',
 } as const;
+
+// Shipping & pincode utilities (previously in settingsSlice)
+import type { AppSettings } from '../types';
+
+export const calculateShipping = (subtotalPaise: number, settings: AppSettings): number => {
+  if (subtotalPaise >= settings.free_shipping_threshold_paise) {
+    return 0;
+  }
+  return settings.shipping_charge_paise;
+};
+
+export const isPincodeServiceable = (pincode: string, settings: AppSettings): boolean => {
+  if (!settings.serviceable_pincodes || settings.serviceable_pincodes.length === 0) {
+    return true;
+  }
+  return settings.serviceable_pincodes.includes(pincode);
+};

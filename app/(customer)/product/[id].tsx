@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -10,7 +10,8 @@ import { Text, Button, Chip, IconButton, ActivityIndicator, useTheme } from 'rea
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../../src/store';
-import { selectProductById, toggleFavorite } from '../../../src/store/slices/productsSlice';
+import { toggleFavorite } from '../../../src/store/slices/productsSlice';
+import { useGetProductsQuery } from '../../../src/store/apiSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
 import { formatPrice } from '../../../src/constants';
 import { WeightOption } from '../../../src/types';
@@ -23,7 +24,11 @@ export default function ProductDetailScreen() {
   const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
 
-  const product = useAppSelector(selectProductById(id!));
+  const { data: products = [] } = useGetProductsQuery();
+  const product = useMemo(
+    () => products.find((p) => p.id === id),
+    [products, id]
+  );
   const favorites = useAppSelector((state) => state.products.favorites);
   const isFavorite = favorites.includes(id!);
 

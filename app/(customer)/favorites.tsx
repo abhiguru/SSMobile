@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -5,18 +6,25 @@ import { Card, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
-import { selectFavoriteProducts } from '../../src/store/slices/productsSlice';
+import { useGetProductsQuery } from '../../src/store/apiSlice';
+import { Product } from '../../src/types';
 import type { AppTheme } from '../../src/theme';
 
 export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
-  const favorites = useAppSelector(selectFavoriteProducts);
+  const favoriteIds = useAppSelector((state) => state.products.favorites);
+  const { data: products = [] } = useGetProductsQuery();
+
+  const favorites = useMemo(
+    () => products.filter((p) => favoriteIds.includes(p.id)),
+    [products, favoriteIds]
+  );
 
   const isGujarati = i18n.language === 'gu';
 
-  const renderProduct = ({ item }: { item: typeof favorites[0] }) => (
+  const renderProduct = ({ item }: { item: Product }) => (
     <Card
       mode="elevated"
       style={styles.productCard}

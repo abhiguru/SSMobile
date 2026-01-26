@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -8,8 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Button, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
 
-import { useAppDispatch, useAppSelector } from '../../../src/store';
-import { fetchOrderById, selectCurrentOrder, reorder } from '../../../src/store/slices/ordersSlice';
+import { useGetOrderByIdQuery, useReorderMutation } from '../../../src/store/apiSlice';
 import { formatPrice } from '../../../src/constants';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
@@ -19,22 +17,17 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
-  const order = useAppSelector(selectCurrentOrder);
-  const { isLoading } = useAppSelector((state) => state.orders);
-
-  useEffect(() => {
-    if (id) {
-      dispatch(fetchOrderById(id));
-    }
-  }, [dispatch, id]);
+  const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
+  const [reorder, { isLoading: reorderLoading }] = useReorderMutation();
 
   const handleReorder = async () => {
     if (!id) return;
-    const result = await dispatch(reorder(id));
-    if (reorder.fulfilled.match(result)) {
+    try {
+      await reorder(id).unwrap();
       router.replace('/(customer)/orders');
+    } catch {
+      // Error handled by RTK Query
     }
   };
 
@@ -94,7 +87,6 @@ export default function OrderDetailScreen() {
         </Text>
       </View>
 
-      {/* Status Timeline */}
       {order.status !== 'cancelled' && order.status !== 'delivery_failed' && (
         <View style={styles.section}>
           <Text variant="titleSmall" style={styles.sectionTitle}>{t('orders.trackOrder')}</Text>
@@ -130,18 +122,14 @@ export default function OrderDetailScreen() {
         </View>
       )}
 
-      {/* Delivery OTP */}
       {order.status === 'out_for_delivery' && order.delivery_otp && (
         <View style={styles.otpSection}>
           <Text variant="bodyMedium" style={styles.otpLabel}>{t('orders.deliveryOtp')}</Text>
           <Text variant="displaySmall" style={styles.otpCode}>{order.delivery_otp}</Text>
-          <Text variant="bodySmall" style={styles.otpHint}>
-            {t('orders.shareOtpHint')}
-          </Text>
+          <Text variant="bodySmall" style={styles.otpHint}>{t('orders.shareOtpHint')}</Text>
         </View>
       )}
 
-      {/* Order Items */}
       <View style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>{t('orders.itemsTitle')}</Text>
         {(order.items ?? []).map((item) => (
@@ -187,7 +175,6 @@ export default function OrderDetailScreen() {
         </View>
       </View>
 
-      {/* Delivery Address */}
       <View style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
         {order.shipping_full_name && (
@@ -202,7 +189,6 @@ export default function OrderDetailScreen() {
         )}
       </View>
 
-      {/* Notes */}
       {order.notes && (
         <View style={styles.section}>
           <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
@@ -210,14 +196,13 @@ export default function OrderDetailScreen() {
         </View>
       )}
 
-      {/* Reorder Button */}
       {(order.status === 'delivered' || order.status === 'cancelled') && (
         <Button
           mode="contained"
           icon="refresh"
           onPress={handleReorder}
-          loading={isLoading}
-          disabled={isLoading}
+          loading={reorderLoading}
+          disabled={reorderLoading}
           style={styles.reorderButton}
           contentStyle={styles.reorderContent}
           labelStyle={styles.reorderLabel}
@@ -230,168 +215,41 @@ export default function OrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginBottom: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  orderId: {
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  date: {
-    color: '#666666',
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 16,
-  },
-  timeline: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timelineStep: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  timelineDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#DDDDDD',
-  },
-  timelineDotActive: {
-    backgroundColor: '#4CAF50',
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: '50%',
-    top: 8,
-    width: '100%',
-    height: 2,
-    backgroundColor: '#DDDDDD',
-    zIndex: -1,
-  },
-  timelineLineActive: {
-    backgroundColor: '#4CAF50',
-  },
-  timelineLabel: {
-    color: '#999999',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  timelineLabelActive: {
-    color: '#333333',
-    fontWeight: '500',
-  },
-  otpSection: {
-    backgroundColor: '#E8F5E9',
-    padding: 20,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  otpLabel: {
-    color: '#666666',
-    marginBottom: 8,
-  },
-  otpCode: {
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    letterSpacing: 8,
-    marginBottom: 8,
-  },
-  otpHint: {
-    color: '#666666',
-  },
-  orderItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontWeight: '500',
-    color: '#333333',
-  },
-  itemWeight: {
-    color: '#666666',
-  },
-  itemQty: {
-    color: '#666666',
-    marginHorizontal: 16,
-  },
-  itemPrice: {
-    fontWeight: '600',
-    color: '#333333',
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  breakdownLabel: {
-    color: '#666666',
-  },
-  totalDivider: {
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  addressName: {
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
-  },
-  address: {
-    color: '#333333',
-    lineHeight: 20,
-  },
-  pincode: {
-    color: '#666666',
-    marginTop: 4,
-  },
-  phone: {
-    color: '#666666',
-    marginTop: 4,
-  },
-  notes: {
-    color: '#666666',
-    fontStyle: 'italic',
-  },
-  reorderButton: {
-    margin: 16,
-    borderRadius: 8,
-  },
-  reorderContent: {
-    paddingVertical: 8,
-  },
-  reorderLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  section: { backgroundColor: '#FFFFFF', padding: 16, marginBottom: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  orderId: { fontWeight: 'bold', color: '#333333' },
+  date: { color: '#666666' },
+  sectionTitle: { fontWeight: '600', color: '#333333', marginBottom: 16 },
+  timeline: { flexDirection: 'row', justifyContent: 'space-between' },
+  timelineStep: { alignItems: 'center', flex: 1 },
+  timelineDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#DDDDDD' },
+  timelineDotActive: { backgroundColor: '#4CAF50' },
+  timelineLine: { position: 'absolute', left: '50%', top: 8, width: '100%', height: 2, backgroundColor: '#DDDDDD', zIndex: -1 },
+  timelineLineActive: { backgroundColor: '#4CAF50' },
+  timelineLabel: { color: '#999999', marginTop: 8, textAlign: 'center' },
+  timelineLabelActive: { color: '#333333', fontWeight: '500' },
+  otpSection: { backgroundColor: '#E8F5E9', padding: 20, marginBottom: 8, alignItems: 'center' },
+  otpLabel: { color: '#666666', marginBottom: 8 },
+  otpCode: { fontWeight: 'bold', color: '#4CAF50', letterSpacing: 8, marginBottom: 8 },
+  otpHint: { color: '#666666' },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  itemInfo: { flex: 1 },
+  itemName: { fontWeight: '500', color: '#333333' },
+  itemWeight: { color: '#666666' },
+  itemQty: { color: '#666666', marginHorizontal: 16 },
+  itemPrice: { fontWeight: '600', color: '#333333' },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  breakdownLabel: { color: '#666666' },
+  totalDivider: { marginTop: 8, marginBottom: 12 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  addressName: { fontWeight: '600', color: '#333333', marginBottom: 4 },
+  address: { color: '#333333', lineHeight: 20 },
+  pincode: { color: '#666666', marginTop: 4 },
+  phone: { color: '#666666', marginTop: 4 },
+  notes: { color: '#666666', fontStyle: 'italic' },
+  reorderButton: { margin: 16, borderRadius: 8 },
+  reorderContent: { paddingVertical: 8 },
+  reorderLabel: { fontSize: 18, fontWeight: '600' },
 });

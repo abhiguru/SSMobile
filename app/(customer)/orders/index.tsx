@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -9,8 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import { useAppDispatch, useAppSelector } from '../../../src/store';
-import { fetchOrders, selectOrders } from '../../../src/store/slices/ordersSlice';
+import { useGetOrdersQuery } from '../../../src/store/apiSlice';
 import { formatPrice } from '../../../src/constants';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
@@ -19,14 +17,8 @@ import type { AppTheme } from '../../../src/theme';
 export default function OrdersScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
-  const orders = useAppSelector(selectOrders);
-  const { isLoading } = useAppSelector((state) => state.orders);
-
-  useEffect(() => {
-    dispatch(fetchOrders());
-  }, [dispatch]);
+  const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
 
   const getOrderDisplayNumber = (order: Order) => {
     if (order.order_number) {
@@ -96,8 +88,8 @@ export default function OrdersScreen() {
         renderItem={renderOrder}
         keyExtractor={(item, index) => item.id ?? `order-${index}`}
         contentContainerStyle={styles.listContent}
-        refreshing={isLoading}
-        onRefresh={() => dispatch(fetchOrders())}
+        refreshing={isFetching}
+        onRefresh={refetch}
       />
     </View>
   );

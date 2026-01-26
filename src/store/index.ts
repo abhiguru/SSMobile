@@ -4,18 +4,16 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import authReducer from './slices/authSlice';
 import cartReducer from './slices/cartSlice';
 import productsReducer from './slices/productsSlice';
-import ordersReducer from './slices/ordersSlice';
 import addressesReducer from './slices/addressesSlice';
-import settingsReducer from './slices/settingsSlice';
+import { apiSlice } from './apiSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     cart: cartReducer,
     products: productsReducer,
-    orders: ordersReducer,
     addresses: addressesReducer,
-    settings: settingsReducer,
+    [apiSlice.reducerPath]: apiSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -23,7 +21,7 @@ export const store = configureStore({
         // Ignore these action types for serialization check
         ignoredActions: ['auth/checkSession/fulfilled'],
       },
-    }),
+    }).concat(apiSlice.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

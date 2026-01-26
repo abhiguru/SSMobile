@@ -1,79 +1,21 @@
-import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
-import { Product, Category } from '../../types';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authenticatedFetch } from '../../services/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FAVORITES_KEY = '@masala_favorites';
 
 interface ProductsState {
-  products: Product[];
-  categories: Category[];
   favorites: string[];
-  isLoading: boolean;
-  error: string | null;
 }
 
 const initialState: ProductsState = {
-  products: [],
-  categories: [],
   favorites: [],
-  isLoading: false,
-  error: null,
 };
-
-export const fetchProducts = createAsyncThunk(
-  'products/fetchProducts',
-  async (options: { includeUnavailable?: boolean } | void, { rejectWithValue }) => {
-    try {
-      const includeUnavailable = options?.includeUnavailable ?? false;
-      const baseUrl = '/rest/v1/products?select=*,weight_options(*)';
-      const url = includeUnavailable
-        ? baseUrl
-        : `${baseUrl}&is_available=eq.true&is_active=eq.true`;
-      console.log('[fetchProducts] calling authenticatedFetch');
-      const response = await authenticatedFetch(url);
-      if (!response.ok) {
-        const body = await response.text();
-        console.error(`[fetchProducts] HTTP ${response.status}: ${body}`);
-        throw new Error('Failed to fetch products');
-      }
-      const data = await response.json();
-      console.log(`[fetchProducts] success — ${data.length} products`);
-      return data;
-    } catch (error) {
-      console.error('[fetchProducts] error:', error);
-      return rejectWithValue('Failed to load products');
-    }
-  }
-);
-
-export const fetchCategories = createAsyncThunk(
-  'products/fetchCategories',
-  async (_, { rejectWithValue }) => {
-    try {
-      console.log('[fetchCategories] calling authenticatedFetch');
-      const response = await authenticatedFetch(
-        '/rest/v1/categories?is_active=eq.true&order=display_order'
-      );
-      if (!response.ok) {
-        const body = await response.text();
-        console.error(`[fetchCategories] HTTP ${response.status}: ${body}`);
-        throw new Error('Failed to fetch categories');
-      }
-      const data = await response.json();
-      console.log(`[fetchCategories] success — ${data.length} categories`);
-      return data;
-    } catch (error) {
-      console.error('[fetchCategories] error:', error);
-      return rejectWithValue('Failed to load categories');
-    }
-  }
-);
 
 // Load favorites - tries backend first, falls back to local storage
 export const loadFavorites = createAsyncThunk(
   'products/loadFavorites',
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
       // Try to fetch from backend
       const response = await authenticatedFetch('/rest/v1/user_favorites?select=product_id');
@@ -101,7 +43,7 @@ export const loadFavorites = createAsyncThunk(
 // Sync favorites with backend (called after auth)
 export const syncFavoritesWithBackend = createAsyncThunk(
   'products/syncFavoritesWithBackend',
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { getState }) => {
     try {
       const state = getState() as { products: ProductsState };
       const localFavorites = state.products.favorites;
@@ -131,8 +73,9 @@ export const syncFavoritesWithBackend = createAsyncThunk(
       await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedFavorites));
 
       return mergedFavorites;
-    } catch (error) {
-      return rejectWithValue('Failed to sync favorites');
+    } catch {
+      const state = getState() as { products: ProductsState };
+      return state.products.favorites;
     }
   }
 );
@@ -180,39 +123,9 @@ export const toggleFavorite = createAsyncThunk(
 const productsSlice = createSlice({
   name: 'products',
   initialState,
-  reducers: {
-    clearProductsError: (state) => {
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch Products
-      .addCase(fetchProducts.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchProducts.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.products = action.payload;
-      })
-      .addCase(fetchProducts.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      })
-      // Fetch Categories
-      .addCase(fetchCategories.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchCategories.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.categories = action.payload;
-      })
-      .addCase(fetchCategories.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      })
       // Load Favorites
       .addCase(loadFavorites.fulfilled, (state, action) => {
         state.favorites = action.payload;
@@ -221,7 +134,15 @@ const productsSlice = createSlice({
       .addCase(syncFavoritesWithBackend.fulfilled, (state, action) => {
         state.favorites = action.payload;
       })
-      // Toggle Favorite
+      // Toggle Favorite — optimistic update on pending for instant feedback
+      .addCase(toggleFavorite.pending, (state, action) => {
+        const productId = action.meta.arg;
+        if (state.favorites.includes(productId)) {
+          state.favorites = state.favorites.filter((id) => id !== productId);
+        } else {
+          state.favorites.push(productId);
+        }
+      })
       .addCase(toggleFavorite.fulfilled, (state, action) => {
         state.favorites = action.payload;
       });
@@ -229,25 +150,7 @@ const productsSlice = createSlice({
 });
 
 // Selectors
-export const selectProducts = (state: { products: ProductsState }) =>
-  state.products.products;
-
-export const selectCategories = (state: { products: ProductsState }) =>
-  state.products.categories;
-
 export const selectFavorites = (state: { products: ProductsState }) =>
   state.products.favorites;
 
-export const selectProductById = (productId: string) => (state: { products: ProductsState }) =>
-  state.products.products.find((p) => p.id === productId);
-
-export const selectProductsByCategory = (categoryId: string) => (state: { products: ProductsState }) =>
-  state.products.products.filter((p) => p.category_id === categoryId);
-
-export const selectFavoriteProducts = createSelector(
-  [selectProducts, selectFavorites],
-  (products, favorites) => products.filter((p) => favorites.includes(p.id))
-);
-
-export const { clearProductsError } = productsSlice.actions;
 export default productsSlice.reducer;

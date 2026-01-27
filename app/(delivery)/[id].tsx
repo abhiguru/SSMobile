@@ -154,7 +154,7 @@ export default function DeliveryDetailScreen() {
 
       <Card mode="elevated" style={styles.otpCard}>
         <LinearGradient
-          colors={[colors.positive, colors.positive + 'DD']}
+          colors={[colors.positive, 'rgba(24,137,24,0.87)']}
           style={styles.otpCardHeader}
         >
           <MaterialCommunityIcons name="shield-check" size={20} color={colors.text.inverse} />

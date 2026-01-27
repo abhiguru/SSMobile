@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   title: {
-    fontWeight: '600',
     fontFamily: fontFamily.semiBold,
     color: colors.text.primary,
   },

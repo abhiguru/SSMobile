@@ -29,10 +29,10 @@ const ToastContext = createContext<ToastContextType>({ showToast: () => {} });
 export const useToast = () => useContext(ToastContext);
 
 const TOAST_BG: Record<ToastType, { bg: string }> = {
-  success: { bg: '#188918' },
-  error: { bg: '#D20A0A' },
-  info: { bg: '#323232' },
-  warning: { bg: '#C35500' },
+  success: { bg: colors.positive },
+  error: { bg: colors.negative },
+  info: { bg: colors.toastDefault },
+  warning: { bg: colors.critical },
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -117,7 +117,6 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     color: colors.text.inverse,
-    fontWeight: '500',
     fontFamily: fontFamily.regular,
     fontSize: 14,
   },

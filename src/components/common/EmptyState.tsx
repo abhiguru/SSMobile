@@ -75,7 +75,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    fontWeight: '600',
     fontFamily: fontFamily.semiBold,
     fontSize: 20,
     lineHeight: 28,

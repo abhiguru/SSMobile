@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   addressCard: { marginBottom: 12 },
-  addressCardSelected: { borderColor: colors.brand, borderWidth: 2, backgroundColor: '#FFF5F2' },
+  addressCardSelected: { borderColor: colors.brand, borderWidth: 2, backgroundColor: colors.brandTint },
   addressCardContent: { flexDirection: 'row', alignItems: 'flex-start' },
   addressContent: { flex: 1, marginLeft: spacing.xs },
   addressHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },

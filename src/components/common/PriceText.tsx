@@ -11,7 +11,7 @@ interface PriceTextProps {
 export function PriceText({ paise, variant = 'titleMedium' }: PriceTextProps) {
   const theme = useTheme<AppTheme>();
   return (
-    <Text variant={variant} style={{ color: theme.colors.primary, fontWeight: 'bold', fontFamily: fontFamily.bold }}>
+    <Text variant={variant} style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>
       {formatPrice(paise)}
     </Text>
   );

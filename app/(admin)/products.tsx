@@ -71,7 +71,7 @@ export default function AdminProductsScreen() {
             <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
               {item.is_available ? t('admin.available') : t('admin.unavailable')}
             </Text>
-            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} color={theme.custom.positive} />
+            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} color={colors.positive} />
           </View>
         </View>
       </AnimatedPressable>

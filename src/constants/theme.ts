@@ -33,6 +33,10 @@ export const colors = {
   neutral: '#5B738B',
   neutralLight: '#E5E5E5',
 
+  // Derived
+  brandTint: '#FFF5F2',
+  toastDefault: '#323232',
+
   // Borders & Fields
   border: '#E5E5E5',
   fieldBorder: '#89919A',

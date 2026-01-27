@@ -100,7 +100,6 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     marginTop: 2,
-    fontWeight: '600',
     fontSize: 12,
     fontFamily: fontFamily.semiBold,
   },

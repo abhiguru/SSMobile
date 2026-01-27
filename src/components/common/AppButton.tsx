@@ -109,7 +109,6 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   label: {
-    fontWeight: '600',
     fontFamily: fontFamily.semiBold,
     fontSize: 14,
   },

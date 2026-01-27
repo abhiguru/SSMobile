@@ -1,6 +1,22 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
-import { authenticatedFetch } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AppSettings } from '../types';
+import {
+  authenticatedFetch,
+  sendOtp as sendOtpApi,
+  verifyOtp as verifyOtpApi,
+  getCurrentUser,
+  getStoredTokens,
+  logout as logoutApi,
+  storeTokens,
+  clearStoredTokens,
+} from '../services/supabase';
+import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole } from '../types';
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '==='.slice(0, (4 - (base64.length % 4)) % 4);
+  return JSON.parse(atob(padded));
+}
 
 // Custom baseQuery that wraps our existing authenticatedFetch (which handles
 // token storage, auto-refresh on 401, etc.)
@@ -281,6 +297,134 @@ export const apiSlice = createApi({
       }),
       providesTags: ['AppSettings'],
     }),
+
+    // ── Auth ──────────────────────────────────────────────────
+    sendOtp: builder.mutation<{ expiresIn?: number }, string>({
+      queryFn: async (phone) => {
+        try {
+          const response = await sendOtpApi(phone);
+          if (response.error) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR' as const,
+                data: response.error.message || response.error.code || 'Failed to send OTP',
+              },
+            };
+          }
+          return { data: { expiresIn: response.expires_in } };
+        } catch {
+          return {
+            error: {
+              status: 'FETCH_ERROR' as const,
+              data: 'Network error. Please try again.',
+            },
+          };
+        }
+      },
+    }),
+
+    verifyOtp: builder.mutation<
+      { user: User | null; token: string | null; role: UserRole; isNewUser: boolean },
+      { phone: string; otp: string; name?: string }
+    >({
+      queryFn: async ({ phone, otp, name }) => {
+        try {
+          const response = await verifyOtpApi(phone, otp, name);
+          if (response.error) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR' as const,
+                data: response.error.code || response.error.message || 'Verification failed',
+              },
+            };
+          }
+          if (!response.success) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR' as const,
+                data: 'Verification failed',
+              },
+            };
+          }
+          return {
+            data: {
+              user: response.user || null,
+              token: response.access_token || null,
+              role: (response.user?.role as UserRole) || 'customer',
+              isNewUser: response.is_new_user || false,
+            },
+          };
+        } catch {
+          return {
+            error: {
+              status: 'FETCH_ERROR' as const,
+              data: 'Network error. Please try again.',
+            },
+          };
+        }
+      },
+    }),
+
+    checkSession: builder.mutation<
+      { user: User; token: string; role: UserRole },
+      void
+    >({
+      queryFn: async () => {
+        const { accessToken } = await getStoredTokens();
+        if (!accessToken) {
+          return {
+            error: { status: 'CUSTOM_ERROR' as const, data: 'No stored tokens' },
+          };
+        }
+
+        try {
+          const { user, role, token } = await getCurrentUser();
+          if (user && token) {
+            return {
+              data: {
+                user,
+                token,
+                role: (role || 'customer') as UserRole,
+              },
+            };
+          }
+        } catch (err) {
+          console.log('[checkSession] Backend validation failed, using offline fallback:', err);
+        }
+
+        try {
+          const payload = decodeJwtPayload(accessToken);
+          const meta = (payload.user_metadata || {}) as Record<string, unknown>;
+          const user: User = {
+            id: (payload.sub as string) || '',
+            phone: (meta.phone as string) || (payload.phone as string) || '',
+            name: (meta.name as string) || '',
+            role: (meta.role as UserRole) || (payload.role as UserRole) || undefined,
+            created_at: '',
+          };
+          const role = (user.role || 'customer') as UserRole;
+          console.log('[checkSession] Offline fallback — restored user:', user.id, 'role:', role);
+          return { data: { user, token: accessToken, role } };
+        } catch {
+          console.log('[checkSession] JWT decode failed, clearing tokens');
+          await clearStoredTokens();
+          return {
+            error: { status: 'CUSTOM_ERROR' as const, data: 'Invalid stored token' },
+          };
+        }
+      },
+    }),
+
+    logout: builder.mutation<null, void>({
+      queryFn: async () => {
+        await logoutApi();
+        return { data: null };
+      },
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        await queryFulfilled;
+        dispatch(apiSlice.util.resetApiState());
+      },
+    }),
   }),
 });
 
@@ -300,4 +444,8 @@ export const {
   useDeleteAddressMutation,
   useSetDefaultAddressMutation,
   useGetAppSettingsQuery,
+  useSendOtpMutation,
+  useVerifyOtpMutation,
+  useCheckSessionMutation,
+  useLogoutMutation,
 } = apiSlice;

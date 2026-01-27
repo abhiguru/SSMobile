@@ -13,8 +13,7 @@ import { Text, TextInput, HelperText } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import { useAppDispatch, useAppSelector } from '../../src/store';
-import { sendOtp, clearError } from '../../src/store/slices/authSlice';
+import { useSendOtpMutation } from '../../src/store/apiSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
 import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -22,15 +21,16 @@ import { AppButton } from '../../src/components/common/AppButton';
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const [sendOtp, { isLoading, error, reset }] = useSendOtpMutation();
 
   const [phone, setPhone] = useState('9876543210');
   const [validationError, setValidationError] = useState('');
 
+  const apiError = error && 'data' in error ? (error.data as string) : '';
+
   const handleSendOtp = async () => {
     setValidationError('');
-    dispatch(clearError());
+    reset();
 
     if (!PHONE_REGEX.test(phone)) {
       setValidationError(t('auth.invalidPhone'));
@@ -38,14 +38,15 @@ export default function LoginScreen() {
     }
 
     const fullPhone = `${PHONE_PREFIX}${phone}`;
-    const result = await dispatch(sendOtp(fullPhone));
-
-    if (sendOtp.fulfilled.match(result)) {
-      router.push('/(auth)/otp');
+    try {
+      await sendOtp(fullPhone).unwrap();
+      router.push({ pathname: '/(auth)/otp', params: { phone: fullPhone } });
+    } catch {
+      // error is captured by the mutation hook
     }
   };
 
-  const hasError = !!(validationError || error);
+  const hasError = !!(validationError || apiError);
 
   return (
     <KeyboardAvoidingView
@@ -93,7 +94,7 @@ export default function LoginScreen() {
               outlineStyle={styles.inputOutline}
             />
             <HelperText type="error" visible={hasError}>
-              {validationError || error}
+              {validationError || apiError}
             </HelperText>
 
             <AppButton

@@ -88,7 +88,8 @@
     "minOrderWarning": "Minimum order: {{amount}}",
     "step_address": "Address",
     "step_review": "Review",
-    "step_confirm": "Confirm"
+    "step_confirm": "Confirm",
+    "noSavedAddresses": "Add a delivery address to place your order"
   },
   "orders": {
     "title": "My Orders",

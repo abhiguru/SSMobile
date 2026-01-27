@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
+  withSequence,
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
@@ -49,22 +50,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToast(config);
     const duration = config.duration || 3000;
 
-    translateY.value = 100;
-    opacity.value = 0;
-
-    translateY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
-    opacity.value = withTiming(1, { duration: 300 });
-
-    // Auto-dismiss
-    translateY.value = withDelay(
-      duration,
-      withTiming(100, { duration: 300, easing: Easing.in(Easing.cubic) })
+    // Chain: reset → slide in → hold → slide out
+    translateY.value = withSequence(
+      withTiming(100, { duration: 0 }),
+      withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) }),
+      withDelay(duration, withTiming(100, { duration: 300, easing: Easing.in(Easing.cubic) }))
     );
-    opacity.value = withDelay(
-      duration,
-      withTiming(0, { duration: 300 }, () => {
+    opacity.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withTiming(1, { duration: 300 }),
+      withDelay(duration, withTiming(0, { duration: 300 }, () => {
         runOnJS(hideToast)();
-      })
+      }))
     );
   }, [translateY, opacity, hideToast]);
 

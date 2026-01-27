@@ -88,7 +88,8 @@
     "minOrderWarning": "ન્યૂનતમ ઓર્ડર: {{amount}}",
     "step_address": "સરનામું",
     "step_review": "સમીક્ષા",
-    "step_confirm": "પુષ્ટિ"
+    "step_confirm": "પુષ્ટિ",
+    "noSavedAddresses": "ઓર્ડર આપવા માટે ડિલિવરી સરનામું ઉમેરો"
   },
   "orders": {
     "title": "મારા ઓર્ડર્સ",

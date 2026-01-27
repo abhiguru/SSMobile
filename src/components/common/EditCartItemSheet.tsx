@@ -6,6 +6,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  Easing,
   runOnJS,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,16 +63,17 @@ export function EditCartItemSheet({ item, onDismiss, onUpdate }: EditCartItemShe
   }, [item, translateY]);
 
   const handleDismiss = useCallback(() => {
-    translateY.value = withSpring(SCREEN_HEIGHT, { damping: 20, stiffness: 200 }, () => {
+    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250, easing: Easing.in(Easing.cubic) }, () => {
       runOnJS(onDismiss)();
     });
   }, [translateY, onDismiss]);
 
   const handleUpdate = useCallback(() => {
-    translateY.value = withSpring(SCREEN_HEIGHT, { damping: 20, stiffness: 200 }, () => {
-      runOnJS(onUpdate)(weightGrams, quantity);
+    onUpdate(weightGrams, quantity);
+    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250, easing: Easing.in(Easing.cubic) }, () => {
+      runOnJS(onDismiss)();
     });
-  }, [translateY, onUpdate, weightGrams, quantity]);
+  }, [translateY, onUpdate, onDismiss, weightGrams, quantity]);
 
   const handleAddWeight = useCallback((grams: number) => {
     hapticLight();

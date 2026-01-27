@@ -3,9 +3,8 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, List, Divider, useTheme } from 'react-native-paper';
 
-import { useAppDispatch, useAppSelector } from '../../src/store';
-import { logout } from '../../src/store/slices/authSlice';
-import { apiSlice } from '../../src/store/apiSlice';
+import { useAppSelector } from '../../src/store';
+import { useLogoutMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import { colors, spacing, borderRadius, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -15,7 +14,7 @@ import type { AppTheme } from '../../src/theme';
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const [logout] = useLogoutMutation();
   const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
@@ -30,8 +29,7 @@ export default function AdminSettingsScreen() {
           text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
-            await dispatch(logout());
-            dispatch(apiSlice.util.resetApiState());
+            await logout();
             router.replace('/');
           },
         },

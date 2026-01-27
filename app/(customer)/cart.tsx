@@ -70,7 +70,6 @@ export default function CartScreen() {
       newQuantity,
       product: editingItem.product,
     }));
-    setEditingItem(null);
     showToast({ message: t('cart.itemUpdated'), type: 'success' });
   }, [dispatch, editingItem, showToast, t]);
 

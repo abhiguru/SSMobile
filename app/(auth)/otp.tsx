@@ -6,7 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, TextInput, HelperText, useTheme } from 'react-native-paper';
 import Animated, {
@@ -18,8 +18,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useAppDispatch, useAppSelector } from '../../src/store';
-import { verifyOtp, sendOtp, clearError } from '../../src/store/slices/authSlice';
+import { useVerifyOtpMutation, useSendOtpMutation } from '../../src/store/apiSlice';
 import { OTP_LENGTH, ERROR_CODES } from '../../src/constants';
 import { colors, spacing, borderRadius, fontSize, fontFamily } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -31,8 +30,11 @@ const OTP_RESEND_SECONDS = 60;
 export default function OtpScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { isLoading, error, pendingPhone } = useAppSelector((state) => state.auth);
+  const { phone: pendingPhone } = useLocalSearchParams<{ phone: string }>();
+  const [verifyOtp, { isLoading: verifyLoading, error: verifyError, reset: resetVerify }] = useVerifyOtpMutation();
+  const [sendOtp, { isLoading: resendLoading }] = useSendOtpMutation();
+  const isLoading = verifyLoading || resendLoading;
+  const error = verifyError && 'data' in verifyError ? (verifyError.data as string) : null;
   const theme = useTheme<AppTheme>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -127,7 +129,7 @@ export default function OtpScreen() {
   };
 
   const handleVerify = useCallback(async () => {
-    dispatch(clearError());
+    resetVerify();
 
     if (!pendingPhone) {
       router.replace('/(auth)/login');
@@ -139,21 +141,26 @@ export default function OtpScreen() {
       return;
     }
 
-    const result = await dispatch(verifyOtp({ phone: pendingPhone, otp: otpString }));
-
-    if (verifyOtp.fulfilled.match(result)) {
+    try {
+      await verifyOtp({ phone: pendingPhone, otp: otpString }).unwrap();
       hapticSuccess();
       router.replace('/');
+    } catch {
+      // error is captured by the mutation hook
     }
-  }, [dispatch, otp, pendingPhone, router]);
+  }, [verifyOtp, resetVerify, otp, pendingPhone, router]);
 
   const handleResend = async () => {
     if (!pendingPhone || countdown > 0) return;
 
-    dispatch(clearError());
+    resetVerify();
     setOtp(['', '', '', '', '', '']);
     setCountdown(OTP_RESEND_SECONDS);
-    await dispatch(sendOtp(pendingPhone));
+    try {
+      await sendOtp(pendingPhone).unwrap();
+    } catch {
+      // error handled by hook
+    }
     inputRefs.current[0]?.focus();
   };
 

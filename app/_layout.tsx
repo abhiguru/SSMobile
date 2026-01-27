@@ -10,7 +10,7 @@ import { useFonts } from 'expo-font';
 import { store, useAppDispatch, useAppSelector } from '../src/store';
 import i18n from '../src/i18n';
 import { paperTheme } from '../src/theme';
-import { checkSession } from '../src/store/slices/authSlice';
+import { useCheckSessionMutation } from '../src/store/apiSlice';
 import { loadFavorites, syncFavoritesWithBackend } from '../src/store/slices/productsSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 import { ToastProvider } from '../src/components/common/Toast';
@@ -20,12 +20,13 @@ import { registerPushToken } from '../src/services/supabase';
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const [checkSession] = useCheckSessionMutation();
 
   // Initial app setup
   useEffect(() => {
-    dispatch(checkSession());
+    checkSession();
     dispatch(loadFavorites());
-  }, [dispatch]);
+  }, [checkSession, dispatch]);
 
   // Post-authentication setup
   useEffect(() => {

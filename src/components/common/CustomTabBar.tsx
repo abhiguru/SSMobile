@@ -13,8 +13,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
 
-        // Skip hidden tabs (expo-router uses href=null convention)
-        if ((options as any).href === null) return null;
+        // Skip hidden tabs — check both href=null (Expo Router convention)
+        // and missing tabBarIcon (screens without icons shouldn't appear)
+        if ((options as any).href === null || !options.tabBarIcon) return null;
 
         const onPress = () => {
           const event = navigation.emit({

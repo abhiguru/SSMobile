@@ -8,36 +8,34 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      <View style={styles.bar}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
 
-          // Skip hidden tabs (expo-router uses href=null convention)
-          if ((options as any).href === null) return null;
+        // Skip hidden tabs (expo-router uses href=null convention)
+        if ((options as any).href === null) return null;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
 
-          return (
-            <TabBarItem
-              key={route.key}
-              isFocused={isFocused}
-              options={options}
-              onPress={onPress}
-            />
-          );
-        })}
-      </View>
+        return (
+          <TabBarItem
+            key={route.key}
+            isFocused={isFocused}
+            options={options}
+            onPress={onPress}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -73,14 +71,10 @@ function TabBarItem({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 0,
-  },
   bar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     ...elevation.level4,
@@ -89,12 +83,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   tabIconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 28,
+    height: 26,
   },
   tabLabel: {
     marginTop: spacing.xs,

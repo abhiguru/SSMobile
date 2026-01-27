@@ -185,32 +185,25 @@ export default function ProductDetailScreen() {
               <IconButton icon="plus" mode="contained-tonal" size={20} onPress={() => setQuantity(quantity + 1)} />
             </View>
           </View>
+
+          <View style={styles.totalContainer}>
+            <Text variant="bodyLarge" style={styles.totalLabel}>{t('cart.total')}</Text>
+            <Text variant="headlineSmall" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>
+              {weightGrams > 0 ? formatPrice(computedPrice) : '-'}
+            </Text>
+          </View>
+          <AppButton
+            variant="primary"
+            size="lg"
+            fullWidth
+            icon="cart"
+            disabled={!product.is_available || weightGrams === 0}
+            onPress={handleAddToCart}
+          >
+            {product.is_available ? t('product.addToCart') : t('product.outOfStock')}
+          </AppButton>
         </View>
       </ScrollView>
-
-      <LinearGradient
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
-        style={styles.footerGradient}
-        pointerEvents="none"
-      />
-      <View style={styles.footer}>
-        <View style={styles.totalContainer}>
-          <Text variant="bodyLarge" style={styles.totalLabel}>{t('cart.total')}</Text>
-          <Text variant="headlineSmall" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>
-            {weightGrams > 0 ? formatPrice(computedPrice) : '-'}
-          </Text>
-        </View>
-        <AppButton
-          variant="primary"
-          size="lg"
-          fullWidth
-          icon="cart"
-          disabled={!product.is_available || weightGrams === 0}
-          onPress={handleAddToCart}
-        >
-          {product.is_available ? t('product.addToCart') : t('product.outOfStock')}
-        </AppButton>
-      </View>
     </View>
   );
 }
@@ -218,7 +211,7 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 160 },
+  scrollContent: { paddingBottom: spacing.xl },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   imageContainer: { height: 300, position: 'relative' },
   heroImage: { width: '100%', height: 300, justifyContent: 'center', alignItems: 'center' },
@@ -242,8 +235,6 @@ const styles = StyleSheet.create({
   quantityControl: { flexDirection: 'row', alignItems: 'center' },
   quantityBadge: { backgroundColor: colors.informativeLight, borderRadius: borderRadius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, minWidth: 48, alignItems: 'center' },
   quantityValue: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  footerGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, zIndex: 1 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, backgroundColor: colors.surface, zIndex: 2, ...elevation.level3 },
-  totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md },
   totalLabel: { color: colors.text.secondary },
 });

@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
 import { apiSlice } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
+import { colors, spacing } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function AdminSettingsScreen() {
@@ -49,12 +50,12 @@ export default function AdminSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  section: { backgroundColor: '#FFFFFF', marginBottom: 16, paddingVertical: 8 },
-  sectionTitle: { color: '#666666', paddingHorizontal: 16, paddingVertical: 8, textTransform: 'uppercase' },
-  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  languageText: { color: '#999999' },
-  languageActive: { color: '#FF6B35', fontWeight: '600' },
-  logoutButton: { backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
+  section: { backgroundColor: colors.background.primary, marginBottom: spacing.md, paddingVertical: spacing.sm },
+  sectionTitle: { color: colors.text.secondary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, textTransform: 'uppercase' },
+  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  languageText: { color: colors.text.muted },
+  languageActive: { color: colors.primary, fontWeight: '600' },
+  logoutButton: { backgroundColor: colors.background.primary },
   logoutLabel: { fontSize: 16, fontWeight: '600' },
 });

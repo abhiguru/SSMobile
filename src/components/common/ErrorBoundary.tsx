@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, spacing, borderRadius } from '../../constants/theme';
 
 interface Props {
   children: ReactNode;
@@ -39,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#FF6B35" />
+          <MaterialCommunityIcons name="alert-circle-outline" size={64} color={colors.primary} />
           <Text variant="titleLarge" style={styles.title}>Something went wrong</Text>
           <Text variant="bodyMedium" style={styles.message}>
             {this.state.error?.message || 'An unexpected error occurred'}
@@ -65,26 +66,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 24,
+    backgroundColor: colors.background.primary,
+    padding: spacing.lg,
   },
   title: {
     fontWeight: 'bold',
-    color: '#333333',
-    marginTop: 16,
-    marginBottom: 8,
+    color: colors.text.primary,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   message: {
-    color: '#666666',
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   button: {
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
   },
   buttonContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
 });
 

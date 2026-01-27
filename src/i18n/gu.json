@@ -34,7 +34,8 @@
     "title": "મસાલા સ્પાઇસ શોપ",
     "categories": "શ્રેણીઓ",
     "popularProducts": "લોકપ્રિય ઉત્પાદનો",
-    "viewAll": "બધું જુઓ"
+    "viewAll": "બધું જુઓ",
+    "searchProducts": "ઉત્પાદનો શોધો..."
   },
   "product": {
     "addToCart": "કાર્ટમાં ઉમેરો",
@@ -74,7 +75,10 @@
     "selectAddress": "કૃપા કરી ડિલિવરી સરનામું પસંદ કરો",
     "missingAddress": "ડિલિવરી સરનામું જરૂરી છે",
     "minOrderNotMet": "ન્યૂનતમ ઓર્ડર રકમ {{amount}} છે",
-    "minOrderWarning": "ન્યૂનતમ ઓર્ડર: {{amount}}"
+    "minOrderWarning": "ન્યૂનતમ ઓર્ડર: {{amount}}",
+    "step_address": "સરનામું",
+    "step_review": "સમીક્ષા",
+    "step_confirm": "પુષ્ટિ"
   },
   "orders": {
     "title": "મારા ઓર્ડર્સ",
@@ -159,7 +163,15 @@
     "weightOptions": "{{count}} વજન વિકલ્પો",
     "orderItems": "ઓર્ડર આઇટમ્સ",
     "confirmStatusUpdate": "સ્થિતિ અપડેટ પુષ્ટિ કરો",
-    "updateStatusTo": "ઓર્ડર સ્થિતિ \"{{status}}\" પર અપડેટ કરો?"
+    "updateStatusTo": "ઓર્ડર સ્થિતિ \"{{status}}\" પર અપડેટ કરો?",
+    "allOrders": "બધા",
+    "showingOrders": "{{count}} ઓર્ડર(ઓ) બતાવી રહ્યા છીએ",
+    "todaysRevenue": "આજની આવક",
+    "quickActions": "ઝડપી ક્રિયાઓ",
+    "viewAllOrders": "બધા ઓર્ડર્સ જુઓ",
+    "manageProducts": "ઉત્પાદનો મેનેજ કરો",
+    "staffComingSoon": "સ્ટાફ મેનેજમેન્ટ ટૂંક સમયમાં આવશે",
+    "staffComingSoonSub": "આ ફીચર વિકાસ હેઠળ છે"
   },
   "delivery": {
     "deliveries": "ડિલિવરીઓ",
@@ -176,7 +188,8 @@
     "openInMaps": "નકશામાં ખોલો",
     "callCustomer": "ગ્રાહકને કૉલ કરો",
     "completeDelivery": "ડિલિવરી પૂર્ણ કરો",
-    "noHistory": "કોઈ ડિલિવરી ઇતિહાસ નથી"
+    "noHistory": "કોઈ ડિલિવરી ઇતિહાસ નથી",
+    "deliverTo": "ડિલિવરી સ્થળ"
   },
   "status": {
     "placed": "ઓર્ડર મૂકવામાં આવ્યો",

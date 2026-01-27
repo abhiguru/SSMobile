@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { colors } from '../../../src/constants/theme';
 
 export default function OrdersLayout() {
   const { t } = useTranslation();
@@ -8,9 +9,9 @@ export default function OrdersLayout() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#FF6B35',
+          backgroundColor: colors.primary,
         },
-        headerTintColor: '#FFFFFF',
+        headerTintColor: colors.text.inverse,
         headerTitleStyle: {
           fontWeight: 'bold',
         },

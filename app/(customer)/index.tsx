@@ -1,14 +1,16 @@
+import { useState, useMemo } from 'react';
 import {
   View,
-  FlatList,
   StyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Card, Chip, Text, Button, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Card, Chip, Text, Button, ActivityIndicator, Searchbar, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useGetProductsQuery, useGetCategoriesQuery } from '../../src/store/apiSlice';
+import { colors, spacing, borderRadius, shadows } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function HomeScreen() {
@@ -35,7 +37,19 @@ export default function HomeScreen() {
         : 'Failed to load products')
     : null;
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const isGujarati = i18n.language === 'gu';
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    const query = searchQuery.toLowerCase().trim();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        (p.name_gu && p.name_gu.toLowerCase().includes(query))
+    );
+  }, [products, searchQuery]);
 
   const renderCategory = ({ item }: { item: typeof categories[0] }) => (
     <Chip
@@ -47,10 +61,13 @@ export default function HomeScreen() {
     </Chip>
   );
 
-  const renderProduct = ({ item }: { item: typeof products[0] }) => (
+  const renderProduct = ({ item, index }: { item: typeof products[0]; index: number }) => (
     <Card
       mode="elevated"
-      style={styles.productCard}
+      style={[
+        styles.productCard,
+        index % 2 === 0 ? styles.productCardLeft : styles.productCardRight,
+      ]}
       onPress={() => router.push(`/(customer)/product/${item.id}`)}
     >
       <Card.Content>
@@ -80,7 +97,7 @@ export default function HomeScreen() {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text variant="bodyLarge" style={{ color: theme.colors.error, textAlign: 'center', marginBottom: 16 }}>
+        <Text variant="bodyLarge" style={{ color: theme.colors.error, textAlign: 'center', marginBottom: spacing.md }}>
           {error}
         </Text>
         <Button
@@ -98,8 +115,15 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <Searchbar
+        placeholder={t('home.searchProducts')}
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        style={styles.searchBar}
+        inputStyle={styles.searchInput}
+      />
       <Text variant="titleMedium" style={styles.sectionTitle}>{t('home.categories')}</Text>
-      <FlatList
+      <FlashList
         data={categories}
         renderItem={renderCategory}
         keyExtractor={(item) => item.id}
@@ -109,14 +133,20 @@ export default function HomeScreen() {
       />
 
       <Text variant="titleMedium" style={styles.sectionTitle}>{t('home.popularProducts')}</Text>
-      <FlatList
-        data={products}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.productRow}
-        contentContainerStyle={styles.productsList}
-      />
+      {searchQuery.trim() && filteredProducts.length === 0 ? (
+        <View style={styles.noResults}>
+          <MaterialCommunityIcons name="magnify-close" size={48} color={colors.text.muted} />
+          <Text variant="bodyLarge" style={styles.noResultsText}>{t('common.noResults')}</Text>
+        </View>
+      ) : (
+        <FlashList
+          data={filteredProducts}
+          renderItem={renderProduct}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.productsList}
+        />
+      )}
     </View>
   );
 }
@@ -124,52 +154,74 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.secondary,
+  },
+  searchBar: {
+    marginHorizontal: spacing.md,
+    marginTop: 12,
+    ...shadows.sm,
+  },
+  searchInput: {
+    fontSize: 14,
+  },
+  noResults: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  noResultsText: {
+    color: colors.text.muted,
+    marginTop: 12,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.lg,
   },
   sectionTitle: {
     fontWeight: 'bold',
-    color: '#333333',
-    marginHorizontal: 16,
-    marginTop: 16,
+    color: colors.text.primary,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
     marginBottom: 12,
   },
   categoriesList: {
     paddingHorizontal: 12,
   },
   categoryChip: {
-    marginHorizontal: 4,
+    marginHorizontal: spacing.xs,
   },
   categoryText: {
     fontSize: 14,
   },
   productsList: {
     paddingHorizontal: 12,
-    paddingBottom: 16,
-  },
-  productRow: {
-    justifyContent: 'space-between',
+    paddingBottom: spacing.md,
   },
   productCard: {
-    marginHorizontal: 4,
-    marginBottom: 8,
-    width: '47%',
+    marginBottom: spacing.sm,
+    flex: 1,
+  },
+  productCardLeft: {
+    marginLeft: 12,
+    marginRight: spacing.xs,
+  },
+  productCardRight: {
+    marginLeft: spacing.xs,
+    marginRight: 12,
   },
   productImage: {
     height: 100,
-    backgroundColor: '#FFF5F2',
-    borderRadius: 8,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   productName: {
-    color: '#333333',
-    marginBottom: 4,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
 });

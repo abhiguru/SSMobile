@@ -13,6 +13,7 @@ import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-pape
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { verifyOtp, sendOtp, clearError } from '../../src/store/slices/authSlice';
 import { OTP_LENGTH, ERROR_CODES } from '../../src/constants';
+import { colors, spacing, borderRadius, fontSize } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function OtpScreen() {
@@ -121,7 +122,7 @@ export default function OtpScreen() {
               onChangeText={(value) => handleOtpChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               disabled={isLoading}
-              style={styles.otpInput}
+              style={[styles.otpInput, digit ? styles.otpInputFilled : undefined]}
               contentStyle={styles.otpInputContent}
               outlineStyle={digit ? { borderColor: theme.colors.primary, borderWidth: 2 } : undefined}
             />
@@ -160,35 +161,38 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
   },
   title: {
     fontWeight: 'bold',
-    color: '#333333',
+    color: colors.text.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    color: '#666666',
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xl,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   otpInput: {
     width: 48,
     height: 56,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
     textAlign: 'center',
+  },
+  otpInputFilled: {
+    backgroundColor: colors.secondary,
   },
   otpInputContent: {
     fontSize: 24,
@@ -198,17 +202,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    marginTop: 8,
-    borderRadius: 8,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
   },
   buttonContent: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   buttonLabel: {
-    fontSize: 18,
+    fontSize: fontSize.xl,
     fontWeight: '600',
   },
   resendButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });

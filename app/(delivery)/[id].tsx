@@ -6,6 +6,7 @@ import { Text, TextInput, Button, Card, ActivityIndicator, useTheme } from 'reac
 
 import { useGetOrderByIdQuery, useVerifyDeliveryOtpMutation } from '../../src/store/apiSlice';
 import { formatPrice } from '../../src/constants';
+import { colors, spacing } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function DeliveryDetailScreen() {
@@ -99,25 +100,25 @@ export default function DeliveryDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: '#FFFFFF', padding: 16, marginBottom: 8 },
+  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderId: { fontWeight: 'bold', color: '#333333' },
-  sectionTitle: { fontWeight: '600', color: '#333333', marginBottom: 12 },
-  address: { color: '#333333', lineHeight: 20 },
-  pincode: { color: '#666666', marginTop: 4 },
-  actionsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  orderId: { fontWeight: 'bold', color: colors.text.primary },
+  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: 12 },
+  address: { color: colors.text.primary, lineHeight: 20 },
+  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
+  actionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.md },
   actionButton: { flex: 1 },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: '#333333' },
-  itemWeight: { color: '#666666' },
-  itemQty: { color: '#666666' },
-  notes: { color: '#666666', fontStyle: 'italic' },
-  otpCard: { margin: 16, marginBottom: 32 },
-  otpHint: { color: '#666666', marginBottom: 16 },
-  otpInput: { backgroundColor: '#FFFFFF', marginBottom: 12 },
-  verifyButtonContent: { paddingVertical: 8 },
+  itemName: { fontWeight: '500', color: colors.text.primary },
+  itemWeight: { color: colors.text.secondary },
+  itemQty: { color: colors.text.secondary },
+  notes: { color: colors.text.secondary, fontStyle: 'italic' },
+  otpCard: { margin: spacing.md, marginBottom: spacing.xl },
+  otpHint: { color: colors.text.secondary, marginBottom: spacing.md },
+  otpInput: { backgroundColor: colors.background.primary, marginBottom: 12 },
+  verifyButtonContent: { paddingVertical: spacing.sm },
   verifyButtonLabel: { fontSize: 16, fontWeight: '600' },
 });

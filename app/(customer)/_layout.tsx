@@ -1,11 +1,12 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { Badge } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
 import { selectCartItemCount } from '../../src/store/slices/cartSlice';
+import { colors } from '../../src/constants/theme';
 
 const CartBadge = () => {
   const count = useAppSelector(selectCartItemCount);
@@ -20,25 +21,52 @@ const CartBadge = () => {
   );
 };
 
+const HeaderCartButton = () => {
+  const count = useAppSelector(selectCartItemCount);
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.push('/(customer)/cart')} style={{ marginRight: 16 }}>
+      <View>
+        <MaterialCommunityIcons name="cart-outline" size={24} color={colors.text.inverse} />
+        {count > 0 && (
+          <Badge
+            size={16}
+            style={{
+              position: 'absolute',
+              top: -6,
+              right: -10,
+              backgroundColor: colors.background.primary,
+              color: colors.primary,
+            }}
+          >
+            {count > 9 ? '9+' : count}
+          </Badge>
+        )}
+      </View>
+    </Pressable>
+  );
+};
+
 export default function CustomerLayout() {
   const { t } = useTranslation();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FF6B35',
-        tabBarInactiveTintColor: '#999999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.text.muted,
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: '#EEEEEE',
+          borderTopColor: colors.border.light,
         },
         headerStyle: {
-          backgroundColor: '#FF6B35',
+          backgroundColor: colors.primary,
         },
-        headerTintColor: '#FFFFFF',
+        headerTintColor: colors.text.inverse,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerRight: () => <HeaderCartButton />,
       }}
     >
       <Tabs.Screen
@@ -56,6 +84,7 @@ export default function CustomerLayout() {
         options={{
           title: t('cart.title'),
           tabBarLabel: 'Cart',
+          headerRight: () => null,
           tabBarIcon: ({ color, size }) => (
             <View>
               <MaterialCommunityIcons name="cart" color={color} size={size} />
@@ -107,6 +136,7 @@ export default function CustomerLayout() {
         options={{
           href: null,
           title: t('checkout.title'),
+          headerRight: () => null,
         }}
       />
       <Tabs.Screen

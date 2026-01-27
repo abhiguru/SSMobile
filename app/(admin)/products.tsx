@@ -1,10 +1,13 @@
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { Card, Text, Switch, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Card, Text, Switch, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useGetProductsQuery, useToggleProductAvailabilityMutation } from '../../src/store/apiSlice';
 import { Product } from '../../src/types';
+import { LoadingScreen } from '../../src/components/common/LoadingScreen';
+import { colors, spacing, borderRadius } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function AdminProductsScreen() {
@@ -34,27 +37,24 @@ export default function AdminProductsScreen() {
     </Card>
   );
 
-  if (isLoading && products.length === 0) {
-    return (<View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>);
-  }
+  if (isLoading && products.length === 0) return <LoadingScreen />;
 
   return (
     <View style={styles.container}>
-      <FlatList data={products} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
+      <FlashList data={products} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16 },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
+  listContent: { padding: spacing.md },
   productCard: { marginBottom: 12 },
   productCardContent: { flexDirection: 'row', alignItems: 'center' },
-  productImage: { width: 50, height: 50, backgroundColor: '#FFF5F2', borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  productImage: { width: 50, height: 50, backgroundColor: colors.secondary, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
   productInfo: { flex: 1, marginLeft: 12 },
-  productName: { color: '#333333', marginBottom: 4 },
-  productOptions: { color: '#666666' },
+  productName: { color: colors.text.primary, marginBottom: spacing.xs },
+  productOptions: { color: colors.text.secondary },
   toggleContainer: { alignItems: 'center' },
-  toggleLabel: { color: '#666666', marginBottom: 4 },
+  toggleLabel: { color: colors.text.secondary, marginBottom: spacing.xs },
 });

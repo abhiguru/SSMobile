@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
 import { apiSlice } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
+import { colors, spacing } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function ProfileScreen() {
@@ -15,7 +16,6 @@ export default function ProfileScreen() {
   const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
-
   const isGujarati = i18n.language === 'gu';
 
   const handleLogout = async () => {
@@ -33,9 +33,7 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Avatar.Icon size={80} icon="account" style={{ backgroundColor: theme.colors.primaryContainer }} />
-        <Text variant="titleMedium" style={styles.name}>
-          {user?.name || t('profile.guest')}
-        </Text>
+        <Text variant="titleMedium" style={styles.name}>{user?.name || t('profile.guest')}</Text>
         <Text variant="bodyMedium" style={styles.phone}>{user?.phone || ''}</Text>
       </View>
 
@@ -51,13 +49,13 @@ export default function ProfileScreen() {
           )}
         />
         <Divider />
-        <List.Item title={t('profile.savedAddresses')} right={() => <List.Icon icon="chevron-right" />} onPress={() => router.push('/(customer)/addresses')} />
+        <List.Item title={t('profile.savedAddresses')} left={() => <List.Icon icon="map-marker" />} right={() => <List.Icon icon="chevron-right" />} onPress={() => router.push('/(customer)/addresses')} />
         <Divider />
-        <List.Item title={t('profile.notifications')} right={() => <List.Icon icon="chevron-right" />} />
+        <List.Item title={t('profile.notifications')} left={() => <List.Icon icon="bell-outline" />} right={() => <List.Icon icon="chevron-right" />} />
         <Divider />
-        <List.Item title={t('profile.aboutUs')} right={() => <List.Icon icon="chevron-right" />} />
+        <List.Item title={t('profile.aboutUs')} left={() => <List.Icon icon="information" />} right={() => <List.Icon icon="chevron-right" />} />
         <Divider />
-        <List.Item title={t('profile.help')} right={() => <List.Icon icon="chevron-right" />} />
+        <List.Item title={t('profile.help')} left={() => <List.Icon icon="help-circle" />} right={() => <List.Icon icon="chevron-right" />} />
       </View>
 
       <Button mode="text" textColor={theme.colors.error} onPress={handleLogout} style={styles.logoutButton} labelStyle={styles.logoutLabel}>
@@ -68,14 +66,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  header: { backgroundColor: '#FFFFFF', padding: 24, alignItems: 'center', marginBottom: 16 },
-  name: { fontWeight: '600', color: '#333333', marginTop: 12, marginBottom: 4 },
-  phone: { color: '#666666' },
-  section: { backgroundColor: '#FFFFFF', marginBottom: 16 },
-  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  languageText: { color: '#999999' },
-  languageActive: { color: '#FF6B35', fontWeight: '600' },
-  logoutButton: { backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
+  header: { backgroundColor: colors.background.primary, padding: spacing.lg, alignItems: 'center', marginBottom: spacing.md },
+  name: { fontWeight: '600', color: colors.text.primary, marginTop: 12, marginBottom: spacing.xs },
+  phone: { color: colors.text.secondary },
+  section: { backgroundColor: colors.background.primary, marginBottom: spacing.md },
+  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  languageText: { color: colors.text.muted },
+  languageActive: { color: colors.primary, fontWeight: '600' },
+  logoutButton: { backgroundColor: colors.background.primary },
   logoutLabel: { fontSize: 16, fontWeight: '600' },
 });

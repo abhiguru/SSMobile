@@ -1,14 +1,15 @@
 import { Chip } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
+import { colors, borderRadius, fontSize } from '../../constants/theme';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  placed: { bg: '#FFF3E0', text: '#FF9800' },
-  confirmed: { bg: '#FFF3E0', text: '#FF9800' },
-  out_for_delivery: { bg: '#E3F2FD', text: '#2196F3' },
-  delivered: { bg: '#E8F5E9', text: '#4CAF50' },
-  cancelled: { bg: '#FFEBEE', text: '#E53935' },
-  delivery_failed: { bg: '#FFEBEE', text: '#E53935' },
+  placed: { bg: colors.warningLight, text: colors.warning },
+  confirmed: { bg: colors.warningLight, text: colors.warning },
+  out_for_delivery: { bg: colors.infoLight, text: colors.info },
+  delivered: { bg: colors.successLight, text: colors.success },
+  cancelled: { bg: colors.errorLight, text: colors.error },
+  delivery_failed: { bg: colors.errorLight, text: colors.error },
 };
 
 interface StatusBadgeProps {
@@ -17,13 +18,13 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status }: StatusBadgeProps) {
   const { t } = useTranslation();
-  const colors = STATUS_COLORS[status] || STATUS_COLORS.placed;
+  const statusColors = STATUS_COLORS[status] || STATUS_COLORS.placed;
 
   return (
     <Chip
       compact
-      style={[styles.chip, { backgroundColor: colors.bg }]}
-      textStyle={[styles.text, { color: colors.text }]}
+      style={[styles.chip, { backgroundColor: statusColors.bg }]}
+      textStyle={[styles.text, { color: statusColors.text }]}
     >
       {t(`status.${status}`)}
     </Chip>
@@ -31,10 +32,10 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 }
 const styles = StyleSheet.create({
   chip: {
-    borderRadius: 12,
+    borderRadius: borderRadius.lg,
   },
   text: {
-    fontSize: 12,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
 });

@@ -1,5 +1,7 @@
 import { MD3LightTheme } from 'react-native-paper';
 
+export { colors, spacing, borderRadius, fontSize, shadows } from '../constants/theme';
+
 export const paperTheme = {
   ...MD3LightTheme,
   colors: {

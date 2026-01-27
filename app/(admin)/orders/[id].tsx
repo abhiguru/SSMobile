@@ -5,6 +5,7 @@ import { Text, Button, Divider, ActivityIndicator, useTheme } from 'react-native
 
 import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from '../../../src/store/apiSlice';
 import { formatPrice } from '../../../src/constants';
+import { colors, spacing } from '../../../src/constants/theme';
 import { OrderStatus } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import type { AppTheme } from '../../../src/theme';
@@ -93,24 +94,24 @@ export default function AdminOrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: '#FFFFFF', padding: 16, marginBottom: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  orderId: { fontWeight: 'bold', color: '#333333' },
-  date: { color: '#666666' },
-  sectionTitle: { fontWeight: '600', color: '#333333', marginBottom: 12 },
+  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  orderId: { fontWeight: 'bold', color: colors.text.primary },
+  date: { color: colors.text.secondary },
+  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: 12 },
   actionsRow: { flexDirection: 'row', gap: 12 },
   actionButton: { flex: 1 },
-  address: { color: '#333333', lineHeight: 20 },
-  pincode: { color: '#666666', marginTop: 4 },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  address: { color: colors.text.primary, lineHeight: 20 },
+  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: '#333333' },
-  itemWeight: { color: '#666666' },
-  itemQty: { color: '#666666', marginHorizontal: 16 },
-  itemPrice: { fontWeight: '600', color: '#333333' },
-  totalDivider: { marginTop: 8, marginBottom: 12 },
+  itemName: { fontWeight: '500', color: colors.text.primary },
+  itemWeight: { color: colors.text.secondary },
+  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.md },
+  itemPrice: { fontWeight: '600', color: colors.text.primary },
+  totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  notes: { color: '#666666', fontStyle: 'italic' },
+  notes: { color: colors.text.secondary, fontStyle: 'italic' },
 });

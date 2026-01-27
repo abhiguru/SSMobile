@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // App color palette
 export const colors = {
   primary: '#FF6B35',
@@ -7,10 +9,13 @@ export const colors = {
   secondary: '#FFF5F2',
 
   success: '#4CAF50',
-  successLight: '#A5D6A7',
+  successLight: '#E8F5E9',
   warning: '#FF9800',
+  warningLight: '#FFF3E0',
   error: '#E53935',
+  errorLight: '#FFEBEE',
   info: '#2196F3',
+  infoLight: '#E3F2FD',
 
   text: {
     primary: '#333333',
@@ -30,6 +35,25 @@ export const colors = {
     default: '#DDDDDD',
   },
 } as const;
+
+// Cross-platform shadow presets
+export const shadows = {
+  sm: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
+    android: { elevation: 1 },
+    default: {},
+  }),
+  md: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 },
+    android: { elevation: 3 },
+    default: {},
+  }),
+  lg: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8 },
+    android: { elevation: 6 },
+    default: {},
+  }),
+};
 
 // Common spacing values
 export const spacing = {

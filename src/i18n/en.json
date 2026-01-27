@@ -34,7 +34,8 @@
     "title": "Masala Spice Shop",
     "categories": "Categories",
     "popularProducts": "Popular Products",
-    "viewAll": "View All"
+    "viewAll": "View All",
+    "searchProducts": "Search products..."
   },
   "product": {
     "addToCart": "Add to Cart",
@@ -74,7 +75,10 @@
     "selectAddress": "Please select a delivery address",
     "missingAddress": "Delivery address is required",
     "minOrderNotMet": "Minimum order amount is {{amount}}",
-    "minOrderWarning": "Minimum order: {{amount}}"
+    "minOrderWarning": "Minimum order: {{amount}}",
+    "step_address": "Address",
+    "step_review": "Review",
+    "step_confirm": "Confirm"
   },
   "orders": {
     "title": "My Orders",
@@ -159,7 +163,15 @@
     "weightOptions": "{{count}} weight options",
     "orderItems": "Order Items",
     "confirmStatusUpdate": "Confirm Status Update",
-    "updateStatusTo": "Update order status to \"{{status}}\"?"
+    "updateStatusTo": "Update order status to \"{{status}}\"?",
+    "allOrders": "All",
+    "showingOrders": "Showing {{count}} order(s)",
+    "todaysRevenue": "Today's Revenue",
+    "quickActions": "Quick Actions",
+    "viewAllOrders": "View All Orders",
+    "manageProducts": "Manage Products",
+    "staffComingSoon": "Staff management coming soon",
+    "staffComingSoonSub": "This feature is under development"
   },
   "delivery": {
     "deliveries": "Deliveries",
@@ -176,7 +188,8 @@
     "openInMaps": "Open in Maps",
     "callCustomer": "Call Customer",
     "completeDelivery": "Complete Delivery",
-    "noHistory": "No delivery history"
+    "noHistory": "No delivery history",
+    "deliverTo": "Deliver to"
   },
   "status": {
     "placed": "Order Placed",

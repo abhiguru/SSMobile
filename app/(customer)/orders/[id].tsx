@@ -1,14 +1,11 @@
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Button, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
 
 import { useGetOrderByIdQuery, useReorderMutation } from '../../../src/store/apiSlice';
 import { formatPrice } from '../../../src/constants';
+import { colors, spacing, borderRadius, fontSize } from '../../../src/constants/theme';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import type { AppTheme } from '../../../src/theme';
@@ -23,53 +20,27 @@ export default function OrderDetailScreen() {
 
   const handleReorder = async () => {
     if (!id) return;
-    try {
-      await reorder(id).unwrap();
-      router.replace('/(customer)/orders');
-    } catch {
-      // Error handled by RTK Query
-    }
+    try { await reorder(id).unwrap(); router.replace('/(customer)/orders'); } catch { /* handled by RTK Query */ }
   };
 
-  const getOrderDisplayNumber = (order: Order) => {
-    if (order.order_number) {
-      return order.order_number;
+  const getOrderDisplayNumber = (o: Order) => o.order_number || `#${(o.id ?? '').slice(0, 8).toUpperCase()}`;
+
+  const getDeliveryAddress = (o: Order) => {
+    if (o.shipping_address_line1) {
+      return [o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state].filter(Boolean).join(', ');
     }
-    return `#${(order.id ?? '').slice(0, 8).toUpperCase()}`;
+    return o.delivery_address || '';
   };
 
-  const getDeliveryAddress = (order: Order) => {
-    if (order.shipping_address_line1) {
-      const parts = [
-        order.shipping_address_line1,
-        order.shipping_address_line2,
-        order.shipping_city,
-        order.shipping_state,
-      ].filter(Boolean);
-      return parts.join(', ');
-    }
-    return order.delivery_address || '';
-  };
-
-  const getDeliveryPincode = (order: Order) => {
-    return order.shipping_pincode || order.delivery_pincode || '';
-  };
+  const getDeliveryPincode = (o: Order) => o.shipping_pincode || o.delivery_pincode || '';
 
   if (isLoading || !order) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   const statusSteps = ['placed', 'confirmed', 'out_for_delivery', 'delivered'];
   const currentStepIndex = statusSteps.indexOf(order.status);
-
-  const subtotal = order.subtotal_paise ?? (order.items ?? []).reduce(
-    (sum, item) => sum + (item.total_paise || item.unit_price_paise * item.quantity),
-    0
-  );
+  const subtotal = order.subtotal_paise ?? (order.items ?? []).reduce((sum, item) => sum + (item.total_paise || item.unit_price_paise * item.quantity), 0);
   const shipping = order.shipping_paise ?? 0;
   const hasShippingBreakdown = order.subtotal_paise !== undefined;
 
@@ -77,14 +48,10 @@ export default function OrderDetailScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.section}>
         <View style={styles.headerRow}>
-          <Text variant="titleMedium" style={styles.orderId}>
-            {t('orders.orderNumber', { id: getOrderDisplayNumber(order) })}
-          </Text>
+          <Text variant="titleMedium" style={styles.orderId}>{t('orders.orderNumber', { id: getOrderDisplayNumber(order) })}</Text>
           <StatusBadge status={order.status} />
         </View>
-        <Text variant="bodySmall" style={styles.date}>
-          {new Date(order.created_at).toLocaleString()}
-        </Text>
+        <Text variant="bodySmall" style={styles.date}>{new Date(order.created_at).toLocaleString()}</Text>
       </View>
 
       {order.status !== 'cancelled' && order.status !== 'delivery_failed' && (
@@ -93,29 +60,9 @@ export default function OrderDetailScreen() {
           <View style={styles.timeline}>
             {statusSteps.map((step, index) => (
               <View key={step} style={styles.timelineStep}>
-                <View
-                  style={[
-                    styles.timelineDot,
-                    index <= currentStepIndex && styles.timelineDotActive,
-                  ]}
-                />
-                {index < statusSteps.length - 1 && (
-                  <View
-                    style={[
-                      styles.timelineLine,
-                      index < currentStepIndex && styles.timelineLineActive,
-                    ]}
-                  />
-                )}
-                <Text
-                  variant="labelSmall"
-                  style={[
-                    styles.timelineLabel,
-                    index <= currentStepIndex && styles.timelineLabelActive,
-                  ]}
-                >
-                  {t(`status.${step}`)}
-                </Text>
+                <View style={[styles.timelineDot, index <= currentStepIndex && styles.timelineDotActive]} />
+                {index < statusSteps.length - 1 && <View style={[styles.timelineLine, index < currentStepIndex && styles.timelineLineActive]} />}
+                <Text variant="labelSmall" style={[styles.timelineLabel, index <= currentStepIndex && styles.timelineLabelActive]}>{t(`status.${step}`)}</Text>
               </View>
             ))}
           </View>
@@ -136,18 +83,13 @@ export default function OrderDetailScreen() {
           <View key={item.id} style={styles.orderItem}>
             <View style={styles.itemInfo}>
               <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-              <Text variant="bodySmall" style={styles.itemWeight}>
-                {item.weight_label || `${item.weight_grams}g`}
-              </Text>
+              <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_label || `${item.weight_grams}g`}</Text>
             </View>
             <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
-            <Text variant="bodyMedium" style={styles.itemPrice}>
-              {formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}
-            </Text>
+            <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
           </View>
         ))}
-
-        {hasShippingBreakdown ? (
+        {hasShippingBreakdown && (
           <>
             <View style={styles.breakdownRow}>
               <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.subtotal')}</Text>
@@ -155,38 +97,23 @@ export default function OrderDetailScreen() {
             </View>
             <View style={styles.breakdownRow}>
               <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.shipping')}</Text>
-              {shipping === 0 ? (
-                <Text variant="bodyMedium" style={{ color: theme.custom.success, fontWeight: '600' }}>
-                  {t('checkout.free')}
-                </Text>
-              ) : (
-                <Text variant="bodyMedium">{formatPrice(shipping)}</Text>
-              )}
+              {shipping === 0 ? <Text variant="bodyMedium" style={{ color: theme.custom.success, fontWeight: '600' }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
             </View>
           </>
-        ) : null}
-
+        )}
         <Divider style={styles.totalDivider} />
         <View style={styles.totalRow}>
           <Text variant="titleSmall">{t('cart.total')}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-            {formatPrice(order.total_paise)}
-          </Text>
+          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
-        {order.shipping_full_name && (
-          <Text variant="bodyMedium" style={styles.addressName}>{order.shipping_full_name}</Text>
-        )}
+        {order.shipping_full_name && <Text variant="bodyMedium" style={styles.addressName}>{order.shipping_full_name}</Text>}
         <Text variant="bodyMedium" style={styles.address}>{getDeliveryAddress(order)}</Text>
-        <Text variant="bodySmall" style={styles.pincode}>
-          {t('common.pincode')}: {getDeliveryPincode(order)}
-        </Text>
-        {order.shipping_phone && (
-          <Text variant="bodySmall" style={styles.phone}>{order.shipping_phone}</Text>
-        )}
+        <Text variant="bodySmall" style={styles.pincode}>{t('common.pincode')}: {getDeliveryPincode(order)}</Text>
+        {order.shipping_phone && <Text variant="bodySmall" style={styles.phone}>{order.shipping_phone}</Text>}
       </View>
 
       {order.notes && (
@@ -197,16 +124,7 @@ export default function OrderDetailScreen() {
       )}
 
       {(order.status === 'delivered' || order.status === 'cancelled') && (
-        <Button
-          mode="contained"
-          icon="refresh"
-          onPress={handleReorder}
-          loading={reorderLoading}
-          disabled={reorderLoading}
-          style={styles.reorderButton}
-          contentStyle={styles.reorderContent}
-          labelStyle={styles.reorderLabel}
-        >
+        <Button mode="contained" icon="refresh" onPress={handleReorder} loading={reorderLoading} disabled={reorderLoading} style={styles.reorderButton} contentStyle={styles.reorderContent} labelStyle={styles.reorderLabel}>
           {t('orders.reorder')}
         </Button>
       )}
@@ -215,41 +133,41 @@ export default function OrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: '#FFFFFF', padding: 16, marginBottom: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  orderId: { fontWeight: 'bold', color: '#333333' },
-  date: { color: '#666666' },
-  sectionTitle: { fontWeight: '600', color: '#333333', marginBottom: 16 },
+  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  orderId: { fontWeight: 'bold', color: colors.text.primary },
+  date: { color: colors.text.secondary },
+  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: spacing.md },
   timeline: { flexDirection: 'row', justifyContent: 'space-between' },
   timelineStep: { alignItems: 'center', flex: 1 },
-  timelineDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#DDDDDD' },
-  timelineDotActive: { backgroundColor: '#4CAF50' },
-  timelineLine: { position: 'absolute', left: '50%', top: 8, width: '100%', height: 2, backgroundColor: '#DDDDDD', zIndex: -1 },
-  timelineLineActive: { backgroundColor: '#4CAF50' },
-  timelineLabel: { color: '#999999', marginTop: 8, textAlign: 'center' },
-  timelineLabelActive: { color: '#333333', fontWeight: '500' },
-  otpSection: { backgroundColor: '#E8F5E9', padding: 20, marginBottom: 8, alignItems: 'center' },
-  otpLabel: { color: '#666666', marginBottom: 8 },
-  otpCode: { fontWeight: 'bold', color: '#4CAF50', letterSpacing: 8, marginBottom: 8 },
-  otpHint: { color: '#666666' },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  timelineDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.border.default },
+  timelineDotActive: { backgroundColor: colors.success },
+  timelineLine: { position: 'absolute', left: '50%', top: 8, width: '100%', height: 2, backgroundColor: colors.border.default, zIndex: -1 },
+  timelineLineActive: { backgroundColor: colors.success },
+  timelineLabel: { color: colors.text.muted, marginTop: spacing.sm, textAlign: 'center' },
+  timelineLabelActive: { color: colors.text.primary, fontWeight: '500' },
+  otpSection: { backgroundColor: colors.successLight, padding: 20, marginBottom: spacing.sm, alignItems: 'center' },
+  otpLabel: { color: colors.text.secondary, marginBottom: spacing.sm },
+  otpCode: { fontWeight: 'bold', color: colors.success, letterSpacing: 8, marginBottom: spacing.sm },
+  otpHint: { color: colors.text.secondary },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: '#333333' },
-  itemWeight: { color: '#666666' },
-  itemQty: { color: '#666666', marginHorizontal: 16 },
-  itemPrice: { fontWeight: '600', color: '#333333' },
-  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  breakdownLabel: { color: '#666666' },
-  totalDivider: { marginTop: 8, marginBottom: 12 },
+  itemName: { fontWeight: '500', color: colors.text.primary },
+  itemWeight: { color: colors.text.secondary },
+  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.md },
+  itemPrice: { fontWeight: '600', color: colors.text.primary },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
+  breakdownLabel: { color: colors.text.secondary },
+  totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  addressName: { fontWeight: '600', color: '#333333', marginBottom: 4 },
-  address: { color: '#333333', lineHeight: 20 },
-  pincode: { color: '#666666', marginTop: 4 },
-  phone: { color: '#666666', marginTop: 4 },
-  notes: { color: '#666666', fontStyle: 'italic' },
-  reorderButton: { margin: 16, borderRadius: 8 },
-  reorderContent: { paddingVertical: 8 },
-  reorderLabel: { fontSize: 18, fontWeight: '600' },
+  addressName: { fontWeight: '600', color: colors.text.primary, marginBottom: spacing.xs },
+  address: { color: colors.text.primary, lineHeight: 20 },
+  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
+  phone: { color: colors.text.secondary, marginTop: spacing.xs },
+  notes: { color: colors.text.secondary, fontStyle: 'italic' },
+  reorderButton: { margin: spacing.md, borderRadius: borderRadius.md },
+  reorderContent: { paddingVertical: spacing.sm },
+  reorderLabel: { fontSize: fontSize.xl, fontWeight: '600' },
 });

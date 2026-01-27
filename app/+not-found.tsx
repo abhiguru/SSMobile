@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Text, Button, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
+import { colors, spacing, borderRadius } from '../src/constants/theme';
 import type { AppTheme } from '../src/theme';
 
 export default function NotFoundScreen() {
@@ -34,29 +35,29 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 24,
+    backgroundColor: colors.background.primary,
+    padding: spacing.lg,
   },
   code: {
     fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   title: {
     fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 8,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    color: '#666666',
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   button: {
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
   },
   buttonContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
 });

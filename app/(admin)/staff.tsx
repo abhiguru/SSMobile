@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, spacing } from '../../src/constants/theme';
 
 export default function StaffScreen() {
   const { t } = useTranslation();
@@ -9,32 +10,17 @@ export default function StaffScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.placeholder}>
-        <MaterialCommunityIcons name="account-group" size={64} color="#999999" />
+        <MaterialCommunityIcons name="account-group" size={64} color={colors.text.muted} />
         <Text variant="headlineSmall" style={styles.title}>{t('admin.staff')}</Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>Staff management coming soon</Text>
+        <Text variant="bodyMedium" style={styles.subtitle}>{t('admin.staffComingSoon')}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  title: {
-    fontWeight: 'bold',
-    color: '#333333',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#666666',
-  },
+  container: { flex: 1, backgroundColor: colors.background.secondary },
+  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  title: { fontWeight: 'bold', color: colors.text.primary, marginTop: spacing.md, marginBottom: spacing.sm },
+  subtitle: { color: colors.text.secondary },
 });

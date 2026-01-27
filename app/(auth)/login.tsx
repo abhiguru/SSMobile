@@ -10,10 +10,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { sendOtp, clearError } from '../../src/store/slices/authSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
+import { colors, spacing, borderRadius, fontSize } from '../../src/constants/theme';
 import type { AppTheme } from '../../src/theme';
 
 export default function LoginScreen() {
@@ -52,6 +54,9 @@ export default function LoginScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.content}>
+          <View style={styles.logoContainer}>
+            <MaterialCommunityIcons name="store" size={40} color={colors.text.inverse} />
+          </View>
           <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.primary }]}>
             {t('home.title')}
           </Text>
@@ -98,34 +103,44 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 48,
   },
   title: {
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    color: '#666666',
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xl,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background.primary,
   },
   button: {
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
   },
   buttonContent: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   buttonLabel: {
-    fontSize: 18,
+    fontSize: fontSize.xl,
     fontWeight: '600',
   },
 });

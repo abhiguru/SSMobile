@@ -75,13 +75,11 @@ function TabBarItem({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 0,
-    paddingTop: spacing.xs,
   },
   bar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: 0,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -91,16 +89,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
     paddingVertical: spacing.xs,
   },
   tabIconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+    height: 28,
   },
   tabLabel: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: spacing.xs,
+    fontSize: 11,
     fontFamily: fontFamily.semiBold,
   },
 });

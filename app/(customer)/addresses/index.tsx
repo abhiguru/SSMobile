@@ -68,16 +68,16 @@ export default function AddressesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   listContent: { padding: spacing.md, paddingBottom: 80 },
   addressCard: { marginBottom: 12 },
   addressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   labelContainer: { flexDirection: 'row', alignItems: 'center' },
-  defaultChip: { marginLeft: spacing.sm, backgroundColor: colors.successLight, height: 24 },
-  defaultChipText: { fontSize: 10, color: colors.success },
+  defaultChip: { marginLeft: spacing.sm, backgroundColor: colors.positiveLight, height: 24 },
+  defaultChipText: { fontSize: 10, color: colors.positive },
   addressName: { color: colors.text.primary, marginBottom: 2 },
   addressLine: { color: colors.text.secondary, lineHeight: 20 },
   addressPhone: { color: colors.text.secondary, marginTop: spacing.xs },
-  actionButtons: { flexDirection: 'row', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border.light, gap: spacing.xs },
-  fab: { position: 'absolute', right: spacing.md, bottom: spacing.md, backgroundColor: colors.primary },
+  actionButtons: { flexDirection: 'row', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.xs },
+  fab: { position: 'absolute', right: spacing.md, bottom: spacing.md, backgroundColor: colors.brand },
 });

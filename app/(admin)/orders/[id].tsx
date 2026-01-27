@@ -1,13 +1,16 @@
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Button, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
 
 import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from '../../../src/store/apiSlice';
-import { formatPrice } from '../../../src/constants';
-import { colors, spacing } from '../../../src/constants/theme';
+import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
+import { colors, spacing, fontFamily, elevation } from '../../../src/constants/theme';
 import { OrderStatus } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
+import { AppButton } from '../../../src/components/common/AppButton';
+import { useToast } from '../../../src/components/common/Toast';
+import { hapticSuccess, hapticError } from '../../../src/utils/haptics';
 import type { AppTheme } from '../../../src/theme';
 
 const STATUS_ACTIONS: Record<string, OrderStatus[]> = {
@@ -20,14 +23,44 @@ export default function AdminOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const theme = useTheme<AppTheme>();
+  const { showToast } = useToast();
   const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
 
   const handleStatusUpdate = (newStatus: OrderStatus) => {
-    Alert.alert(t('admin.confirmStatusUpdate'), t('admin.updateStatusTo', { status: t(`status.${newStatus}`) }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.confirm'), onPress: () => { if (id) updateOrderStatus({ orderId: id, status: newStatus }); } },
-    ]);
+    const isDanger = newStatus === 'cancelled' || newStatus === 'delivery_failed';
+
+    if (isDanger) {
+      Alert.alert(t('admin.confirmStatusUpdate'), t('admin.updateStatusTo', { status: t(`status.${newStatus}`) }), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          onPress: async () => {
+            if (!id) return;
+            try {
+              await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
+              hapticSuccess();
+              showToast({ message: t(`status.${newStatus}`), type: 'success' });
+            } catch {
+              hapticError();
+              showToast({ message: t('common.error'), type: 'error' });
+            }
+          },
+        },
+      ]);
+    } else {
+      (async () => {
+        if (!id) return;
+        try {
+          await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
+          hapticSuccess();
+          showToast({ message: t(`status.${newStatus}`), type: 'success' });
+        } catch {
+          hapticError();
+          showToast({ message: t('common.error'), type: 'error' });
+        }
+      })();
+    }
   };
 
   if (isLoading || !order) {
@@ -35,12 +68,16 @@ export default function AdminOrderDetailScreen() {
   }
 
   const availableActions = STATUS_ACTIONS[order.status] || [];
+  const stripeColor = ORDER_STATUS_COLORS[order.status] || colors.critical;
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
         <View style={styles.headerRow}>
-          <Text variant="titleMedium" style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
+          <View style={styles.headerLeft}>
+            <View style={[styles.headerStripe, { backgroundColor: stripeColor }]} />
+            <Text variant="titleMedium" style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
+          </View>
           <StatusBadge status={order.status} />
         </View>
         <Text variant="bodySmall" style={styles.date}>{new Date(order.created_at).toLocaleString()}</Text>
@@ -52,7 +89,18 @@ export default function AdminOrderDetailScreen() {
           <View style={styles.actionsRow}>
             {availableActions.map((status) => {
               const isDanger = status === 'cancelled' || status === 'delivery_failed';
-              return (<Button key={status} mode="contained" buttonColor={isDanger ? theme.colors.error : theme.custom.success} onPress={() => handleStatusUpdate(status)} style={styles.actionButton}>{t(`status.${status}`)}</Button>);
+              return (
+                <View key={status} style={styles.actionButtonWrapper}>
+                  <AppButton
+                    variant={isDanger ? 'danger' : 'primary'}
+                    size="md"
+                    fullWidth
+                    onPress={() => handleStatusUpdate(status)}
+                  >
+                    {t(`status.${status}`)}
+                  </AppButton>
+                </View>
+              );
             })}
           </View>
         </View>
@@ -66,7 +114,7 @@ export default function AdminOrderDetailScreen() {
 
       <View style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.orderItems')}</Text>
-        {order.items.map((item) => (
+        {(order.items ?? []).map((item) => (
           <View key={item.id} style={styles.orderItem}>
             <View style={styles.itemInfo}>
               <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
@@ -79,7 +127,7 @@ export default function AdminOrderDetailScreen() {
         <Divider style={styles.totalDivider} />
         <View style={styles.totalRow}>
           <Text variant="titleSmall">{t('cart.total')}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>{formatPrice(order.total_paise)}</Text>
+          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
@@ -94,23 +142,25 @@ export default function AdminOrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
+  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  orderId: { fontWeight: 'bold', color: colors.text.primary },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerStripe: { width: 4, height: 24, borderRadius: 2, marginRight: spacing.sm },
+  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
   date: { color: colors.text.secondary },
-  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
   actionsRow: { flexDirection: 'row', gap: 12 },
-  actionButton: { flex: 1 },
+  actionButtonWrapper: { flex: 1 },
   address: { color: colors.text.primary, lineHeight: 20 },
   pincode: { color: colors.text.secondary, marginTop: spacing.xs },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: colors.text.primary },
+  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary },
   itemWeight: { color: colors.text.secondary },
-  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.md },
-  itemPrice: { fontWeight: '600', color: colors.text.primary },
+  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.lg },
+  itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
   totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   notes: { color: colors.text.secondary, fontStyle: 'italic' },

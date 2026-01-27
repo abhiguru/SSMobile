@@ -10,7 +10,7 @@ export default function StaffScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.placeholder}>
-        <MaterialCommunityIcons name="account-group" size={64} color={colors.text.muted} />
+        <MaterialCommunityIcons name="account-group" size={64} color={colors.neutral} />
         <Text variant="headlineSmall" style={styles.title}>{t('admin.staff')}</Text>
         <Text variant="bodyMedium" style={styles.subtitle}>{t('admin.staffComingSoon')}</Text>
       </View>
@@ -19,7 +19,7 @@ export default function StaffScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
   title: { fontWeight: 'bold', color: colors.text.primary, marginTop: spacing.md, marginBottom: spacing.sm },
   subtitle: { color: colors.text.secondary },

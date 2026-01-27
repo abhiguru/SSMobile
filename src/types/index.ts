@@ -33,6 +33,7 @@ export interface Product {
   is_available: boolean;
   is_active?: boolean;
   display_order?: number;
+  price_per_kg_paise: number;
   weight_options: WeightOption[];
 }
 
@@ -49,10 +50,9 @@ export interface Category {
 // Cart types
 export interface CartItem {
   product_id: string;
-  weight_option_id: string;
+  weight_grams: number;
   quantity: number;
   product: Product;
-  weight_option: WeightOption;
 }
 
 // Address types
@@ -160,7 +160,7 @@ export interface VerifyOtpResponse {
 export interface CheckoutRequest {
   items: {
     product_id: string;
-    weight_option_id: string;
+    weight_grams: number;
     quantity: number;
   }[];
   address_id: string;

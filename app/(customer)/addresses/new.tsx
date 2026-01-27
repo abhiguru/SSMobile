@@ -59,9 +59,9 @@ export default function NewAddressScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
-  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.md },
-  input: { backgroundColor: colors.background.primary, marginBottom: spacing.xs },
+  container: { flex: 1, backgroundColor: colors.shell },
+  section: { backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.md },
+  input: { backgroundColor: colors.surface, marginBottom: spacing.xs },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },

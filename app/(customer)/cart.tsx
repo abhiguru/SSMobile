@@ -1,21 +1,33 @@
+import { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Card, Text, Button, IconButton, useTheme } from 'react-native-paper';
+import { Text, IconButton, useTheme } from 'react-native-paper';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { PriceText } from '../../src/components/common/PriceText';
+import { AppButton } from '../../src/components/common/AppButton';
+import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
+import { EditCartItemSheet } from '../../src/components/common/EditCartItemSheet';
+import { useToast } from '../../src/components/common/Toast';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import {
   selectCartItems,
   selectCartTotal,
   updateQuantity,
+  updateCartItem,
   removeFromCart,
 } from '../../src/store/slices/cartSlice';
-import { formatPrice } from '../../src/constants';
-import { colors, spacing, borderRadius, fontSize } from '../../src/constants/theme';
+import { formatPrice, getPerKgPaise } from '../../src/constants';
+import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
+import { hapticMedium, hapticSuccess } from '../../src/utils/haptics';
+import type { CartItem } from '../../src/types';
 import type { AppTheme } from '../../src/theme';
 
 export default function CartScreen() {
@@ -23,73 +35,151 @@ export default function CartScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const theme = useTheme<AppTheme>();
+  const { showToast } = useToast();
   const items = useAppSelector(selectCartItems);
   const total = useAppSelector(selectCartTotal);
   const isGujarati = i18n.language === 'gu';
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
 
-  const handleQuantityChange = (productId: string, weightOptionId: string, delta: number, currentQuantity: number) => {
+  const handleQuantityChange = useCallback((productId: string, weightGrams: number, delta: number, currentQuantity: number) => {
     const newQuantity = currentQuantity + delta;
     if (newQuantity <= 0) {
-      dispatch(removeFromCart({ productId, weightOptionId }));
+      hapticMedium();
+      dispatch(removeFromCart({ productId, weightGrams }));
     } else {
-      dispatch(updateQuantity({ productId, weightOptionId, quantity: newQuantity }));
+      dispatch(updateQuantity({ productId, weightGrams, quantity: newQuantity }));
     }
+  }, [dispatch]);
+
+  const handleRemove = useCallback((productId: string, weightGrams: number) => {
+    hapticMedium();
+    dispatch(removeFromCart({ productId, weightGrams }));
+  }, [dispatch]);
+
+  const handleDismissSheet = useCallback(() => {
+    setEditingItem(null);
+  }, []);
+
+  const handleUpdateItem = useCallback((newWeightGrams: number, newQuantity: number) => {
+    if (!editingItem) return;
+    hapticSuccess();
+    dispatch(updateCartItem({
+      productId: editingItem.product_id,
+      oldWeightGrams: editingItem.weight_grams,
+      newWeightGrams,
+      newQuantity,
+      product: editingItem.product,
+    }));
+    setEditingItem(null);
+    showToast({ message: t('cart.itemUpdated'), type: 'success' });
+  }, [dispatch, editingItem, showToast, t]);
+
+  const renderItem = ({ item }: { item: typeof items[0] }) => {
+    const hasImage = !!item.product?.image_url;
+
+    return (
+      <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
+        <View style={styles.cartItem}>
+          <View style={styles.thumbnailContainer}>
+            {hasImage ? (
+              <Image source={{ uri: item.product.image_url }} style={styles.thumbnail} contentFit="cover" />
+            ) : (
+              <LinearGradient
+                colors={gradients.brand as unknown as [string, string]}
+                style={styles.thumbnail}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialCommunityIcons name="leaf" size={20} color="rgba(255,255,255,0.8)" />
+              </LinearGradient>
+            )}
+          </View>
+          <View style={styles.itemInfo}>
+            <Text variant="titleSmall" style={styles.itemName}>{isGujarati ? item.product.name_gu : item.product.name}</Text>
+            <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`}</Text>
+            <Text variant="titleSmall" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000))}</Text>
+          </View>
+          <View style={styles.rightSection}>
+            <IconButton
+              icon="delete-outline"
+              iconColor={colors.negative}
+              size={18}
+              onPress={() => handleRemove(item.product_id, item.weight_grams)}
+              style={styles.deleteBtn}
+            />
+            <View style={styles.quantityContainer}>
+              <IconButton icon="minus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_grams, -1, item.quantity)} />
+              <View style={styles.quantityBadge}>
+                <Text variant="titleMedium" style={styles.quantity}>{item.quantity}</Text>
+              </View>
+              <IconButton icon="plus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_grams, 1, item.quantity)} />
+            </View>
+          </View>
+        </View>
+      </AnimatedPressable>
+    );
   };
 
-  const renderItem = ({ item }: { item: typeof items[0] }) => (
-    <Card mode="elevated" style={styles.cartItem}>
-      <Card.Content style={styles.cartItemContent}>
-        <View style={styles.itemInfo}>
-          <Text variant="titleSmall" style={styles.itemName}>{isGujarati ? item.product.name_gu : item.product.name}</Text>
-          <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_option.weight_grams}g</Text>
-          <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>{formatPrice(item.weight_option.price_paise)}</Text>
-        </View>
-        <View style={styles.quantityContainer}>
-          <IconButton icon="minus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_option_id, -1, item.quantity)} />
-          <View style={styles.quantityBadge}>
-            <Text variant="titleMedium" style={styles.quantity}>{item.quantity}</Text>
-          </View>
-          <IconButton icon="plus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_option_id, 1, item.quantity)} />
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
   if (items.length === 0) {
-    return <EmptyState icon="cart-off" title={t('cart.empty')} actionLabel={t('cart.startShopping')} onAction={() => router.push('/(customer)')} />;
+    return (
+      <Animated.View entering={FadeInUp.duration(400)} style={{ flex: 1 }}>
+        <EmptyState icon="cart-off" title={t('cart.empty')} actionLabel={t('cart.startShopping')} onAction={() => router.push('/(customer)')} />
+      </Animated.View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      <FlashList data={items} renderItem={renderItem} keyExtractor={(item) => `${item.product_id}-${item.weight_option_id}`} contentContainerStyle={styles.listContent} />
+      <FlashList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={(item) => `${item.product_id}-${item.weight_grams}`}
+        contentContainerStyle={styles.listContent}
+      />
+      <LinearGradient
+        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+        style={styles.footerGradient}
+        pointerEvents="none"
+      />
       <View style={styles.footer}>
         <View style={styles.totalRow}>
           <Text variant="titleMedium" style={styles.totalLabel}>{t('cart.total')}</Text>
           <PriceText paise={total} variant="headlineSmall" />
         </View>
-        <Button mode="contained" onPress={() => router.push('/(customer)/checkout')} style={styles.checkoutButton} contentStyle={styles.checkoutButtonContent} labelStyle={styles.checkoutButtonLabel}>
+        <AppButton
+          variant="primary"
+          size="lg"
+          fullWidth
+          onPress={() => router.push('/(customer)/checkout')}
+        >
           {t('cart.checkout')}
-        </Button>
+        </AppButton>
       </View>
+      <EditCartItemSheet
+        item={editingItem}
+        onDismiss={handleDismissSheet}
+        onUpdate={handleUpdateItem}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
-  listContent: { padding: spacing.md },
-  cartItem: { marginBottom: 12 },
-  cartItemContent: { flexDirection: 'row' },
+  container: { flex: 1, backgroundColor: colors.shell },
+  listContent: { padding: spacing.lg, paddingBottom: 140 },
+  cartItem: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, flexDirection: 'row', marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
+  thumbnailContainer: { marginRight: spacing.sm },
+  thumbnail: { width: 50, height: 50, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
   itemInfo: { flex: 1 },
-  itemName: { color: colors.text.primary, marginBottom: spacing.xs },
+  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary, marginBottom: spacing.xs },
   itemWeight: { color: colors.text.secondary, marginBottom: spacing.xs },
+  rightSection: { alignItems: 'flex-end' },
+  deleteBtn: { margin: 0, marginBottom: spacing.xs },
   quantityContainer: { flexDirection: 'row', alignItems: 'center' },
-  quantityBadge: { backgroundColor: colors.secondary, borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 32, alignItems: 'center' },
-  quantity: { fontWeight: '600', color: colors.text.primary },
-  footer: { backgroundColor: colors.background.primary, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.light },
+  quantityBadge: { backgroundColor: colors.informativeLight, borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 32, alignItems: 'center' },
+  quantity: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
+  footerGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 30, zIndex: 1 },
+  footer: { backgroundColor: colors.surface, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, ...elevation.level3 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  totalLabel: { fontWeight: '600', color: colors.text.primary },
-  checkoutButton: { borderRadius: borderRadius.md },
-  checkoutButtonContent: { paddingVertical: spacing.sm },
-  checkoutButtonLabel: { fontSize: fontSize.xl, fontWeight: '600' },
+  totalLabel: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
 });

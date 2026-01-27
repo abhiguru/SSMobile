@@ -42,6 +42,17 @@ export const ORDER_STATUS_LABELS: Record<string, { en: string; gu: string }> = {
   delivery_failed: { en: 'Delivery Failed', gu: 'ડિલિવરી નિષ્ફળ' },
 };
 
+// Order status → Fiori semantic color map
+import { colors } from './theme';
+export const ORDER_STATUS_COLORS: Record<string, string> = {
+  placed: colors.critical,
+  confirmed: colors.informative,
+  out_for_delivery: colors.informative,
+  delivered: colors.positive,
+  cancelled: colors.negative,
+  delivery_failed: colors.negative,
+};
+
 // Error codes
 export const ERROR_CODES = {
   AUTH_001: 'Invalid phone number',
@@ -53,8 +64,20 @@ export const ERROR_CODES = {
   DELIVERY_001: 'Wrong delivery OTP',
 } as const;
 
+// Derive per-kg price: use the explicit field if the backend provides it,
+// otherwise fall back to the first weight_option.
+import type { Product, AppSettings } from '../types';
+
+export const getPerKgPaise = (product: Product): number => {
+  if (product.price_per_kg_paise) return product.price_per_kg_paise;
+  const wo = product.weight_options?.[0];
+  if (wo && wo.weight_grams > 0) {
+    return Math.round(wo.price_paise / wo.weight_grams * 1000);
+  }
+  return 0;
+};
+
 // Shipping & pincode utilities (previously in settingsSlice)
-import type { AppSettings } from '../types';
 
 export const calculateShipping = (subtotalPaise: number, settings: AppSettings): number => {
   if (subtotalPaise >= settings.free_shipping_threshold_paise) {

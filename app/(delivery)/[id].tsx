@@ -1,12 +1,23 @@
-import { useState } from 'react';
-import { View, ScrollView, StyleSheet, Linking, Alert } from 'react-native';
+import { useState, useRef } from 'react';
+import { View, ScrollView, StyleSheet, Linking, TextInput as RNTextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, Button, Card, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, TextInput, Card, ActivityIndicator, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { useGetOrderByIdQuery, useVerifyDeliveryOtpMutation } from '../../src/store/apiSlice';
-import { formatPrice } from '../../src/constants';
-import { colors, spacing } from '../../src/constants/theme';
+import { formatPrice, DELIVERY_OTP_LENGTH } from '../../src/constants';
+import { colors, spacing, borderRadius, fontFamily, elevation, gradients } from '../../src/constants/theme';
+import { AppButton } from '../../src/components/common/AppButton';
+import { useToast } from '../../src/components/common/Toast';
+import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 import type { AppTheme } from '../../src/theme';
 
 export default function DeliveryDetailScreen() {
@@ -14,10 +25,47 @@ export default function DeliveryDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
+  const { showToast } = useToast();
   const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
   const [verifyDeliveryOtp, { isLoading: verifying }] = useVerifyDeliveryOtpMutation();
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState('');
+  const inputRefs = useRef<(RNTextInput | null)[]>([]);
+
+  // Success scale animation
+  const successScale = useSharedValue(1);
+  const successStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: successScale.value }],
+  }));
+
+  const handleOtpChange = (value: string, index: number) => {
+    if (value.length > 1) {
+      const otpArray = value.slice(0, DELIVERY_OTP_LENGTH).split('');
+      const newOtp = [...otp];
+      otpArray.forEach((char, i) => {
+        if (index + i < DELIVERY_OTP_LENGTH) {
+          newOtp[index + i] = char;
+        }
+      });
+      setOtp(newOtp);
+      const nextIndex = Math.min(index + otpArray.length, DELIVERY_OTP_LENGTH - 1);
+      inputRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < DELIVERY_OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
 
   const handleOpenMaps = () => {
     if (!order?.delivery_address) return;
@@ -32,13 +80,21 @@ export default function DeliveryDetailScreen() {
   const handleVerifyOtp = async () => {
     if (!id) return;
     setOtpError('');
-    if (otp.length !== 4) { setOtpError(t('delivery.otpRequired')); return; }
+    const otpString = otp.join('');
+    if (otpString.length !== DELIVERY_OTP_LENGTH) { setOtpError(t('delivery.otpRequired')); return; }
     try {
-      await verifyDeliveryOtp({ orderId: id, otp }).unwrap();
-      Alert.alert(t('delivery.deliveryComplete'), '', [{ text: 'OK', onPress: () => router.replace('/(delivery)') }]);
+      await verifyDeliveryOtp({ orderId: id, otp: otpString }).unwrap();
+      hapticSuccess();
+      successScale.value = withSequence(
+        withSpring(1.2, { damping: 8, stiffness: 400 }),
+        withSpring(1, { damping: 10, stiffness: 300 })
+      );
+      showToast({ message: t('delivery.deliveryComplete'), type: 'success' });
+      setTimeout(() => router.replace('/(delivery)'), 1500);
     } catch (error) {
+      hapticError();
       const errorCode = typeof error === 'object' && error !== null && 'data' in error ? String((error as { data: unknown }).data) : '';
-      if (errorCode === 'DELIVERY_001') setOtpError(t('delivery.wrongOtp'));
+      if (errorCode === 'DELIVERY_001') setOtpError(t('delivery.wrongDeliveryOtp'));
       else setOtpError(errorCode || t('common.error'));
     }
   };
@@ -52,7 +108,7 @@ export default function DeliveryDetailScreen() {
       <View style={styles.section}>
         <View style={styles.headerRow}>
           <Text variant="titleMedium" style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>{formatPrice(order.total_paise)}</Text>
+          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
@@ -61,8 +117,18 @@ export default function DeliveryDetailScreen() {
         <Text variant="bodyMedium" style={styles.address}>{order.delivery_address}</Text>
         <Text variant="bodySmall" style={styles.pincode}>{t('common.pincode')}: {order.delivery_pincode}</Text>
         <View style={styles.actionsRow}>
-          <Button mode="contained-tonal" icon="map-marker" onPress={handleOpenMaps} style={styles.actionButton}>{t('delivery.openMaps')}</Button>
-          {order.shipping_phone && (<Button mode="contained-tonal" icon="phone" onPress={handleCallCustomer} style={styles.actionButton}>{t('delivery.callCustomer')}</Button>)}
+          <View style={{ flex: 1 }}>
+            <AppButton variant="secondary" size="md" icon="map-marker" onPress={handleOpenMaps}>
+              {t('delivery.openInMaps')}
+            </AppButton>
+          </View>
+          {order.shipping_phone && (
+            <View style={{ flex: 1 }}>
+              <AppButton variant="secondary" size="md" icon="phone" onPress={handleCallCustomer}>
+                {t('delivery.callCustomer')}
+              </AppButton>
+            </View>
+          )}
         </View>
       </View>
 
@@ -87,12 +153,50 @@ export default function DeliveryDetailScreen() {
       )}
 
       <Card mode="elevated" style={styles.otpCard}>
-        <Card.Content>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('delivery.verifyDelivery')}</Text>
+        <LinearGradient
+          colors={[colors.positive, colors.positive + 'DD']}
+          style={styles.otpCardHeader}
+        >
+          <MaterialCommunityIcons name="shield-check" size={20} color={colors.text.inverse} />
+          <Text variant="titleSmall" style={styles.otpHeaderText}>{t('delivery.verifyDelivery')}</Text>
+        </LinearGradient>
+        <Card.Content style={styles.otpCardContent}>
           <Text variant="bodySmall" style={styles.otpHint}>{t('delivery.askCustomerForOtp')}</Text>
-          <TextInput mode="outlined" label={t('delivery.enterOtp')} placeholder="1234" value={otp} onChangeText={setOtp} keyboardType="number-pad" maxLength={4} error={!!otpError} style={styles.otpInput} />
-          {otpError ? (<Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 12 }}>{otpError}</Text>) : null}
-          <Button mode="contained" buttonColor={theme.custom.success} onPress={handleVerifyOtp} loading={verifying} disabled={verifying || otp.length !== 4} contentStyle={styles.verifyButtonContent} labelStyle={styles.verifyButtonLabel}>{t('delivery.confirmDelivery')}</Button>
+
+          <View style={styles.otpBoxes}>
+            {otp.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref: any) => { inputRefs.current[index] = ref; }}
+                mode="outlined"
+                keyboardType="number-pad"
+                maxLength={1}
+                value={digit}
+                onChangeText={(value) => handleOtpChange(value, index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                disabled={verifying}
+                style={styles.otpBox}
+                contentStyle={styles.otpBoxContent}
+                outlineStyle={digit ? { borderColor: colors.positive, borderWidth: 2 } : undefined}
+              />
+            ))}
+          </View>
+
+          {otpError ? (<Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 12, textAlign: 'center' }}>{otpError}</Text>) : null}
+
+          <Animated.View style={successStyle}>
+            <AppButton
+              variant="primary"
+              size="lg"
+              fullWidth
+              icon="check-circle"
+              loading={verifying}
+              disabled={verifying || otp.some((d) => !d)}
+              onPress={handleVerifyOtp}
+            >
+              {t('delivery.confirmDelivery')}
+            </AppButton>
+          </Animated.View>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -100,25 +204,27 @@ export default function DeliveryDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
+  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderId: { fontWeight: 'bold', color: colors.text.primary },
-  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: 12 },
+  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
   address: { color: colors.text.primary, lineHeight: 20 },
   pincode: { color: colors.text.secondary, marginTop: spacing.xs },
-  actionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.md },
-  actionButton: { flex: 1 },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
+  actionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.lg },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: colors.text.primary },
+  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary },
   itemWeight: { color: colors.text.secondary },
   itemQty: { color: colors.text.secondary },
   notes: { color: colors.text.secondary, fontStyle: 'italic' },
-  otpCard: { margin: spacing.md, marginBottom: spacing.xl },
-  otpHint: { color: colors.text.secondary, marginBottom: spacing.md },
-  otpInput: { backgroundColor: colors.background.primary, marginBottom: 12 },
-  verifyButtonContent: { paddingVertical: spacing.sm },
-  verifyButtonLabel: { fontSize: 16, fontWeight: '600' },
+  otpCard: { margin: spacing.lg, marginBottom: spacing.xl, overflow: 'hidden' },
+  otpCardHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.sm },
+  otpHeaderText: { color: colors.text.inverse, fontFamily: fontFamily.semiBold },
+  otpCardContent: { padding: spacing.lg },
+  otpHint: { color: colors.text.secondary, marginBottom: spacing.lg, textAlign: 'center' },
+  otpBoxes: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+  otpBox: { width: 56, height: 64, backgroundColor: colors.surface, borderRadius: borderRadius.md, textAlign: 'center' },
+  otpBoxContent: { fontSize: 28, fontFamily: fontFamily.bold, textAlign: 'center' },
 });

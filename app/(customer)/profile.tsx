@@ -1,13 +1,17 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Button, List, Divider, Switch, Avatar, useTheme } from 'react-native-paper';
+import { Text, List, Divider, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
 import { apiSlice } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
-import { colors, spacing } from '../../src/constants/theme';
+import { colors, spacing, elevation, gradients, borderRadius, fontFamily } from '../../src/constants/theme';
+import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
+import { AppButton } from '../../src/components/common/AppButton';
 import type { AppTheme } from '../../src/theme';
 
 export default function ProfileScreen() {
@@ -18,62 +22,118 @@ export default function ProfileScreen() {
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
 
-  const handleLogout = async () => {
-    await dispatch(logout());
-    dispatch(apiSlice.util.resetApiState());
-    router.replace('/');
+  const handleLogout = () => {
+    Alert.alert(
+      t('auth.logoutConfirmTitle'),
+      t('auth.logoutConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('auth.logout'),
+          style: 'destructive',
+          onPress: async () => {
+            await dispatch(logout());
+            dispatch(apiSlice.util.resetApiState());
+            router.replace('/');
+          },
+        },
+      ]
+    );
   };
 
-  const handleLanguageToggle = async () => {
-    const newLanguage = isGujarati ? 'en' : 'gu';
-    await changeLanguage(newLanguage);
+  const handleLanguageToggle = async (lang: string) => {
+    await changeLanguage(lang);
   };
+
+  const menuItems = [
+    { icon: 'map-marker' as const, bg: colors.informativeLight, iconColor: colors.informative, title: t('profile.savedAddresses'), onPress: () => router.push('/(customer)/addresses') },
+    { icon: 'bell-outline' as const, bg: colors.criticalLight, iconColor: colors.critical, title: t('profile.notifications'), onPress: () => {} },
+    { icon: 'information' as const, bg: colors.positiveLight, iconColor: colors.positive, title: t('profile.aboutUs'), onPress: () => {} },
+    { icon: 'help-circle' as const, bg: colors.brandLight + '33', iconColor: colors.brand, title: t('profile.help'), onPress: () => {} },
+  ];
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Avatar.Icon size={80} icon="account" style={{ backgroundColor: theme.colors.primaryContainer }} />
+      <LinearGradient
+        colors={gradients.brand as unknown as [string, string]}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.avatarContainer}>
+          <MaterialCommunityIcons name="account" size={48} color={colors.brand} />
+        </View>
         <Text variant="titleMedium" style={styles.name}>{user?.name || t('profile.guest')}</Text>
         <Text variant="bodyMedium" style={styles.phone}>{user?.phone || ''}</Text>
+      </LinearGradient>
+
+      <View style={styles.section}>
+        <Text variant="labelLarge" style={styles.sectionLabel}>{t('profile.language')}</Text>
+        <View style={styles.languageSegmented}>
+          <AnimatedPressable
+            onPress={() => handleLanguageToggle('en')}
+            style={[styles.langPill, !isGujarati && styles.langPillActive]}
+          >
+            <Text style={[styles.langText, !isGujarati && styles.langTextActive]}>English</Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => handleLanguageToggle('gu')}
+            style={[styles.langPill, isGujarati && styles.langPillActive]}
+          >
+            <Text style={[styles.langText, isGujarati && styles.langTextActive]}>ગુજરાતી</Text>
+          </AnimatedPressable>
+        </View>
       </View>
 
       <View style={styles.section}>
-        <List.Item
-          title={t('profile.language')}
-          right={() => (
-            <View style={styles.languageToggle}>
-              <Text variant="bodyMedium" style={[styles.languageText, !isGujarati && styles.languageActive]}>EN</Text>
-              <Switch value={isGujarati} onValueChange={handleLanguageToggle} color={theme.colors.primary} />
-              <Text variant="bodyMedium" style={[styles.languageText, isGujarati && styles.languageActive]}>gu</Text>
-            </View>
-          )}
-        />
-        <Divider />
-        <List.Item title={t('profile.savedAddresses')} left={() => <List.Icon icon="map-marker" />} right={() => <List.Icon icon="chevron-right" />} onPress={() => router.push('/(customer)/addresses')} />
-        <Divider />
-        <List.Item title={t('profile.notifications')} left={() => <List.Icon icon="bell-outline" />} right={() => <List.Icon icon="chevron-right" />} />
-        <Divider />
-        <List.Item title={t('profile.aboutUs')} left={() => <List.Icon icon="information" />} right={() => <List.Icon icon="chevron-right" />} />
-        <Divider />
-        <List.Item title={t('profile.help')} left={() => <List.Icon icon="help-circle" />} right={() => <List.Icon icon="chevron-right" />} />
+        {menuItems.map((item, index) => (
+          <View key={item.title}>
+            <AnimatedPressable onPress={item.onPress}>
+              <List.Item
+                title={item.title}
+                left={() => (
+                  <View style={[styles.menuIconBg, { backgroundColor: item.bg }]}>
+                    <MaterialCommunityIcons name={item.icon} size={20} color={item.iconColor} />
+                  </View>
+                )}
+                right={() => <List.Icon icon="chevron-right" />}
+              />
+            </AnimatedPressable>
+            {index < menuItems.length - 1 && <Divider />}
+          </View>
+        ))}
       </View>
 
-      <Button mode="text" textColor={theme.colors.error} onPress={handleLogout} style={styles.logoutButton} labelStyle={styles.logoutLabel}>
-        {t('auth.logout')}
-      </Button>
+      <View style={styles.logoutContainer}>
+        <AppButton variant="danger" size="md" fullWidth onPress={handleLogout}>
+          {t('auth.logout')}
+        </AppButton>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
-  header: { backgroundColor: colors.background.primary, padding: spacing.lg, alignItems: 'center', marginBottom: spacing.md },
-  name: { fontWeight: '600', color: colors.text.primary, marginTop: 12, marginBottom: spacing.xs },
-  phone: { color: colors.text.secondary },
-  section: { backgroundColor: colors.background.primary, marginBottom: spacing.md },
-  languageToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  languageText: { color: colors.text.muted },
-  languageActive: { color: colors.primary, fontWeight: '600' },
-  logoutButton: { backgroundColor: colors.background.primary },
-  logoutLabel: { fontSize: 16, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: colors.shell },
+  header: { paddingTop: spacing.xxl, paddingBottom: spacing.xl, alignItems: 'center' },
+  avatarContainer: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: colors.surface, marginBottom: spacing.sm, ...elevation.level3 },
+  name: { fontFamily: fontFamily.semiBold, color: colors.text.inverse, marginBottom: spacing.xs },
+  phone: { color: 'rgba(255,255,255,0.85)' },
+  section: { backgroundColor: colors.surface, marginBottom: spacing.md, paddingVertical: spacing.sm },
+  sectionLabel: {
+    fontSize: 13,
+    fontFamily: fontFamily.semiBold,
+    color: colors.text.secondary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  languageSegmented: { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.shell, borderRadius: borderRadius.md, padding: 4 },
+  langPill: { flex: 1, paddingVertical: spacing.sm, borderRadius: borderRadius.md, alignItems: 'center' },
+  langPillActive: { backgroundColor: colors.brand },
+  langText: { fontWeight: '500', color: colors.text.secondary },
+  langTextActive: { color: colors.text.inverse },
+  menuIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.sm },
+  logoutContainer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });

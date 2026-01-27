@@ -28,7 +28,11 @@
     "invalidPhone": "કૃપા કરી માન્ય 10-અંકનો ફોન નંબર દાખલ કરો",
     "otpSent": "OTP સફળતાપૂર્વક મોકલ્યો",
     "otpExpired": "OTP સમાપ્ત થઈ ગયો છે. કૃપા કરી નવો માગો",
-    "wrongOtp": "ખોટો OTP. કૃપા કરી ફરી પ્રયાસ કરો"
+    "wrongOtp": "ખોટો OTP. કૃપા કરી ફરી પ્રયાસ કરો",
+    "tagline": "તાજા મસાલા તમારા દરવાજે",
+    "logoutConfirmTitle": "લોગઆઉટ",
+    "logoutConfirmMessage": "શું તમે ખરેખર લોગઆઉટ કરવા માંગો છો?",
+    "resendIn": "{{seconds}}s માં ફરી મોકલો"
   },
   "home": {
     "title": "મસાલા સ્પાઇસ શોપ",
@@ -39,10 +43,14 @@
   },
   "product": {
     "addToCart": "કાર્ટમાં ઉમેરો",
+    "addedToCart": "કાર્ટમાં ઉમેર્યું!",
     "selectWeight": "વજન પસંદ કરો",
     "quantity": "જથ્થો",
     "outOfStock": "સ્ટોકમાં નથી",
-    "details": "ઉત્પાદન વિગતો"
+    "details": "ઉત્પાદન વિગતો",
+    "weight": "વજન",
+    "resetWeight": "રીસેટ",
+    "perKg": "/કિલો"
   },
   "cart": {
     "title": "કાર્ટ",
@@ -51,7 +59,9 @@
     "subtotal": "પેટા-કુલ",
     "total": "કુલ",
     "checkout": "ચેકઆઉટ પર જાઓ",
-    "itemRemoved": "કાર્ટમાંથી આઇટમ દૂર કરવામાં આવી"
+    "itemRemoved": "કાર્ટમાંથી આઇટમ દૂર કરવામાં આવી",
+    "updateItem": "અપડેટ કરો",
+    "itemUpdated": "કાર્ટ અપડેટ થયું!"
   },
   "checkout": {
     "title": "ચેકઆઉટ",
@@ -178,6 +188,10 @@
     "history": "ઇતિહાસ",
     "currentDeliveries": "વર્તમાન ડિલિવરીઓ",
     "noDeliveries": "કોઈ ડિલિવરી સોંપવામાં આવી નથી",
+    "noActiveDeliveries": "કોઈ સક્રિય ડિલિવરી નથી",
+    "otpRequired": "કૃપા કરી 4-અંકનો OTP દાખલ કરો",
+    "askCustomerForOtp": "ગ્રાહક પાસેથી ડિલિવરી OTP માગો",
+    "confirmDelivery": "ડિલિવરી પુષ્ટિ કરો",
     "verifyDelivery": "ડિલિવરી ચકાસો",
     "enterDeliveryOtp": "ગ્રાહકનો ડિલિવરી OTP દાખલ કરો",
     "deliveryComplete": "ડિલિવરી પૂર્ણ!",

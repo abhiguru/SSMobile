@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={64} color={colors.primary} />
+          <MaterialCommunityIcons name="alert-circle-outline" size={64} color={colors.brand} />
           <Text variant="titleLarge" style={styles.title}>Something went wrong</Text>
           <Text variant="bodyMedium" style={styles.message}>
             {this.state.error?.message || 'An unexpected error occurred'}
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.surface,
     padding: spacing.lg,
   },
   title: {

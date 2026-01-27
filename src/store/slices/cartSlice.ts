@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { CartItem, Product, WeightOption } from '../../types';
+import { CartItem, Product } from '../../types';
+import { getPerKgPaise } from '../../constants';
 
 interface CartState {
   items: CartItem[];
@@ -19,15 +20,15 @@ const cartSlice = createSlice({
       state,
       action: PayloadAction<{
         product: Product;
-        weightOption: WeightOption;
+        weightGrams: number;
         quantity: number;
       }>
     ) => {
-      const { product, weightOption, quantity } = action.payload;
+      const { product, weightGrams, quantity } = action.payload;
       const existingIndex = state.items.findIndex(
         (item) =>
           item.product_id === product.id &&
-          item.weight_option_id === weightOption.id
+          item.weight_grams === weightGrams
       );
 
       if (existingIndex >= 0) {
@@ -35,10 +36,9 @@ const cartSlice = createSlice({
       } else {
         state.items.push({
           product_id: product.id,
-          weight_option_id: weightOption.id,
+          weight_grams: weightGrams,
           quantity,
           product,
-          weight_option: weightOption,
         });
       }
     },
@@ -47,15 +47,15 @@ const cartSlice = createSlice({
       state,
       action: PayloadAction<{
         productId: string;
-        weightOptionId: string;
+        weightGrams: number;
         quantity: number;
       }>
     ) => {
-      const { productId, weightOptionId, quantity } = action.payload;
+      const { productId, weightGrams, quantity } = action.payload;
       const index = state.items.findIndex(
         (item) =>
           item.product_id === productId &&
-          item.weight_option_id === weightOptionId
+          item.weight_grams === weightGrams
       );
 
       if (index >= 0) {
@@ -69,20 +69,58 @@ const cartSlice = createSlice({
 
     removeFromCart: (
       state,
-      action: PayloadAction<{ productId: string; weightOptionId: string }>
+      action: PayloadAction<{ productId: string; weightGrams: number }>
     ) => {
-      const { productId, weightOptionId } = action.payload;
+      const { productId, weightGrams } = action.payload;
       state.items = state.items.filter(
         (item) =>
           !(
             item.product_id === productId &&
-            item.weight_option_id === weightOptionId
+            item.weight_grams === weightGrams
           )
       );
     },
 
     setNotes: (state, action: PayloadAction<string>) => {
       state.notes = action.payload;
+    },
+
+    updateCartItem: (
+      state,
+      action: PayloadAction<{
+        productId: string;
+        oldWeightGrams: number;
+        newWeightGrams: number;
+        newQuantity: number;
+        product: Product;
+      }>
+    ) => {
+      const { productId, oldWeightGrams, newWeightGrams, newQuantity, product } = action.payload;
+
+      // Remove old entry
+      const oldIndex = state.items.findIndex(
+        (item) => item.product_id === productId && item.weight_grams === oldWeightGrams
+      );
+      if (oldIndex >= 0) {
+        state.items.splice(oldIndex, 1);
+      }
+
+      // Check if an entry with the new weight already exists
+      const existingIndex = state.items.findIndex(
+        (item) => item.product_id === productId && item.weight_grams === newWeightGrams
+      );
+
+      if (existingIndex >= 0) {
+        // Merge quantities
+        state.items[existingIndex].quantity += newQuantity;
+      } else {
+        state.items.push({
+          product_id: productId,
+          weight_grams: newWeightGrams,
+          quantity: newQuantity,
+          product,
+        });
+      }
     },
 
     clearCart: (state) => {
@@ -97,13 +135,14 @@ export const selectCartItems = (state: { cart: CartState }) => state.cart.items;
 
 export const selectCartTotal = (state: { cart: CartState }) =>
   state.cart.items.reduce(
-    (total, item) => total + item.weight_option.price_paise * item.quantity,
+    (total, item) =>
+      total + Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000) * item.quantity,
     0
   );
 
 export const selectCartItemCount = (state: { cart: CartState }) =>
   state.cart.items.reduce((count, item) => count + item.quantity, 0);
 
-export const { addToCart, updateQuantity, removeFromCart, setNotes, clearCart } =
+export const { addToCart, updateQuantity, updateCartItem, removeFromCart, setNotes, clearCart } =
   cartSlice.actions;
 export default cartSlice.reducer;

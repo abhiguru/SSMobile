@@ -72,10 +72,10 @@ export default function EditAddressScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.md },
-  input: { backgroundColor: colors.background.primary, marginBottom: spacing.xs },
+  section: { backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.md },
+  input: { backgroundColor: colors.surface, marginBottom: spacing.xs },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },

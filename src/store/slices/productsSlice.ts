@@ -18,7 +18,7 @@ export const loadFavorites = createAsyncThunk(
   async () => {
     try {
       // Try to fetch from backend
-      const response = await authenticatedFetch('/rest/v1/user_favorites?select=product_id');
+      const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
       if (response.ok) {
         const data = await response.json();
         const backendFavorites = data.map((f: { product_id: string }) => f.product_id);
@@ -49,7 +49,7 @@ export const syncFavoritesWithBackend = createAsyncThunk(
       const localFavorites = state.products.favorites;
 
       // Get backend favorites
-      const response = await authenticatedFetch('/rest/v1/user_favorites?select=product_id');
+      const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
       if (!response.ok) {
         return localFavorites;
       }
@@ -63,7 +63,7 @@ export const syncFavoritesWithBackend = createAsyncThunk(
       // Add any local-only favorites to backend
       const localOnly = localFavorites.filter((id: string) => !backendFavorites.includes(id));
       for (const productId of localOnly) {
-        await authenticatedFetch('/rest/v1/user_favorites', {
+        await authenticatedFetch('/rest/v1/favorites', {
           method: 'POST',
           body: JSON.stringify({ product_id: productId }),
         });
@@ -94,7 +94,7 @@ export const toggleFavorite = createAsyncThunk(
       newFavorites = currentFavorites.filter((id) => id !== productId);
       // Try to remove from backend
       try {
-        await authenticatedFetch(`/rest/v1/user_favorites?product_id=eq.${productId}`, {
+        await authenticatedFetch(`/rest/v1/favorites?product_id=eq.${productId}`, {
           method: 'DELETE',
         });
       } catch {
@@ -105,7 +105,7 @@ export const toggleFavorite = createAsyncThunk(
       newFavorites = [...currentFavorites, productId];
       // Try to add to backend
       try {
-        await authenticatedFetch('/rest/v1/user_favorites', {
+        await authenticatedFetch('/rest/v1/favorites', {
           method: 'POST',
           body: JSON.stringify({ product_id: productId }),
         });

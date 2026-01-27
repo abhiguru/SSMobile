@@ -9,21 +9,21 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
+import { Text, TextInput, HelperText } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { sendOtp, clearError } from '../../src/store/slices/authSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
-import { colors, spacing, borderRadius, fontSize } from '../../src/constants/theme';
-import type { AppTheme } from '../../src/theme';
+import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../src/constants/theme';
+import { AppButton } from '../../src/components/common/AppButton';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
-  const theme = useTheme<AppTheme>();
 
   const [phone, setPhone] = useState('9876543210');
   const [validationError, setValidationError] = useState('');
@@ -53,47 +53,60 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <MaterialCommunityIcons name="store" size={40} color={colors.text.inverse} />
-          </View>
-          <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.primary }]}>
-            {t('home.title')}
-          </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
-            {t('auth.enterPhone')}
-          </Text>
-
-          <TextInput
-            mode="outlined"
-            label={t('auth.enterPhone')}
-            placeholder="9876543210"
-            keyboardType="phone-pad"
-            maxLength={10}
-            value={phone}
-            onChangeText={setPhone}
-            disabled={isLoading}
-            returnKeyType="done"
-            onSubmitEditing={handleSendOtp}
-            left={<TextInput.Affix text={PHONE_PREFIX} />}
-            error={hasError}
-            style={styles.input}
-          />
-          <HelperText type="error" visible={hasError}>
-            {validationError || error}
-          </HelperText>
-
-          <Button
-            mode="contained"
-            onPress={handleSendOtp}
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
+        <View style={styles.wrapper}>
+          <LinearGradient
+            colors={gradients.brand as unknown as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
           >
-            {t('auth.sendOtp')}
-          </Button>
+            <View style={styles.logoContainer}>
+              <MaterialCommunityIcons name="store" size={48} color={colors.brand} />
+            </View>
+            <Text variant="headlineLarge" style={styles.heroTitle}>
+              {t('home.title')}
+            </Text>
+            <Text variant="bodyLarge" style={styles.heroTagline}>
+              {t('auth.tagline')}
+            </Text>
+          </LinearGradient>
+
+          <View style={styles.formCard}>
+            <Text variant="titleLarge" style={styles.formTitle}>
+              {t('auth.enterPhone')}
+            </Text>
+
+            <TextInput
+              mode="outlined"
+              label={t('auth.phoneNumber')}
+              placeholder="9876543210"
+              keyboardType="phone-pad"
+              maxLength={10}
+              value={phone}
+              onChangeText={setPhone}
+              disabled={isLoading}
+              returnKeyType="done"
+              onSubmitEditing={handleSendOtp}
+              left={<TextInput.Affix text={PHONE_PREFIX} />}
+              error={hasError}
+              style={styles.input}
+              outlineStyle={styles.inputOutline}
+            />
+            <HelperText type="error" visible={hasError}>
+              {validationError || error}
+            </HelperText>
+
+            <AppButton
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              disabled={isLoading}
+              onPress={handleSendOtp}
+            >
+              {t('auth.sendOtp')}
+            </AppButton>
+          </View>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -103,44 +116,56 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.surface,
   },
-  content: {
+  wrapper: {
     flex: 1,
+  },
+  heroGradient: {
+    paddingTop: 80,
+    paddingBottom: 60,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 48,
+    marginBottom: spacing.xl,
+    ...elevation.level3,
   },
-  title: {
-    fontWeight: 'bold',
+  heroTitle: {
+    fontFamily: fontFamily.bold,
+    color: colors.text.inverse,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  subtitle: {
-    color: colors.text.secondary,
+  heroTagline: {
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
+  },
+  formCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    marginTop: -24,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+  },
+  formTitle: {
+    fontFamily: fontFamily.semiBold,
+    color: colors.text.primary,
     marginBottom: spacing.xl,
   },
   input: {
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.surface,
   },
-  button: {
+  inputOutline: {
     borderRadius: borderRadius.md,
-  },
-  buttonContent: {
-    paddingVertical: spacing.sm,
-  },
-  buttonLabel: {
-    fontSize: fontSize.xl,
-    fontWeight: '600',
   },
 });

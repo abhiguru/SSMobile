@@ -1,33 +1,77 @@
+import { useEffect, useRef } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { View, Pressable } from 'react-native';
 import { Badge } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { useAppSelector } from '../../src/store';
 import { selectCartItemCount } from '../../src/store/slices/cartSlice';
-import { colors } from '../../src/constants/theme';
+import { colors, fontFamily } from '../../src/constants/theme';
+import { CustomTabBar } from '../../src/components/common/CustomTabBar';
 
 const CartBadge = () => {
   const count = useAppSelector(selectCartItemCount);
+  const prevCount = useRef(count);
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    if (count > prevCount.current) {
+      scale.value = withSequence(
+        withSpring(1.5, { damping: 8, stiffness: 400 }),
+        withSpring(1, { damping: 10, stiffness: 300 })
+      );
+    }
+    prevCount.current = count;
+  }, [count, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   if (count === 0) return null;
   return (
-    <Badge
-      size={18}
-      style={{ position: 'absolute', top: -4, right: -8 }}
-    >
-      {count > 9 ? '9+' : count}
-    </Badge>
+    <Animated.View style={[{ position: 'absolute', top: -4, right: -8 }, animatedStyle]}>
+      <Badge
+        size={18}
+        style={{ backgroundColor: colors.brand, color: colors.text.inverse }}
+      >
+        {count > 9 ? '9+' : count}
+      </Badge>
+    </Animated.View>
   );
 };
 
 const HeaderCartButton = () => {
   const count = useAppSelector(selectCartItemCount);
+  const prevCount = useRef(count);
+  const scale = useSharedValue(1);
   const router = useRouter();
+
+  useEffect(() => {
+    if (count > prevCount.current) {
+      scale.value = withSequence(
+        withSpring(1.3, { damping: 8, stiffness: 400 }),
+        withSpring(1, { damping: 10, stiffness: 300 })
+      );
+    }
+    prevCount.current = count;
+  }, [count, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
     <Pressable onPress={() => router.push('/(customer)/cart')} style={{ marginRight: 16 }}>
-      <View>
-        <MaterialCommunityIcons name="cart-outline" size={24} color={colors.text.inverse} />
+      <Animated.View style={animatedStyle}>
+        <MaterialCommunityIcons name="cart-outline" size={24} color={colors.text.primary} />
         {count > 0 && (
           <Badge
             size={16}
@@ -35,14 +79,14 @@ const HeaderCartButton = () => {
               position: 'absolute',
               top: -6,
               right: -10,
-              backgroundColor: colors.background.primary,
-              color: colors.primary,
+              backgroundColor: colors.negative,
+              color: colors.text.inverse,
             }}
           >
             {count > 9 ? '9+' : count}
           </Badge>
         )}
-      </View>
+      </Animated.View>
     </Pressable>
   );
 };
@@ -52,20 +96,21 @@ export default function CustomerLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.text.muted,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: colors.border.light,
-        },
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.neutral,
         headerStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
         },
-        headerTintColor: colors.text.inverse,
+        headerTintColor: colors.text.primary,
         headerTitleStyle: {
           fontWeight: 'bold',
+          fontFamily: fontFamily.semiBold,
         },
+        headerShadowVisible: false,
         headerRight: () => <HeaderCartButton />,
       }}
     >
@@ -119,6 +164,7 @@ export default function CustomerLayout() {
         options={{
           title: t('profile.title'),
           tabBarLabel: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" color={color} size={size} />
           ),

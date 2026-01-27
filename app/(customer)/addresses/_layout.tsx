@@ -9,9 +9,9 @@ export default function AddressesLayout() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: colors.surface,
         },
-        headerTintColor: colors.text.inverse,
+        headerTintColor: colors.text.primary,
         headerTitleStyle: {
           fontWeight: 'bold',
         },

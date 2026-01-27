@@ -1,28 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import { Storage as SqliteKvStore } from 'expo-sqlite/kv-store';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 import { SendOtpResponse, VerifyOtpResponse, User, UserRole } from '../types';
 
-// Secure storage keys
+// Secure storage keys (individual JWTs are well within SecureStore's 2048-byte limit)
 const ACCESS_TOKEN_KEY = 'masala_access_token';
 const REFRESH_TOKEN_KEY = 'masala_refresh_token';
 
-// Custom storage adapter using expo-secure-store
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    return await SecureStore.getItemAsync(key);
+// Supabase session adapter using expo-sqlite/kv-store.
+// Supabase stores the entire session (JWT + refresh token + user metadata) as a
+// single JSON string that can exceed SecureStore's 2048-byte limit on iOS.
+// SQLiteStorage is backed by SQLite and has no size limit.
+const SqliteStorageAdapter = {
+  getItem: (key: string): Promise<string | null> => {
+    return SqliteKvStore.getItemAsync(key);
   },
-  setItem: async (key: string, value: string): Promise<void> => {
-    await SecureStore.setItemAsync(key, value);
+  setItem: (key: string, value: string): Promise<void> => {
+    return SqliteKvStore.setItemAsync(key, value);
   },
-  removeItem: async (key: string): Promise<void> => {
-    await SecureStore.deleteItemAsync(key);
+  removeItem: (key: string): Promise<void> => {
+    return SqliteKvStore.removeItemAsync(key).then(() => undefined);
   },
 };
 
 export const supabase = createClient(API_BASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage: SqliteStorageAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

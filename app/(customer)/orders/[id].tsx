@@ -1,14 +1,25 @@
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Button, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInLeft } from 'react-native-reanimated';
 
 import { useGetOrderByIdQuery, useReorderMutation } from '../../../src/store/apiSlice';
-import { formatPrice } from '../../../src/constants';
-import { colors, spacing, borderRadius, fontSize } from '../../../src/constants/theme';
+import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
+import { colors, spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
+import { AppButton } from '../../../src/components/common/AppButton';
+import { hapticSuccess } from '../../../src/utils/haptics';
 import type { AppTheme } from '../../../src/theme';
+
+const TIMELINE_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  placed: 'clock-outline',
+  confirmed: 'check-circle-outline',
+  out_for_delivery: 'truck-delivery-outline',
+  delivered: 'package-variant-closed-check',
+};
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,7 +31,11 @@ export default function OrderDetailScreen() {
 
   const handleReorder = async () => {
     if (!id) return;
-    try { await reorder(id).unwrap(); router.replace('/(customer)/orders'); } catch { /* handled by RTK Query */ }
+    try {
+      await reorder(id).unwrap();
+      hapticSuccess();
+      router.replace('/(customer)/orders');
+    } catch { /* handled by RTK Query */ }
   };
 
   const getOrderDisplayNumber = (o: Order) => o.order_number || `#${(o.id ?? '').slice(0, 8).toUpperCase()}`;
@@ -35,7 +50,7 @@ export default function OrderDetailScreen() {
   const getDeliveryPincode = (o: Order) => o.shipping_pincode || o.delivery_pincode || '';
 
   if (isLoading || !order) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>;
   }
 
   const statusSteps = ['placed', 'confirmed', 'out_for_delivery', 'delivered'];
@@ -58,13 +73,31 @@ export default function OrderDetailScreen() {
         <View style={styles.section}>
           <Text variant="titleSmall" style={styles.sectionTitle}>{t('orders.trackOrder')}</Text>
           <View style={styles.timeline}>
-            {statusSteps.map((step, index) => (
-              <View key={step} style={styles.timelineStep}>
-                <View style={[styles.timelineDot, index <= currentStepIndex && styles.timelineDotActive]} />
-                {index < statusSteps.length - 1 && <View style={[styles.timelineLine, index < currentStepIndex && styles.timelineLineActive]} />}
-                <Text variant="labelSmall" style={[styles.timelineLabel, index <= currentStepIndex && styles.timelineLabelActive]}>{t(`status.${step}`)}</Text>
-              </View>
-            ))}
+            {statusSteps.map((step, index) => {
+              const isActive = index <= currentStepIndex;
+              const iconName = TIMELINE_ICONS[step] || 'circle';
+              return (
+                <Animated.View
+                  key={step}
+                  entering={FadeInLeft.delay(index * 150).duration(400)}
+                  style={styles.timelineStep}
+                >
+                  <View style={[styles.timelineDot, isActive && styles.timelineDotActive]}>
+                    <MaterialCommunityIcons
+                      name={iconName}
+                      size={16}
+                      color={isActive ? colors.text.inverse : colors.neutral}
+                    />
+                  </View>
+                  {index < statusSteps.length - 1 && (
+                    <View style={[styles.timelineLine, index < currentStepIndex && styles.timelineLineActive]} />
+                  )}
+                  <Text variant="labelSmall" style={[styles.timelineLabel, isActive && styles.timelineLabelActive]}>
+                    {t(`status.${step}`)}
+                  </Text>
+                </Animated.View>
+              );
+            })}
           </View>
         </View>
       )}
@@ -72,7 +105,17 @@ export default function OrderDetailScreen() {
       {order.status === 'out_for_delivery' && order.delivery_otp && (
         <View style={styles.otpSection}>
           <Text variant="bodyMedium" style={styles.otpLabel}>{t('orders.deliveryOtp')}</Text>
-          <Text variant="displaySmall" style={styles.otpCode}>{order.delivery_otp}</Text>
+          <View style={styles.otpDigits}>
+            {order.delivery_otp.split('').map((digit, i) => (
+              <Animated.View
+                key={i}
+                entering={FadeInLeft.delay(i * 100).duration(300)}
+                style={styles.otpDigitBox}
+              >
+                <Text variant="headlineMedium" style={styles.otpDigitText}>{digit}</Text>
+              </Animated.View>
+            ))}
+          </View>
           <Text variant="bodySmall" style={styles.otpHint}>{t('orders.shareOtpHint')}</Text>
         </View>
       )}
@@ -97,14 +140,14 @@ export default function OrderDetailScreen() {
             </View>
             <View style={styles.breakdownRow}>
               <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.shipping')}</Text>
-              {shipping === 0 ? <Text variant="bodyMedium" style={{ color: theme.custom.success, fontWeight: '600' }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
+              {shipping === 0 ? <Text variant="bodyMedium" style={{ color: colors.positive, fontFamily: fontFamily.semiBold }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
             </View>
           </>
         )}
         <Divider style={styles.totalDivider} />
         <View style={styles.totalRow}>
           <Text variant="titleSmall">{t('cart.total')}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>{formatPrice(order.total_paise)}</Text>
+          <Text variant="titleMedium" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
@@ -124,50 +167,67 @@ export default function OrderDetailScreen() {
       )}
 
       {(order.status === 'delivered' || order.status === 'cancelled') && (
-        <Button mode="contained" icon="refresh" onPress={handleReorder} loading={reorderLoading} disabled={reorderLoading} style={styles.reorderButton} contentStyle={styles.reorderContent} labelStyle={styles.reorderLabel}>
-          {t('orders.reorder')}
-        </Button>
+        <View style={styles.reorderContainer}>
+          <AppButton
+            variant="primary"
+            size="lg"
+            fullWidth
+            icon="refresh"
+            loading={reorderLoading}
+            disabled={reorderLoading}
+            onPress={handleReorder}
+          >
+            {t('orders.reorder')}
+          </AppButton>
+        </View>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background.secondary },
+  container: { flex: 1, backgroundColor: colors.shell },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.background.primary, padding: spacing.md, marginBottom: spacing.sm },
+  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  orderId: { fontWeight: 'bold', color: colors.text.primary },
+  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
   date: { color: colors.text.secondary },
-  sectionTitle: { fontWeight: '600', color: colors.text.primary, marginBottom: spacing.md },
+  sectionTitle: {
+    fontSize: 13,
+    fontFamily: fontFamily.semiBold,
+    color: colors.text.secondary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: spacing.lg,
+  },
   timeline: { flexDirection: 'row', justifyContent: 'space-between' },
   timelineStep: { alignItems: 'center', flex: 1 },
-  timelineDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.border.default },
-  timelineDotActive: { backgroundColor: colors.success },
-  timelineLine: { position: 'absolute', left: '50%', top: 8, width: '100%', height: 2, backgroundColor: colors.border.default, zIndex: -1 },
-  timelineLineActive: { backgroundColor: colors.success },
-  timelineLabel: { color: colors.text.muted, marginTop: spacing.sm, textAlign: 'center' },
-  timelineLabelActive: { color: colors.text.primary, fontWeight: '500' },
-  otpSection: { backgroundColor: colors.successLight, padding: 20, marginBottom: spacing.sm, alignItems: 'center' },
+  timelineDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
+  timelineDotActive: { backgroundColor: colors.positive },
+  timelineLine: { position: 'absolute', left: '50%', top: 16, width: '100%', height: 2, backgroundColor: colors.border, zIndex: -1 },
+  timelineLineActive: { backgroundColor: colors.positive },
+  timelineLabel: { color: colors.neutral, marginTop: spacing.sm, textAlign: 'center', fontSize: 10 },
+  timelineLabelActive: { color: colors.text.primary, fontFamily: fontFamily.semiBold },
+  otpSection: { backgroundColor: colors.positiveLight, padding: 20, marginBottom: spacing.sm, alignItems: 'center' },
   otpLabel: { color: colors.text.secondary, marginBottom: spacing.sm },
-  otpCode: { fontWeight: 'bold', color: colors.success, letterSpacing: 8, marginBottom: spacing.sm },
+  otpDigits: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  otpDigitBox: { width: 48, height: 56, borderRadius: borderRadius.md, borderWidth: 2, borderColor: colors.positive, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+  otpDigitText: { fontFamily: fontFamily.bold, color: colors.positive },
   otpHint: { color: colors.text.secondary },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border.light },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemInfo: { flex: 1 },
   itemName: { fontWeight: '500', color: colors.text.primary },
   itemWeight: { color: colors.text.secondary },
   itemQty: { color: colors.text.secondary, marginHorizontal: spacing.md },
-  itemPrice: { fontWeight: '600', color: colors.text.primary },
+  itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
   breakdownLabel: { color: colors.text.secondary },
   totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  addressName: { fontWeight: '600', color: colors.text.primary, marginBottom: spacing.xs },
+  addressName: { fontFamily: fontFamily.semiBold, color: colors.text.primary, marginBottom: spacing.xs },
   address: { color: colors.text.primary, lineHeight: 20 },
   pincode: { color: colors.text.secondary, marginTop: spacing.xs },
   phone: { color: colors.text.secondary, marginTop: spacing.xs },
   notes: { color: colors.text.secondary, fontStyle: 'italic' },
-  reorderButton: { margin: spacing.md, borderRadius: borderRadius.md },
-  reorderContent: { paddingVertical: spacing.sm },
-  reorderLabel: { fontSize: fontSize.xl, fontWeight: '600' },
+  reorderContainer: { padding: spacing.lg, marginBottom: spacing.xl },
 });

@@ -28,7 +28,11 @@
     "invalidPhone": "Please enter a valid 10-digit phone number",
     "otpSent": "OTP sent successfully",
     "otpExpired": "OTP has expired. Please request a new one",
-    "wrongOtp": "Incorrect OTP. Please try again"
+    "wrongOtp": "Incorrect OTP. Please try again",
+    "tagline": "Fresh spices delivered to your door",
+    "logoutConfirmTitle": "Logout",
+    "logoutConfirmMessage": "Are you sure you want to logout?",
+    "resendIn": "Resend in {{seconds}}s"
   },
   "home": {
     "title": "Masala Spice Shop",
@@ -39,10 +43,14 @@
   },
   "product": {
     "addToCart": "Add to Cart",
-    "selectWeight": "Select Weight",
+    "addedToCart": "Added to cart!",
+    "selectWeight": "Choose Weight",
     "quantity": "Quantity",
     "outOfStock": "Out of Stock",
-    "details": "Product Details"
+    "details": "Product Details",
+    "weight": "Weight",
+    "resetWeight": "Reset",
+    "perKg": "/kg"
   },
   "cart": {
     "title": "Cart",
@@ -51,7 +59,9 @@
     "subtotal": "Subtotal",
     "total": "Total",
     "checkout": "Proceed to Checkout",
-    "itemRemoved": "Item removed from cart"
+    "itemRemoved": "Item removed from cart",
+    "updateItem": "Update",
+    "itemUpdated": "Cart updated!"
   },
   "checkout": {
     "title": "Checkout",
@@ -178,6 +188,10 @@
     "history": "History",
     "currentDeliveries": "Current Deliveries",
     "noDeliveries": "No deliveries assigned",
+    "noActiveDeliveries": "No active deliveries",
+    "otpRequired": "Please enter the 4-digit OTP",
+    "askCustomerForOtp": "Ask the customer for their delivery OTP",
+    "confirmDelivery": "Confirm Delivery",
     "verifyDelivery": "Verify Delivery",
     "enterDeliveryOtp": "Enter customer's delivery OTP",
     "deliveryComplete": "Delivery completed!",

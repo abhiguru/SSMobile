@@ -112,7 +112,7 @@ export const apiSlice = createApi({
     createOrder: builder.mutation<
       Order,
       {
-        items: { product_id: string; weight_option_id: string; quantity: number }[];
+        items: { product_id: string; weight_grams: number; quantity: number }[];
         address_id: string;
         notes?: string;
       }

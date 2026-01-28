@@ -1,6 +1,5 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 import {
   authenticatedFetch,
   sendOtp as sendOtpApi,
@@ -11,7 +10,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
@@ -40,6 +39,7 @@ const baseQuery = async (args: {
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
+      console.log('[baseQuery] ERROR', args.url, '— status:', response.status, '— body:', JSON.stringify(data));
       return {
         error: {
           status: response.status,
@@ -181,32 +181,27 @@ export const apiSlice = createApi({
           const uploadResult = await uploadResponse.json().catch(() => null);
           console.log(TAG, 'storage upload result:', JSON.stringify(uploadResult));
 
-          // Step 3: Insert pending product_images record
-          const uploadToken = Crypto.randomUUID();
-          const insertBody = {
-            product_id: productId,
-            storage_path: storagePath,
-            original_filename: fileName,
-            file_size: blob.size,
-            mime_type: mimeType,
-            display_order: 0,
-            upload_token: uploadToken,
-          };
-          console.log(TAG, 'Step 3 — inserting metadata:', JSON.stringify(insertBody));
-
-          const insertResponse = await authenticatedFetch(
-            '/rest/v1/product_images',
+          // Step 3: Register + confirm in a single RPC call
+          console.log(TAG, 'Step 3 — register_and_confirm via RPC...');
+          const rpcResponse = await authenticatedFetch(
+            '/rest/v1/rpc/register_and_confirm_product_image',
             {
               method: 'POST',
-              headers: { 'Prefer': 'return=representation' },
-              body: JSON.stringify(insertBody),
+              body: JSON.stringify({
+                p_product_id: productId,
+                p_storage_path: storagePath,
+                p_original_filename: fileName,
+                p_file_size: blob.size,
+                p_mime_type: mimeType,
+              }),
             }
           );
-          console.log(TAG, 'insert response status:', insertResponse.status, 'ok:', insertResponse.ok);
+          console.log(TAG, 'RPC response status:', rpcResponse.status, 'ok:', rpcResponse.ok);
 
-          if (!insertResponse.ok) {
-            const insertErr = await insertResponse.json().catch(() => ({}));
-            console.log(TAG, 'INSERT FAILED — status:', insertResponse.status, 'body:', JSON.stringify(insertErr));
+          if (!rpcResponse.ok) {
+            const rpcErr = await rpcResponse.json().catch(() => ({}));
+            console.log(TAG, 'RPC FAILED — status:', rpcResponse.status, 'body:', JSON.stringify(rpcErr));
+            // Clean up the storage object since metadata registration failed
             console.log(TAG, 'cleaning up storage object...');
             await fetch(
               `${API_BASE_URL}/storage/v1/object/product-images/${storagePath}`,
@@ -220,43 +215,14 @@ export const apiSlice = createApi({
             );
             return {
               error: {
-                status: insertResponse.status,
-                data: 'Failed to register image metadata',
+                status: rpcResponse.status,
+                data: 'Failed to register image',
               },
             };
           }
 
-          const insertData = await insertResponse.json();
-          console.log(TAG, 'inserted record:', JSON.stringify(insertData));
-          const [insertedImage] = insertData;
-
-          // Step 4: Confirm via RPC
-          console.log(TAG, 'Step 4 — confirming upload — image_id:', insertedImage.id, 'upload_token:', uploadToken);
-          const confirmResponse = await authenticatedFetch(
-            '/rest/v1/rpc/confirm_product_image_upload',
-            {
-              method: 'POST',
-              body: JSON.stringify({
-                p_image_id: insertedImage.id,
-                p_upload_token: uploadToken,
-              }),
-            }
-          );
-          console.log(TAG, 'confirm response status:', confirmResponse.status, 'ok:', confirmResponse.ok);
-
-          if (!confirmResponse.ok) {
-            const confirmErr = await confirmResponse.json().catch(() => ({}));
-            console.log(TAG, 'CONFIRM FAILED — status:', confirmResponse.status, 'body:', JSON.stringify(confirmErr));
-            return {
-              error: {
-                status: confirmResponse.status,
-                data: 'Failed to confirm image upload',
-              },
-            };
-          }
-
-          const result = await confirmResponse.json();
-          console.log(TAG, 'DONE — confirm result:', JSON.stringify(result));
+          const result = await rpcResponse.json();
+          console.log(TAG, 'DONE — RPC result:', JSON.stringify(result));
           return { data: result };
         } catch (error) {
           console.log(TAG, 'EXCEPTION:', error instanceof Error ? error.message : error);
@@ -414,11 +380,16 @@ export const apiSlice = createApi({
 
     getOrderById: builder.query<Order | null, string>({
       query: (orderId) => ({
-        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*)`,
+        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*),porter_delivery:porter_deliveries(*)`,
       }),
       transformResponse: (response: unknown) => {
         const arr = Array.isArray(response) ? response : [];
-        return arr[0] || null;
+        const order = arr[0] || null;
+        // Flatten porter_delivery from array to single object
+        if (order && Array.isArray(order.porter_delivery)) {
+          order.porter_delivery = order.porter_delivery[0] || undefined;
+        }
+        return order;
       },
       providesTags: (_result, _error, id) => [{ type: 'Order', id }],
     }),
@@ -477,6 +448,66 @@ export const apiSlice = createApi({
       invalidatesTags: (_result, _error, { orderId }) => [
         'Orders',
         { type: 'Order', id: orderId },
+      ],
+    }),
+
+    // ── Porter Delivery ──────────────────────────────────────
+    getPorterQuote: builder.mutation<PorterQuoteResponse, string>({
+      query: (orderId) => ({
+        url: '/functions/v1/porter-quote',
+        method: 'POST',
+        body: { order_id: orderId },
+      }),
+    }),
+
+    bookPorterDelivery: builder.mutation<PorterBookResponse, string>({
+      query: (orderId) => ({
+        url: '/functions/v1/porter-book',
+        method: 'POST',
+        body: { order_id: orderId },
+      }),
+      invalidatesTags: (_result, _error, orderId) => [
+        { type: 'Order', id: orderId },
+        'Orders',
+      ],
+    }),
+
+    cancelPorterDelivery: builder.mutation<
+      PorterCancelResponse,
+      { orderId: string; reason?: string; fallbackToInhouse?: boolean }
+    >({
+      query: ({ orderId, reason, fallbackToInhouse }) => ({
+        url: '/functions/v1/porter-cancel',
+        method: 'POST',
+        body: {
+          order_id: orderId,
+          reason,
+          fallback_to_inhouse: fallbackToInhouse,
+        },
+      }),
+      invalidatesTags: (_result, _error, { orderId }) => [
+        { type: 'Order', id: orderId },
+        'Orders',
+      ],
+    }),
+
+    dispatchOrder: builder.mutation<
+      void,
+      { orderId: string; deliveryStaffId: string }
+    >({
+      query: ({ orderId, deliveryStaffId }) => ({
+        url: '/functions/v1/update-order-status',
+        method: 'POST',
+        body: {
+          order_id: orderId,
+          status: 'out_for_delivery',
+          delivery_staff_id: deliveryStaffId,
+          delivery_type: 'in_house' as DeliveryType,
+        },
+      }),
+      invalidatesTags: (_result, _error, { orderId }) => [
+        { type: 'Order', id: orderId },
+        'Orders',
       ],
     }),
 
@@ -668,16 +699,22 @@ export const apiSlice = createApi({
       void
     >({
       queryFn: async () => {
+        console.log('[checkSession] START');
         const { accessToken } = await getStoredTokens();
+        console.log('[checkSession] accessToken present:', !!accessToken, 'length:', accessToken?.length);
         if (!accessToken) {
+          console.log('[checkSession] REJECT — no stored tokens');
           return {
             error: { status: 'CUSTOM_ERROR' as const, data: 'No stored tokens' },
           };
         }
 
         try {
+          console.log('[checkSession] calling getCurrentUser...');
           const { user, role, token } = await getCurrentUser();
+          console.log('[checkSession] getCurrentUser returned — user:', !!user, 'token:', !!token, 'role:', role);
           if (user && token) {
+            console.log('[checkSession] SUCCESS via backend');
             return {
               data: {
                 user,
@@ -686,12 +723,15 @@ export const apiSlice = createApi({
               },
             };
           }
+          console.log('[checkSession] getCurrentUser returned no user/token, falling back to JWT decode');
         } catch (err) {
           console.log('[checkSession] Backend validation failed, using offline fallback:', err);
         }
 
         try {
+          console.log('[checkSession] attempting JWT decode fallback...');
           const payload = decodeJwtPayload(accessToken);
+          console.log('[checkSession] JWT decoded — sub:', payload.sub, 'user_role:', payload.user_role);
           const meta = (payload.user_metadata || {}) as Record<string, unknown>;
           const user: User = {
             id: (payload.sub as string) || '',
@@ -701,10 +741,11 @@ export const apiSlice = createApi({
             created_at: '',
           };
           const role = (user.role || 'customer') as UserRole;
-          console.log('[checkSession] Offline fallback — restored user:', user.id, 'role:', role);
+          console.log('[checkSession] SUCCESS via offline fallback — user:', user.id, 'role:', role);
           return { data: { user, token: accessToken, role } };
-        } catch {
-          console.log('[checkSession] JWT decode failed, clearing tokens');
+        } catch (decodeErr) {
+          console.log('[checkSession] JWT decode FAILED:', decodeErr);
+          console.log('[checkSession] clearing tokens and rejecting');
           await clearStoredTokens();
           return {
             error: { status: 'CUSTOM_ERROR' as const, data: 'Invalid stored token' },
@@ -861,6 +902,11 @@ export const {
   useReorderMutation,
   useUpdateOrderStatusMutation,
   useVerifyDeliveryOtpMutation,
+  // Porter delivery
+  useGetPorterQuoteMutation,
+  useBookPorterDeliveryMutation,
+  useCancelPorterDeliveryMutation,
+  useDispatchOrderMutation,
   useGetAddressesQuery,
   useAddAddressMutation,
   useUpdateAddressMutation,

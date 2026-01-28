@@ -89,6 +89,39 @@ export type OrderStatus =
   | 'cancelled'
   | 'delivery_failed';
 
+// Delivery types
+export type DeliveryType = 'in_house' | 'porter';
+
+export type PorterStatus =
+  | 'pending'
+  | 'live'
+  | 'allocated'
+  | 'reached_for_pickup'
+  | 'picked_up'
+  | 'reached_for_drop'
+  | 'ended'
+  | 'cancelled';
+
+export interface PorterDelivery {
+  id: string;
+  order_id: string;
+  porter_order_id?: string;
+  crn?: string;
+  tracking_url?: string;
+  driver_name?: string;
+  driver_phone?: string;
+  vehicle_number?: string;
+  quoted_fare_paise?: number;
+  final_fare_paise?: number;
+  porter_status?: PorterStatus;
+  estimated_pickup_time?: string;
+  estimated_delivery_time?: string;
+  actual_pickup_time?: string;
+  actual_delivery_time?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface OrderItem {
   id: string;
   order_id: string;
@@ -124,6 +157,11 @@ export interface Order {
   delivery_pincode?: string;
   delivery_otp?: string;
   notes?: string;
+  // Delivery type (in-house or Porter)
+  delivery_type?: DeliveryType;
+  delivery_staff_id?: string;
+  // Porter delivery info (populated via join)
+  porter_delivery?: PorterDelivery;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -199,4 +237,51 @@ export interface CheckoutRequest {
 export interface ApiError {
   code: string;
   message: string;
+}
+
+// Porter API types
+export interface PorterQuoteResponse {
+  success: boolean;
+  order_id: string;
+  order_number: string;
+  quote: {
+    fare_paise: number;
+    fare_display: string;
+    estimated_minutes: number;
+    estimated_time_display: string;
+    distance_km: number;
+    vehicle_type: string;
+  };
+  addresses: {
+    pickup: { lat: number; lng: number };
+    drop: { lat: number; lng: number; address: string; formatted_address?: string };
+  };
+  error?: string;
+  message?: string;
+}
+
+export interface PorterBookResponse {
+  success: boolean;
+  order_id: string;
+  order_number: string;
+  porter: {
+    porter_order_id: string;
+    crn: string;
+    tracking_url: string;
+    estimated_pickup_time?: string;
+    estimated_delivery_time?: string;
+  };
+  message: string;
+  error?: string;
+}
+
+export interface PorterCancelResponse {
+  success: boolean;
+  order_id: string;
+  order_number: string;
+  porter_cancelled: boolean;
+  new_status: string;
+  fallback_to_inhouse: boolean;
+  message: string;
+  error?: string;
 }

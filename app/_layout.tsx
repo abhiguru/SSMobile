@@ -7,31 +7,30 @@ import { PaperProvider } from 'react-native-paper';
 import { I18nextProvider } from 'react-i18next';
 import { useFonts } from 'expo-font';
 
-import { store, useAppDispatch, useAppSelector } from '../src/store';
+import { store, useAppSelector } from '../src/store';
 import i18n from '../src/i18n';
 import { paperTheme } from '../src/theme';
-import { useCheckSessionMutation } from '../src/store/apiSlice';
-import { loadFavorites, syncFavoritesWithBackend } from '../src/store/slices/productsSlice';
+import { useCheckSessionMutation, useGetFavoritesQuery, useSyncFavoritesMutation } from '../src/store/apiSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 import { ToastProvider } from '../src/components/common/Toast';
 import { registerForPushNotificationsAsync } from '../src/services/notifications';
 import { registerPushToken } from '../src/services/supabase';
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
-  const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const [checkSession] = useCheckSessionMutation();
+  useGetFavoritesQuery();
+  const [syncFavorites] = useSyncFavoritesMutation();
 
   // Initial app setup
   useEffect(() => {
     checkSession();
-    dispatch(loadFavorites());
-  }, [checkSession, dispatch]);
+  }, [checkSession]);
 
   // Post-authentication setup
   useEffect(() => {
     if (isAuthenticated) {
-      dispatch(syncFavoritesWithBackend());
+      syncFavorites();
 
       registerForPushNotificationsAsync().then((token) => {
         if (token) {
@@ -39,7 +38,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [dispatch, isAuthenticated]);
+  }, [isAuthenticated, syncFavorites]);
 
   return <>{children}</>;
 }

@@ -9,9 +9,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { useAppSelector, useAppDispatch } from '../../src/store';
-import { useGetProductsQuery } from '../../src/store/apiSlice';
-import { toggleFavorite } from '../../src/store/slices/productsSlice';
+import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
 import { EmptyState } from '../../src/components/common/EmptyState';
 
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -25,8 +23,8 @@ export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
-  const dispatch = useAppDispatch();
-  const favoriteIds = useAppSelector((state) => state.products.favorites);
+  const { data: favoriteIds = [] } = useGetFavoritesQuery();
+  const [toggleFav] = useToggleFavoriteMutation();
   const { data: products = [] } = useGetProductsQuery();
 
   const favorites = useMemo(
@@ -37,8 +35,8 @@ export default function FavoritesScreen() {
 
   const handleUnfavorite = useCallback((productId: string) => {
     hapticMedium();
-    dispatch(toggleFavorite(productId));
-  }, [dispatch]);
+    toggleFav(productId);
+  }, [toggleFav]);
 
   const renderProduct = ({ item, index }: { item: Product; index: number }) => {
     const hasImage = !!item.image_url;

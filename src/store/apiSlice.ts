@@ -1,4 +1,5 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   authenticatedFetch,
   sendOtp as sendOtpApi,
@@ -10,6 +11,8 @@ import {
   clearStoredTokens,
 } from '../services/supabase';
 import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole } from '../types';
+
+const FAVORITES_KEY = '@masala_favorites';
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const base64Url = token.split('.')[1];
@@ -63,7 +66,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -96,6 +99,29 @@ export const apiSlice = createApi({
         body: { is_available: !isAvailable },
       }),
       invalidatesTags: ['Products'],
+    }),
+
+    // ── Favorites ─────────────────────────────────────────────
+    getFavorites: builder.query<string[], void>({
+      queryFn: async () => {
+        try {
+          const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
+          if (response.ok) {
+            const data = await response.json();
+            const ids = data.map((f: { product_id: string }) => f.product_id);
+            await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
+            return { data: ids };
+          }
+        } catch {}
+        // Fallback to local storage
+        try {
+          const stored = await AsyncStorage.getItem(FAVORITES_KEY);
+          return { data: stored ? JSON.parse(stored) : [] };
+        } catch {
+          return { data: [] };
+        }
+      },
+      providesTags: ['Favorites'],
     }),
 
     // ── Orders ───────────────────────────────────────────────
@@ -428,10 +454,109 @@ export const apiSlice = createApi({
   }),
 });
 
+// Inject endpoints that reference apiSlice (avoids circular type inference)
+const injectedApi = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    syncFavorites: builder.mutation<string[], void>({
+      queryFn: async () => {
+        try {
+          // Read local favorites from AsyncStorage (always in sync with cache)
+          const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
+          const localFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
+
+          const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
+          if (!response.ok) {
+            return { data: localFavorites };
+          }
+
+          const backendData = await response.json();
+          const backendFavorites: string[] = backendData.map((f: { product_id: string }) => f.product_id);
+
+          // Merge local and backend favorites (union)
+          const mergedFavorites = [...new Set([...localFavorites, ...backendFavorites])];
+
+          // Add any local-only favorites to backend
+          const localOnly = localFavorites.filter((id) => !backendFavorites.includes(id));
+          for (const productId of localOnly) {
+            await authenticatedFetch('/rest/v1/favorites', {
+              method: 'POST',
+              body: JSON.stringify({ product_id: productId }),
+            });
+          }
+
+          await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedFavorites));
+          return { data: mergedFavorites };
+        } catch {
+          const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
+          return { data: storedJson ? JSON.parse(storedJson) : [] };
+        }
+      },
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data: mergedFavorites } = await queryFulfilled;
+          dispatch(
+            apiSlice.util.updateQueryData('getFavorites', undefined, () => mergedFavorites),
+          );
+        } catch {}
+      },
+    }),
+
+    toggleFavorite: builder.mutation<string[], string>({
+      queryFn: async (productId) => {
+        // Read pre-toggle state from AsyncStorage to determine add vs remove
+        const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
+        const currentFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
+        const isCurrentlyFavorited = currentFavorites.includes(productId);
+
+        // Compute post-toggle state
+        const updatedFavorites = isCurrentlyFavorited
+          ? currentFavorites.filter((id) => id !== productId)
+          : [...currentFavorites, productId];
+
+        if (!isCurrentlyFavorited) {
+          try {
+            await authenticatedFetch('/rest/v1/favorites', {
+              method: 'POST',
+              body: JSON.stringify({ product_id: productId }),
+            });
+          } catch {}
+        } else {
+          try {
+            await authenticatedFetch(`/rest/v1/favorites?product_id=eq.${productId}`, {
+              method: 'DELETE',
+            });
+          } catch {}
+        }
+
+        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
+        return { data: updatedFavorites };
+      },
+      async onQueryStarted(productId, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          apiSlice.util.updateQueryData('getFavorites', undefined, (draft) => {
+            const idx = draft.indexOf(productId);
+            if (idx >= 0) {
+              draft.splice(idx, 1);
+            } else {
+              draft.push(productId);
+            }
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
+    }),
+  }),
+});
+
 export const {
   useGetProductsQuery,
   useGetCategoriesQuery,
   useToggleProductAvailabilityMutation,
+  useGetFavoritesQuery,
   useGetOrdersQuery,
   useGetOrderByIdQuery,
   useCreateOrderMutation,
@@ -449,3 +574,8 @@ export const {
   useCheckSessionMutation,
   useLogoutMutation,
 } = apiSlice;
+
+export const {
+  useSyncFavoritesMutation,
+  useToggleFavoriteMutation,
+} = injectedApi;

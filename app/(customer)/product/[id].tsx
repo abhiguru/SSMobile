@@ -17,9 +17,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 
-import { useAppDispatch, useAppSelector } from '../../../src/store';
-import { toggleFavorite } from '../../../src/store/slices/productsSlice';
-import { useGetProductsQuery } from '../../../src/store/apiSlice';
+import { useAppDispatch } from '../../../src/store';
+import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../../src/store/apiSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
 import { formatPrice, getPerKgPaise } from '../../../src/constants';
 import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../../src/constants/theme';
@@ -53,7 +52,8 @@ export default function ProductDetailScreen() {
 
   const { data: products = [] } = useGetProductsQuery();
   const product = useMemo(() => products.find((p) => p.id === id), [products, id]);
-  const favorites = useAppSelector((state) => state.products.favorites);
+  const { data: favorites = [] } = useGetFavoritesQuery();
+  const [toggleFav] = useToggleFavoriteMutation();
   const isFavorite = favorites.includes(id!);
 
   const [weightGrams, setWeightGrams] = useState(0);
@@ -74,8 +74,8 @@ export default function ProductDetailScreen() {
       withSpring(1.3, { damping: 8, stiffness: 400 }),
       withSpring(1, { damping: 10, stiffness: 300 })
     );
-    dispatch(toggleFavorite(id!));
-  }, [dispatch, id, heartScale]);
+    toggleFav(id!);
+  }, [toggleFav, id, heartScale]);
 
   const handleAddWeight = useCallback((grams: number) => {
     hapticLight();

@@ -19,10 +19,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
-import { useGetProductsQuery, useGetCategoriesQuery } from '../../src/store/apiSlice';
-import { useAppDispatch, useAppSelector } from '../../src/store';
+import { useGetProductsQuery, useGetCategoriesQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
+import { useAppSelector } from '../../src/store';
 import type { Product } from '../../src/types';
-import { toggleFavorite } from '../../src/store/slices/productsSlice';
 import { selectCartItemCount } from '../../src/store/slices/cartSlice';
 import { getPerKgPaise } from '../../src/constants';
 import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
@@ -87,8 +86,6 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
-  const dispatch = useAppDispatch();
-
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -101,7 +98,8 @@ export default function HomeScreen() {
     refetch: refetchCategories,
   } = useGetCategoriesQuery();
 
-  const favorites = useAppSelector((state) => state.products.favorites);
+  const { data: favorites = [] } = useGetFavoritesQuery();
+  const [toggleFav] = useToggleFavoriteMutation();
   const isLoading = productsLoading;
   const error = productsError
     ? (typeof productsError === 'object' && 'data' in productsError
@@ -288,8 +286,8 @@ export default function HomeScreen() {
 
   const handleToggleFavorite = useCallback((productId: string) => {
     hapticLight();
-    dispatch(toggleFavorite(productId));
-  }, [dispatch]);
+    toggleFav(productId);
+  }, [toggleFav]);
 
   const renderCategory = ({ item }: { item: typeof categories[0] }) => {
     const isSelected = selectedCategory === item.id;

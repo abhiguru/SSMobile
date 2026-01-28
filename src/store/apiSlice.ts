@@ -491,14 +491,8 @@ const injectedApi = apiSlice.injectEndpoints({
           return { data: storedJson ? JSON.parse(storedJson) : [] };
         }
       },
-      async onQueryStarted(_, { dispatch, queryFulfilled }) {
-        try {
-          const { data: mergedFavorites } = await queryFulfilled;
-          dispatch(
-            apiSlice.util.updateQueryData('getFavorites', undefined, () => mergedFavorites),
-          );
-        } catch {}
-      },
+      // Invalidate instead of patching — avoids race with in-flight getFavorites query
+      invalidatesTags: ['Favorites'],
     }),
 
     toggleFavorite: builder.mutation<string[], string>({

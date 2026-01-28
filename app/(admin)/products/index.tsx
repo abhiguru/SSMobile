@@ -1,18 +1,21 @@
+import { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { Text, Switch, useTheme } from 'react-native-paper';
+import { Text, Switch } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
-import { useGetProductsQuery, useToggleProductAvailabilityMutation } from '../../src/store/apiSlice';
-import { Product } from '../../src/types';
-import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
-import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
-import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../src/constants/theme';
-import { hapticSelection } from '../../src/utils/haptics';
-import type { AppTheme } from '../../src/theme';
+import { useGetProductsQuery, useToggleProductAvailabilityMutation } from '../../../src/store/apiSlice';
+import { Product } from '../../../src/types';
+import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
+import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
+import { resolveImageSource } from '../../../src/constants';
+import { getStoredTokens } from '../../../src/services/supabase';
+import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../../src/constants/theme';
+import { hapticSelection } from '../../../src/utils/haptics';
 
 function ProductsSkeleton() {
   return (
@@ -33,10 +36,12 @@ function ProductsSkeleton() {
 
 export default function AdminProductsScreen() {
   const { t, i18n } = useTranslation();
-  const theme = useTheme<AppTheme>();
+  const router = useRouter();
   const isGujarati = i18n.language === 'gu';
   const { data: products = [], isLoading, isFetching, refetch } = useGetProductsQuery({ includeUnavailable: true });
   const [toggleAvailability] = useToggleProductAvailabilityMutation();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
 
   const handleToggleAvailability = (productId: string, currentValue: boolean) => {
     hapticSelection();
@@ -44,14 +49,17 @@ export default function AdminProductsScreen() {
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
-    const hasImage = !!item.image_url;
+    const imgSource = resolveImageSource(item.image_url, accessToken);
 
     return (
-      <AnimatedPressable style={styles.productCard}>
+      <AnimatedPressable
+        style={styles.productCard}
+        onPress={() => router.push({ pathname: '/(admin)/products/edit', params: { productId: item.id } })}
+      >
         <View style={styles.productCardContent}>
           <View style={styles.productImage}>
-            {hasImage ? (
-              <Image source={{ uri: item.image_url }} style={styles.thumbnail} contentFit="cover" />
+            {imgSource ? (
+              <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
             ) : (
               <LinearGradient
                 colors={gradients.brand as unknown as [string, string]}

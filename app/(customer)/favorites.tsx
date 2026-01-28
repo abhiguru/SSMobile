@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -14,7 +14,8 @@ import { EmptyState } from '../../src/components/common/EmptyState';
 
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { Product } from '../../src/types';
-import { getPerKgPaise } from '../../src/constants';
+import { getPerKgPaise, resolveImageSource } from '../../src/constants';
+import { getStoredTokens } from '../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
 import { hapticMedium } from '../../src/utils/haptics';
 import type { AppTheme } from '../../src/theme';
@@ -23,12 +24,23 @@ export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
-  const { data: favoriteIds = [] } = useGetFavoritesQuery();
+  const favQuery = useGetFavoritesQuery();
+  const { data: favoriteIds = [] } = favQuery;
   const [toggleFav] = useToggleFavoriteMutation();
   const { data: products = [] } = useGetProductsQuery();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
+
+  console.log('[Favorites:Screen] render — status:', favQuery.status,
+    'favoriteIds:', favoriteIds, 'products:', products.length);
 
   const favorites = useMemo(
-    () => products.filter((p) => favoriteIds.includes(p.id)),
+    () => {
+      const result = products.filter((p) => favoriteIds.includes(p.id));
+      console.log('[Favorites:Screen] computed favorites list:', result.length,
+        'ids:', result.map(p => p.id));
+      return result;
+    },
     [products, favoriteIds]
   );
   const isGujarati = i18n.language === 'gu';
@@ -39,7 +51,7 @@ export default function FavoritesScreen() {
   }, [toggleFav]);
 
   const renderProduct = ({ item, index }: { item: Product; index: number }) => {
-    const hasImage = !!item.image_url;
+    const imgSource = resolveImageSource(item.image_url, accessToken);
 
     return (
       <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
@@ -48,8 +60,8 @@ export default function FavoritesScreen() {
           style={styles.productCard}
         >
           <View style={styles.productImageContainer}>
-            {hasImage ? (
-              <Image source={{ uri: item.image_url }} style={styles.productImage} contentFit="cover" />
+            {imgSource ? (
+              <Image source={imgSource} style={styles.productImage} contentFit="cover" />
             ) : (
               <LinearGradient
                 colors={gradients.brand as unknown as [string, string]}

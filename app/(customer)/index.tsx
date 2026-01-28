@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useLayoutEffect, useRef, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useLayoutEffect, useRef, memo } from 'react';
 import {
   View,
   Pressable,
@@ -20,13 +20,16 @@ import Animated, {
 import type { SharedValue } from 'react-native-reanimated';
 
 import { useGetProductsQuery, useGetCategoriesQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
-import { useAppSelector } from '../../src/store';
+import { useAppSelector, useAppDispatch } from '../../src/store';
 import type { Product } from '../../src/types';
-import { selectCartItemCount } from '../../src/store/slices/cartSlice';
-import { getPerKgPaise } from '../../src/constants';
+import { selectCartItemCount, addToCart } from '../../src/store/slices/cartSlice';
+import { getPerKgPaise, resolveImageSource } from '../../src/constants';
+import { getStoredTokens } from '../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
+import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
+import { useToast } from '../../src/components/common/Toast';
 import { hapticLight } from '../../src/utils/haptics';
 import type { AppTheme } from '../../src/theme';
 
@@ -107,8 +110,19 @@ export default function HomeScreen() {
         : 'Failed to load products')
     : null;
 
+  const dispatch = useAppDispatch();
   const cartCount = useAppSelector(selectCartItemCount);
   const navigation = useNavigation();
+  const { showToast } = useToast();
+
+  const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
+
+  const handleQuickAdd = useCallback((product: Product, weightGrams: number, quantity: number) => {
+    dispatch(addToCart({ product, weightGrams, quantity }));
+    showToast({ message: t('product.addedToCart'), type: 'success' });
+  }, [dispatch, showToast, t]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -317,7 +331,7 @@ export default function HomeScreen() {
 
     const product = item.product;
     const isFav = favorites.includes(product.id);
-    const hasImage = !!product.image_url;
+    const imgSource = resolveImageSource(product.image_url, accessToken);
 
     return (
       <Animated.View entering={FadeInUp.delay(Math.min(index, 10) * 50).duration(400)}>
@@ -326,9 +340,9 @@ export default function HomeScreen() {
           style={styles.productCard}
         >
           <View style={styles.productImageWrapper}>
-            {hasImage ? (
+            {imgSource ? (
               <Image
-                source={{ uri: product.image_url }}
+                source={imgSource}
                 style={styles.productImage}
                 contentFit="cover"
                 transition={200}
@@ -364,10 +378,19 @@ export default function HomeScreen() {
               </Text>
             )}
           </View>
+          <AnimatedPressable
+            onPress={() => {
+              hapticLight();
+              setQuickAddProduct(product);
+            }}
+            style={styles.quickAddBtn}
+          >
+            <MaterialCommunityIcons name="cart-plus" size={22} color={colors.brand} />
+          </AnimatedPressable>
         </AnimatedPressable>
       </Animated.View>
     );
-  }, [favorites, isGujarati, router, handleToggleFavorite]);
+  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken]);
 
   const getListItemKey = useCallback((item: ListItem) => {
     return item.type === 'header' ? `header-${item.letter}` : item.product.id;
@@ -463,6 +486,11 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+      <QuickAddSheet
+        product={quickAddProduct}
+        onDismiss={() => setQuickAddProduct(null)}
+        onAdd={handleQuickAdd}
+      />
     </View>
   );
 }
@@ -622,6 +650,13 @@ const styles = StyleSheet.create({
   productPrice: {
     color: colors.brand,
     fontFamily: fontFamily.bold,
+  },
+  quickAddBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
   },
   skeletonGrid: {
     flexDirection: 'row',

@@ -34,7 +34,8 @@ import { useAppDispatch, useAppSelector } from '../../src/store';
 import { selectCartItems, selectCartTotal, clearCart } from '../../src/store/slices/cartSlice';
 import { selectSelectedAddressId, setSelectedAddress } from '../../src/store/slices/addressesSlice';
 import { useGetAddressesQuery, useGetAppSettingsQuery, useCreateOrderMutation } from '../../src/store/apiSlice';
-import { formatPrice, getPerKgPaise, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS } from '../../src/constants';
+import { formatPrice, getPerKgPaise, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS, resolveImageSource } from '../../src/constants';
+import { getStoredTokens } from '../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../src/constants/theme';
 import { Address } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -63,6 +64,8 @@ export default function CheckoutScreen() {
 
   const [notes, setNotes] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
   const sectionYPositions = useRef<number[]>([0, 0, 0]);
 
   const STEPS = [
@@ -321,13 +324,13 @@ export default function CheckoutScreen() {
               const itemPrice = Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000);
               const weightLabel = item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`;
               const isLast = idx === items.length - 1;
-              const hasImage = !!item.product?.image_url;
+              const imgSource = resolveImageSource(item.product?.image_url, accessToken);
               const displayName = isGujarati && item.product.name_gu ? item.product.name_gu : item.product.name;
               return (
                 <View key={`${item.product_id}-${item.weight_grams}`} style={[styles.orderItem, isLast && styles.orderItemLast]}>
                   <View style={styles.itemThumb}>
-                    {hasImage ? (
-                      <Image source={{ uri: item.product.image_url }} style={styles.thumbImage} contentFit="cover" />
+                    {imgSource ? (
+                      <Image source={imgSource} style={styles.thumbImage} contentFit="cover" />
                     ) : (
                       <LinearGradient
                         colors={gradients.brand as unknown as [string, string]}

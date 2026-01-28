@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -24,7 +24,8 @@ import {
   updateCartItem,
   removeFromCart,
 } from '../../src/store/slices/cartSlice';
-import { formatPrice, getPerKgPaise } from '../../src/constants';
+import { formatPrice, getPerKgPaise, resolveImageSource } from '../../src/constants';
+import { getStoredTokens } from '../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
 import { hapticMedium, hapticSuccess } from '../../src/utils/haptics';
 import type { CartItem } from '../../src/types';
@@ -40,6 +41,8 @@ export default function CartScreen() {
   const total = useAppSelector(selectCartTotal);
   const isGujarati = i18n.language === 'gu';
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
 
   const handleQuantityChange = useCallback((productId: string, weightGrams: number, delta: number, currentQuantity: number) => {
     const newQuantity = currentQuantity + delta;
@@ -74,14 +77,14 @@ export default function CartScreen() {
   }, [dispatch, editingItem, showToast, t]);
 
   const renderItem = ({ item }: { item: typeof items[0] }) => {
-    const hasImage = !!item.product?.image_url;
+    const imgSource = resolveImageSource(item.product?.image_url, accessToken);
 
     return (
       <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
         <View style={styles.cartItem}>
           <View style={styles.thumbnailContainer}>
-            {hasImage ? (
-              <Image source={{ uri: item.product.image_url }} style={styles.thumbnail} contentFit="cover" />
+            {imgSource ? (
+              <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
             ) : (
               <LinearGradient
                 colors={gradients.brand as unknown as [string, string]}

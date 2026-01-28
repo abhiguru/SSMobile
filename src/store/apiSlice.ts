@@ -1,5 +1,6 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import {
   authenticatedFetch,
   sendOtp as sendOtpApi,
@@ -10,7 +11,8 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse } from '../types';
+import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
 
@@ -66,7 +68,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -101,23 +103,293 @@ export const apiSlice = createApi({
       invalidatesTags: ['Products'],
     }),
 
+    updateProduct: builder.mutation<
+      null,
+      { productId: string; updates: Partial<Pick<Product, 'name' | 'name_gu' | 'description' | 'description_gu' | 'price_per_kg_paise'>> }
+    >({
+      query: ({ productId, updates }) => ({
+        url: `/rest/v1/products?id=eq.${productId}`,
+        method: 'PATCH',
+        body: updates,
+      }),
+      invalidatesTags: ['Products'],
+    }),
+
+    // ── Product Images ──────────────────────────────────────────
+    getProductImages: builder.query<ProductImage[], string>({
+      query: (productId) => ({
+        url: `/rest/v1/product_images?product_id=eq.${productId}&status=eq.confirmed&order=display_order.asc,created_at.asc`,
+      }),
+      providesTags: (_result, _error, productId) => [
+        { type: 'ProductImages', id: productId },
+      ],
+    }),
+
+    uploadProductImage: builder.mutation<
+      ConfirmImageResponse,
+      { productId: string; uri: string; mimeType: string; fileName: string }
+    >({
+      queryFn: async ({ productId, uri, mimeType, fileName }) => {
+        const TAG = '[ImageUpload]';
+        console.log(TAG, 'START — productId:', productId, 'fileName:', fileName, 'mimeType:', mimeType);
+        console.log(TAG, 'source URI:', uri);
+        try {
+          const { accessToken } = await getStoredTokens();
+          console.log(TAG, 'accessToken present:', !!accessToken);
+          if (!accessToken) {
+            console.log(TAG, 'ABORT — no access token');
+            return { error: { status: 'CUSTOM_ERROR', data: 'Not authenticated' } };
+          }
+
+          const ext = fileName.split('.').pop() || 'jpg';
+          const storagePath = `${productId}/${Date.now()}.${ext}`;
+          console.log(TAG, 'storagePath:', storagePath);
+
+          // Step 1: Read file into blob
+          console.log(TAG, 'Step 1 — fetching file URI into blob...');
+          const fileResponse = await fetch(uri);
+          console.log(TAG, 'fileResponse status:', fileResponse.status, 'ok:', fileResponse.ok);
+          const blob = await fileResponse.blob();
+          console.log(TAG, 'blob size:', blob.size, 'blob type:', blob.type);
+
+          // Step 2: Upload blob to Supabase Storage
+          const storageUrl = `${API_BASE_URL}/storage/v1/object/product-images/${storagePath}`;
+          console.log(TAG, 'Step 2 — uploading to storage:', storageUrl);
+          const uploadResponse = await fetch(storageUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': SUPABASE_ANON_KEY,
+              'Content-Type': mimeType,
+              'x-upsert': 'false',
+            },
+            body: blob,
+          });
+          console.log(TAG, 'storage response status:', uploadResponse.status, 'ok:', uploadResponse.ok);
+
+          if (!uploadResponse.ok) {
+            const errData = await uploadResponse.json().catch(() => ({}));
+            console.log(TAG, 'STORAGE UPLOAD FAILED — status:', uploadResponse.status, 'body:', JSON.stringify(errData));
+            return {
+              error: {
+                status: uploadResponse.status,
+                data: errData.message || 'Storage upload failed',
+              },
+            };
+          }
+
+          const uploadResult = await uploadResponse.json().catch(() => null);
+          console.log(TAG, 'storage upload result:', JSON.stringify(uploadResult));
+
+          // Step 3: Insert pending product_images record
+          const uploadToken = Crypto.randomUUID();
+          const insertBody = {
+            product_id: productId,
+            storage_path: storagePath,
+            original_filename: fileName,
+            file_size: blob.size,
+            mime_type: mimeType,
+            display_order: 0,
+            upload_token: uploadToken,
+          };
+          console.log(TAG, 'Step 3 — inserting metadata:', JSON.stringify(insertBody));
+
+          const insertResponse = await authenticatedFetch(
+            '/rest/v1/product_images',
+            {
+              method: 'POST',
+              headers: { 'Prefer': 'return=representation' },
+              body: JSON.stringify(insertBody),
+            }
+          );
+          console.log(TAG, 'insert response status:', insertResponse.status, 'ok:', insertResponse.ok);
+
+          if (!insertResponse.ok) {
+            const insertErr = await insertResponse.json().catch(() => ({}));
+            console.log(TAG, 'INSERT FAILED — status:', insertResponse.status, 'body:', JSON.stringify(insertErr));
+            console.log(TAG, 'cleaning up storage object...');
+            await fetch(
+              `${API_BASE_URL}/storage/v1/object/product-images/${storagePath}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'apikey': SUPABASE_ANON_KEY,
+                },
+              }
+            );
+            return {
+              error: {
+                status: insertResponse.status,
+                data: 'Failed to register image metadata',
+              },
+            };
+          }
+
+          const insertData = await insertResponse.json();
+          console.log(TAG, 'inserted record:', JSON.stringify(insertData));
+          const [insertedImage] = insertData;
+
+          // Step 4: Confirm via RPC
+          console.log(TAG, 'Step 4 — confirming upload — image_id:', insertedImage.id, 'upload_token:', uploadToken);
+          const confirmResponse = await authenticatedFetch(
+            '/rest/v1/rpc/confirm_product_image_upload',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                p_image_id: insertedImage.id,
+                p_upload_token: uploadToken,
+              }),
+            }
+          );
+          console.log(TAG, 'confirm response status:', confirmResponse.status, 'ok:', confirmResponse.ok);
+
+          if (!confirmResponse.ok) {
+            const confirmErr = await confirmResponse.json().catch(() => ({}));
+            console.log(TAG, 'CONFIRM FAILED — status:', confirmResponse.status, 'body:', JSON.stringify(confirmErr));
+            return {
+              error: {
+                status: confirmResponse.status,
+                data: 'Failed to confirm image upload',
+              },
+            };
+          }
+
+          const result = await confirmResponse.json();
+          console.log(TAG, 'DONE — confirm result:', JSON.stringify(result));
+          return { data: result };
+        } catch (error) {
+          console.log(TAG, 'EXCEPTION:', error instanceof Error ? error.message : error);
+          console.log(TAG, 'stack:', error instanceof Error ? error.stack : 'n/a');
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: error instanceof Error ? error.message : 'Upload failed',
+            },
+          };
+        }
+      },
+      invalidatesTags: (_result, _error, { productId }) => [
+        { type: 'ProductImages', id: productId },
+        'Products',
+      ],
+    }),
+
+    deleteProductImage: builder.mutation<
+      null,
+      { imageId: string; productId: string; storagePath: string }
+    >({
+      queryFn: async ({ imageId, storagePath }) => {
+        try {
+          const deleteResponse = await authenticatedFetch(
+            `/rest/v1/product_images?id=eq.${imageId}`,
+            { method: 'DELETE' }
+          );
+
+          if (!deleteResponse.ok && deleteResponse.status !== 204) {
+            return {
+              error: {
+                status: deleteResponse.status,
+                data: 'Failed to delete image record',
+              },
+            };
+          }
+
+          const { accessToken } = await getStoredTokens();
+          if (accessToken) {
+            await fetch(
+              `${API_BASE_URL}/storage/v1/object/product-images/${storagePath}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'apikey': SUPABASE_ANON_KEY,
+                },
+              }
+            );
+          }
+
+          return { data: null };
+        } catch (error) {
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: error instanceof Error ? error.message : 'Delete failed',
+            },
+          };
+        }
+      },
+      invalidatesTags: (_result, _error, { productId }) => [
+        { type: 'ProductImages', id: productId },
+        'Products',
+      ],
+    }),
+
+    reorderProductImages: builder.mutation<
+      null,
+      { productId: string; orderedImageIds: string[] }
+    >({
+      queryFn: async ({ orderedImageIds }) => {
+        try {
+          for (let i = 0; i < orderedImageIds.length; i++) {
+            const response = await authenticatedFetch(
+              `/rest/v1/product_images?id=eq.${orderedImageIds[i]}`,
+              {
+                method: 'PATCH',
+                body: JSON.stringify({ display_order: i }),
+              }
+            );
+            if (!response.ok) {
+              return {
+                error: {
+                  status: response.status,
+                  data: `Failed to update order for image ${i}`,
+                },
+              };
+            }
+          }
+          return { data: null };
+        } catch (error) {
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: error instanceof Error ? error.message : 'Reorder failed',
+            },
+          };
+        }
+      },
+      invalidatesTags: (_result, _error, { productId }) => [
+        { type: 'ProductImages', id: productId },
+        'Products',
+      ],
+    }),
+
     // ── Favorites ─────────────────────────────────────────────
     getFavorites: builder.query<string[], void>({
       queryFn: async () => {
+        console.log('[Favorites:getFavorites] queryFn START');
         try {
           const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
+          console.log('[Favorites:getFavorites] backend response status:', response.status);
           if (response.ok) {
             const data = await response.json();
             const ids = data.map((f: { product_id: string }) => f.product_id);
+            console.log('[Favorites:getFavorites] backend returned', ids.length, 'ids:', ids);
             await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
             return { data: ids };
           }
-        } catch {}
+          console.log('[Favorites:getFavorites] backend not ok, falling back to AsyncStorage');
+        } catch (err) {
+          console.log('[Favorites:getFavorites] backend fetch error:', err, '— falling back to AsyncStorage');
+        }
         // Fallback to local storage
         try {
           const stored = await AsyncStorage.getItem(FAVORITES_KEY);
-          return { data: stored ? JSON.parse(stored) : [] };
+          const parsed = stored ? JSON.parse(stored) : [];
+          console.log('[Favorites:getFavorites] AsyncStorage returned', parsed.length, 'ids:', parsed);
+          return { data: parsed };
         } catch {
+          console.log('[Favorites:getFavorites] AsyncStorage read failed, returning []');
           return { data: [] };
         }
       },
@@ -425,7 +697,7 @@ export const apiSlice = createApi({
             id: (payload.sub as string) || '',
             phone: (meta.phone as string) || (payload.phone as string) || '',
             name: (meta.name as string) || '',
-            role: (meta.role as UserRole) || (payload.role as UserRole) || undefined,
+            role: (meta.role as UserRole) || (payload.user_role as UserRole) || undefined,
             created_at: '',
           };
           const role = (user.role || 'customer') as UserRole;
@@ -459,24 +731,33 @@ const injectedApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     syncFavorites: builder.mutation<string[], void>({
       queryFn: async () => {
+        console.log('[Favorites:syncFavorites] queryFn START');
         try {
           // Read local favorites from AsyncStorage (always in sync with cache)
           const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
           const localFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
+          console.log('[Favorites:syncFavorites] local:', localFavorites);
 
           const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
+          console.log('[Favorites:syncFavorites] backend response status:', response.status);
           if (!response.ok) {
+            console.log('[Favorites:syncFavorites] backend not ok, returning local');
             return { data: localFavorites };
           }
 
           const backendData = await response.json();
           const backendFavorites: string[] = backendData.map((f: { product_id: string }) => f.product_id);
+          console.log('[Favorites:syncFavorites] backend:', backendFavorites);
 
           // Merge local and backend favorites (union)
           const mergedFavorites = [...new Set([...localFavorites, ...backendFavorites])];
+          console.log('[Favorites:syncFavorites] merged:', mergedFavorites);
 
           // Add any local-only favorites to backend
           const localOnly = localFavorites.filter((id) => !backendFavorites.includes(id));
+          if (localOnly.length > 0) {
+            console.log('[Favorites:syncFavorites] POSTing local-only to backend:', localOnly);
+          }
           for (const productId of localOnly) {
             await authenticatedFetch('/rest/v1/favorites', {
               method: 'POST',
@@ -485,8 +766,10 @@ const injectedApi = apiSlice.injectEndpoints({
           }
 
           await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedFavorites));
+          console.log('[Favorites:syncFavorites] DONE — invalidating Favorites tag');
           return { data: mergedFavorites };
-        } catch {
+        } catch (err) {
+          console.log('[Favorites:syncFavorites] ERROR:', err, '— falling back to AsyncStorage');
           const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
           return { data: storedJson ? JSON.parse(storedJson) : [] };
         }
@@ -497,10 +780,12 @@ const injectedApi = apiSlice.injectEndpoints({
 
     toggleFavorite: builder.mutation<string[], string>({
       queryFn: async (productId) => {
+        console.log('[Favorites:toggleFavorite] queryFn START productId:', productId);
         // Read pre-toggle state from AsyncStorage to determine add vs remove
         const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
         const currentFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
         const isCurrentlyFavorited = currentFavorites.includes(productId);
+        console.log('[Favorites:toggleFavorite] AsyncStorage had', currentFavorites.length, 'favs, isCurrentlyFavorited:', isCurrentlyFavorited);
 
         // Compute post-toggle state
         const updatedFavorites = isCurrentlyFavorited
@@ -509,36 +794,50 @@ const injectedApi = apiSlice.injectEndpoints({
 
         if (!isCurrentlyFavorited) {
           try {
-            await authenticatedFetch('/rest/v1/favorites', {
+            console.log('[Favorites:toggleFavorite] POSTing add to backend');
+            const resp = await authenticatedFetch('/rest/v1/favorites', {
               method: 'POST',
               body: JSON.stringify({ product_id: productId }),
             });
-          } catch {}
+            console.log('[Favorites:toggleFavorite] POST response:', resp.status);
+          } catch (err) {
+            console.log('[Favorites:toggleFavorite] POST failed:', err);
+          }
         } else {
           try {
-            await authenticatedFetch(`/rest/v1/favorites?product_id=eq.${productId}`, {
+            console.log('[Favorites:toggleFavorite] DELETEing from backend');
+            const resp = await authenticatedFetch(`/rest/v1/favorites?product_id=eq.${productId}`, {
               method: 'DELETE',
             });
-          } catch {}
+            console.log('[Favorites:toggleFavorite] DELETE response:', resp.status);
+          } catch (err) {
+            console.log('[Favorites:toggleFavorite] DELETE failed:', err);
+          }
         }
 
         await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
+        console.log('[Favorites:toggleFavorite] queryFn DONE — updated:', updatedFavorites);
         return { data: updatedFavorites };
       },
       async onQueryStarted(productId, { dispatch, queryFulfilled }) {
+        console.log('[Favorites:toggleFavorite] onQueryStarted — optimistic patch for:', productId);
         const patchResult = dispatch(
           apiSlice.util.updateQueryData('getFavorites', undefined, (draft) => {
             const idx = draft.indexOf(productId);
             if (idx >= 0) {
+              console.log('[Favorites:toggleFavorite] optimistic REMOVE from cache');
               draft.splice(idx, 1);
             } else {
+              console.log('[Favorites:toggleFavorite] optimistic ADD to cache');
               draft.push(productId);
             }
           }),
         );
         try {
           await queryFulfilled;
+          console.log('[Favorites:toggleFavorite] queryFulfilled OK — patch kept');
         } catch {
+          console.log('[Favorites:toggleFavorite] queryFulfilled FAILED — UNDOING optimistic patch');
           patchResult.undo();
         }
       },
@@ -550,6 +849,11 @@ export const {
   useGetProductsQuery,
   useGetCategoriesQuery,
   useToggleProductAvailabilityMutation,
+  useUpdateProductMutation,
+  useGetProductImagesQuery,
+  useUploadProductImageMutation,
+  useDeleteProductImageMutation,
+  useReorderProductImagesMutation,
   useGetFavoritesQuery,
   useGetOrdersQuery,
   useGetOrderByIdQuery,

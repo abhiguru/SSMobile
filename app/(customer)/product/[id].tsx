@@ -20,7 +20,8 @@ import Animated, {
 import { useAppDispatch } from '../../../src/store';
 import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../../src/store/apiSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
-import { formatPrice, getPerKgPaise } from '../../../src/constants';
+import { formatPrice, getPerKgPaise, resolveImageSource } from '../../../src/constants';
+import { getStoredTokens } from '../../../src/services/supabase';
 import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../../src/constants/theme';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { useToast } from '../../../src/components/common/Toast';
@@ -58,6 +59,8 @@ export default function ProductDetailScreen() {
 
   const [weightGrams, setWeightGrams] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
   const isGujarati = i18n.language === 'gu';
 
   useEffect(() => {
@@ -105,15 +108,15 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const hasImage = !!product.image_url;
+  const imgSource = resolveImageSource(product.image_url, accessToken);
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
-          {hasImage ? (
+          {imgSource ? (
             <Image
-              source={{ uri: product.image_url }}
+              source={imgSource}
               style={styles.heroImage}
               contentFit="cover"
               transition={300}

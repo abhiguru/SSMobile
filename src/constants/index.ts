@@ -3,6 +3,25 @@ export const API_BASE_URL = 'https://api-masala.gurucold.in';
 
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzY5MzQxMDAwLCJleHAiOjE4OTM0NTYwMDB9.Aqgd7n3j-riUsqJ54DrU8FLgxtHx4K8vTp9Ij_h35nE';
 
+export function getProductImageUrl(storagePath: string): string {
+  return `${API_BASE_URL}/storage/v1/object/authenticated/product-images/${storagePath}`;
+}
+
+export function resolveImageSource(
+  imageUrl: string | undefined | null,
+  accessToken: string | null,
+): { uri: string; headers?: Record<string, string> } | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return { uri: imageUrl };
+  return {
+    uri: getProductImageUrl(imageUrl),
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'apikey': SUPABASE_ANON_KEY,
+    },
+  };
+}
+
 // Phone validation
 export const PHONE_REGEX = /^[6-9]\d{9}$/;
 export const PHONE_PREFIX = '+91';

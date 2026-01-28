@@ -137,6 +137,34 @@ export interface AppSettings {
   serviceable_pincodes: string[];
 }
 
+// Product Image types
+export type ProductImageStatus = 'pending' | 'confirmed';
+
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  storage_path: string;
+  original_filename: string;
+  file_size: number;
+  mime_type: string;
+  display_order: number;
+  uploaded_by?: string;
+  status: ProductImageStatus;
+  upload_token?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConfirmImageResponse {
+  success: boolean;
+  image_id?: string;
+  storage_path?: string;
+  product_id?: string;
+  status?: string;
+  error?: string;
+  message?: string;
+}
+
 // API Response types
 export interface SendOtpResponse {
   success: boolean;

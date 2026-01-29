@@ -30,6 +30,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="products" options={{ title: t('admin.products'), tabBarLabel: 'Products', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="leaf" color={color} size={size} />, headerShown: false }} />
       <Tabs.Screen name="orders" options={{ title: t('admin.orders'), tabBarLabel: 'Orders', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="package-variant" color={color} size={size} />, headerShown: false }} />
       <Tabs.Screen name="staff" options={{ title: t('admin.staff'), tabBarLabel: 'Staff', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-group" color={color} size={size} /> }} />
+      <Tabs.Screen name="users" options={{ title: t('admin.usersTitle'), tabBarLabel: 'Users', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-cog" color={color} size={size} /> }} />
       <Tabs.Screen name="settings" options={{ title: t('admin.settings'), tabBarLabel: 'Settings', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="cog" color={color} size={size} /> }} />
     </Tabs>
   );

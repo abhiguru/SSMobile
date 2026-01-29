@@ -10,7 +10,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
@@ -68,7 +68,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -511,6 +511,65 @@ export const apiSlice = createApi({
       ],
     }),
 
+    // ── Users (Admin) ─────────────────────────────────────────
+    getUsers: builder.query<User[], string | void>({
+      query: (search) => ({
+        url: search ? `/functions/v1/users?search=${encodeURIComponent(search)}` : '/functions/v1/users',
+      }),
+      providesTags: ['Users'],
+    }),
+
+    updateUserRole: builder.mutation<
+      User,
+      { user_id: string; role: UserRole; name?: string }
+    >({
+      query: (body) => ({
+        url: '/functions/v1/users',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Users', 'DeliveryStaff'],
+    }),
+
+    // ── Delivery Staff ───────────────────────────────────────
+    getDeliveryStaff: builder.query<DeliveryStaff[], void>({
+      query: () => ({ url: '/functions/v1/delivery-staff' }),
+      transformResponse: (res: { success: boolean; staff: DeliveryStaff[] }) => res.staff,
+      providesTags: ['DeliveryStaff'],
+    }),
+
+    getAllDeliveryStaff: builder.query<DeliveryStaff[], void>({
+      query: () => ({ url: '/functions/v1/delivery-staff?include_inactive=true' }),
+      transformResponse: (res: { success: boolean; staff: DeliveryStaff[] }) => res.staff,
+      providesTags: ['DeliveryStaff'],
+    }),
+
+    createDeliveryStaff: builder.mutation<
+      DeliveryStaff,
+      { name: string; phone: string }
+    >({
+      query: (body) => ({
+        url: '/functions/v1/delivery-staff',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: { success: boolean; staff: DeliveryStaff }) => res.staff,
+      invalidatesTags: ['DeliveryStaff'],
+    }),
+
+    updateDeliveryStaff: builder.mutation<
+      DeliveryStaff,
+      { staff_id: string; name?: string; is_active?: boolean }
+    >({
+      query: (body) => ({
+        url: '/functions/v1/delivery-staff',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: { success: boolean; staff: DeliveryStaff }) => res.staff,
+      invalidatesTags: ['DeliveryStaff'],
+    }),
+
     // ── Addresses ────────────────────────────────────────────
     getAddresses: builder.query<Address[], void>({
       query: () => ({
@@ -907,6 +966,14 @@ export const {
   useBookPorterDeliveryMutation,
   useCancelPorterDeliveryMutation,
   useDispatchOrderMutation,
+  // Users
+  useGetUsersQuery,
+  useUpdateUserRoleMutation,
+  // Delivery staff
+  useGetDeliveryStaffQuery,
+  useGetAllDeliveryStaffQuery,
+  useCreateDeliveryStaffMutation,
+  useUpdateDeliveryStaffMutation,
   useGetAddressesQuery,
   useAddAddressMutation,
   useUpdateAddressMutation,

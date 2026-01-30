@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Linking, Pressable, TextInput } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Divider, ActivityIndicator, useTheme, SegmentedButtons } from 'react-native-paper';
@@ -360,7 +360,8 @@ export default function AdminOrderDetailScreen() {
   const porterDelivery = order.porter_delivery;
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.section}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
@@ -736,6 +737,7 @@ export default function AdminOrderDetailScreen() {
         onAdd={handleAddOrderItem}
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -779,6 +781,7 @@ function formatPorterStatus(status?: string): string {
 }
 
 const styles = StyleSheet.create({
+  flex1: { flex: 1 },
   container: { flex: 1, backgroundColor: colors.shell },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },

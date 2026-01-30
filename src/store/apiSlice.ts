@@ -10,7 +10,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff, UpdateOrderItemsRequest } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
@@ -68,7 +68,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users', 'UserAddresses'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -436,6 +436,24 @@ export const apiSlice = createApi({
       ],
     }),
 
+    updateOrderNotes: builder.mutation<void, { orderId: string; admin_notes: string }>({
+      query: ({ orderId, admin_notes }) => ({
+        url: '/functions/v1/update-order-notes',
+        method: 'POST',
+        body: { order_id: orderId, admin_notes },
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => ['Orders', { type: 'Order', id: orderId }],
+    }),
+
+    updateOrderItems: builder.mutation<Order, UpdateOrderItemsRequest>({
+      query: ({ orderId, items }) => ({
+        url: '/functions/v1/update-order-items',
+        method: 'POST',
+        body: { order_id: orderId, items },
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => ['Orders', { type: 'Order', id: orderId }],
+    }),
+
     verifyDeliveryOtp: builder.mutation<
       void,
       { orderId: string; otp: string }
@@ -511,6 +529,97 @@ export const apiSlice = createApi({
       ],
     }),
 
+    // ── User Addresses (Admin) ────────────────────────────────
+    getAdminUserAddresses: builder.query<AdminAddress[], string>({
+      query: (userId) => ({
+        url: `/functions/v1/admin-addresses?user_id=${userId}`,
+      }),
+      transformResponse: (response: unknown) => {
+        const list: AdminAddress[] = Array.isArray(response)
+          ? response
+          : response && typeof response === 'object' && 'addresses' in response
+            ? (response as { addresses: AdminAddress[] }).addresses
+            : [];
+        // Normalize coordinate field names: backend may return latitude/longitude instead of lat/lng
+        return list.map((addr) => {
+          const raw = addr as unknown as Record<string, unknown>;
+          return {
+            ...addr,
+            lat: addr.lat ?? (typeof raw.latitude === 'number' ? raw.latitude : addr.lat),
+            lng: addr.lng ?? (typeof raw.longitude === 'number' ? raw.longitude : addr.lng),
+          };
+        });
+      },
+      providesTags: (_r, _e, userId) => [{ type: 'UserAddresses', id: userId }],
+    }),
+
+    addAdminAddress: builder.mutation<AdminAddress, {
+      user_id: string;
+      full_name: string;
+      phone: string;
+      address_line1: string;
+      city: string;
+      pincode: string;
+      address_line2?: string;
+      state?: string;
+      label?: string;
+      is_default?: boolean;
+      lat?: number;
+      lng?: number;
+      formatted_address?: string;
+    }>({
+      query: (body) => ({
+        url: '/functions/v1/admin-addresses',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) => {
+        if (response && typeof response === 'object' && 'address' in response) {
+          return (response as { address: AdminAddress }).address;
+        }
+        return response as AdminAddress;
+      },
+      invalidatesTags: (_r, _e, { user_id }) => [{ type: 'UserAddresses', id: user_id }],
+    }),
+
+    updateAdminAddress: builder.mutation<AdminAddress, {
+      address_id: string;
+      _userId: string;
+      full_name?: string;
+      phone?: string;
+      address_line1?: string;
+      city?: string;
+      pincode?: string;
+      address_line2?: string | null;
+      state?: string | null;
+      label?: string | null;
+      is_default?: boolean;
+      lat?: number;
+      lng?: number;
+      formatted_address?: string | null;
+    }>({
+      query: ({ _userId, ...body }) => ({
+        url: '/functions/v1/admin-addresses',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: unknown) => {
+        if (response && typeof response === 'object' && 'address' in response) {
+          return (response as { address: AdminAddress }).address;
+        }
+        return response as AdminAddress;
+      },
+      invalidatesTags: (_r, _e, { _userId }) => [{ type: 'UserAddresses', id: _userId }],
+    }),
+
+    deleteAdminAddress: builder.mutation<{ success: boolean }, { address_id: string; _userId: string }>({
+      query: ({ address_id }) => ({
+        url: `/functions/v1/admin-addresses?address_id=${address_id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, { _userId }) => [{ type: 'UserAddresses', id: _userId }],
+    }),
+
     // ── Users (Admin) ─────────────────────────────────────────
     getUsers: builder.query<User[], string | void>({
       query: (search) => ({
@@ -521,7 +630,7 @@ export const apiSlice = createApi({
 
     updateUserRole: builder.mutation<
       User,
-      { user_id: string; role: UserRole; name?: string }
+      { user_id: string; role?: UserRole; name?: string; is_active?: boolean }
     >({
       query: (body) => ({
         url: '/functions/v1/users',
@@ -960,6 +1069,8 @@ export const {
   useCreateOrderMutation,
   useReorderMutation,
   useUpdateOrderStatusMutation,
+  useUpdateOrderNotesMutation,
+  useUpdateOrderItemsMutation,
   useVerifyDeliveryOtpMutation,
   // Porter delivery
   useGetPorterQuoteMutation,
@@ -968,6 +1079,10 @@ export const {
   useDispatchOrderMutation,
   // Users
   useGetUsersQuery,
+  useGetAdminUserAddressesQuery,
+  useAddAdminAddressMutation,
+  useUpdateAdminAddressMutation,
+  useDeleteAdminAddressMutation,
   useUpdateUserRoleMutation,
   // Delivery staff
   useGetDeliveryStaffQuery,

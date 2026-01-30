@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Linking, Pressable } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, Alert, Linking, Pressable, TextInput } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Divider, ActivityIndicator, useTheme, SegmentedButtons } from 'react-native-paper';
@@ -8,19 +8,34 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   useGetOrderByIdQuery,
   useUpdateOrderStatusMutation,
+  useUpdateOrderNotesMutation,
+  useUpdateOrderItemsMutation,
+  useGetProductsQuery,
   useGetPorterQuoteMutation,
   useBookPorterDeliveryMutation,
   useCancelPorterDeliveryMutation,
   useDispatchOrderMutation,
 } from '../../../src/store/apiSlice';
-import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
+import { formatPrice, getPerKgPaise, ORDER_STATUS_COLORS } from '../../../src/constants';
 import { colors, spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
-import { OrderStatus, DeliveryType, PorterQuoteResponse } from '../../../src/types';
+import { OrderStatus, DeliveryType, PorterQuoteResponse, DeliveryStaff, OrderItem, Product } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { AppButton } from '../../../src/components/common/AppButton';
+import { DeliveryStaffPicker } from '../../../src/components/common/DeliveryStaffPicker';
+import { EditOrderItemSheet } from '../../../src/components/common/EditOrderItemSheet';
+import { AddOrderItemSheet, AddOrderItemResult } from '../../../src/components/common/AddOrderItemSheet';
 import { useToast } from '../../../src/components/common/Toast';
 import { hapticSuccess, hapticError } from '../../../src/utils/haptics';
 import type { AppTheme } from '../../../src/theme';
+
+interface EditableItem {
+  product_id: string;
+  product_name: string;
+  product_name_gu: string;
+  weight_grams: number;
+  quantity: number;
+  unit_price_paise: number;
+}
 
 const STATUS_ACTIONS: Record<string, OrderStatus[]> = {
   placed: ['confirmed', 'cancelled'],
@@ -40,8 +55,143 @@ export default function AdminOrderDetailScreen() {
   const [cancelPorterDelivery, { isLoading: cancellingPorter }] = useCancelPorterDeliveryMutation();
   const [dispatchOrder, { isLoading: dispatching }] = useDispatchOrderMutation();
 
+  const [updateOrderNotes, { isLoading: savingNotes }] = useUpdateOrderNotesMutation();
+  const [updateOrderItems, { isLoading: savingItems }] = useUpdateOrderItemsMutation();
+  const { data: allProducts = [] } = useGetProductsQuery({ includeUnavailable: false });
+
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('porter');
   const [porterQuote, setPorterQuote] = useState<PorterQuoteResponse['quote'] | null>(null);
+  const [staffPickerVisible, setStaffPickerVisible] = useState(false);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [savedNotes, setSavedNotes] = useState('');
+
+  // Edit items state
+  const [editing, setEditing] = useState(false);
+  const [editedItems, setEditedItems] = useState<EditableItem[]>([]);
+  const [editingItem, setEditingItem] = useState<{ orderItem: OrderItem; product: Product } | null>(null);
+  const [addingItem, setAddingItem] = useState(false);
+
+  useEffect(() => {
+    if (order) {
+      const notes = order.admin_notes ?? '';
+      setAdminNotes(notes);
+      setSavedNotes(notes);
+    }
+  }, [order?.admin_notes]);
+
+  const handleSaveNotes = async () => {
+    if (!id) return;
+    try {
+      await updateOrderNotes({ orderId: id, admin_notes: adminNotes }).unwrap();
+      setSavedNotes(adminNotes);
+      hapticSuccess();
+      showToast({ message: t('admin.notesSaved'), type: 'success' });
+    } catch {
+      hapticError();
+      showToast({ message: t('admin.notesSaveFailed'), type: 'error' });
+    }
+  };
+
+  const canEditItems = order?.status === 'placed' || order?.status === 'confirmed';
+
+  const handleEnterEditMode = () => {
+    if (!order) return;
+    setEditedItems(
+      (order.items ?? []).map((item) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_name_gu: item.product_name_gu,
+        weight_grams: item.weight_grams,
+        quantity: item.quantity,
+        unit_price_paise: item.unit_price_paise,
+      }))
+    );
+    setEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setEditedItems([]);
+  };
+
+  const handleEditItem = (editableItem: EditableItem) => {
+    const product = allProducts.find((p) => p.id === editableItem.product_id);
+    if (!product) return;
+    const orderItem: OrderItem = {
+      id: '',
+      order_id: order?.id ?? '',
+      product_id: editableItem.product_id,
+      weight_option_id: '',
+      quantity: editableItem.quantity,
+      unit_price_paise: editableItem.unit_price_paise,
+      total_paise: editableItem.unit_price_paise * editableItem.quantity,
+      product_name: editableItem.product_name,
+      product_name_gu: editableItem.product_name_gu,
+      weight_grams: editableItem.weight_grams,
+    };
+    setEditingItem({ orderItem, product });
+  };
+
+  const handleUpdateEditedItem = (productId: string, weightGrams: number, quantity: number) => {
+    setEditedItems((prev) =>
+      prev.map((item) => {
+        if (item.product_id !== productId) return item;
+        const product = allProducts.find((p) => p.id === productId);
+        const perKgPaise = product ? getPerKgPaise(product) : 0;
+        const unitPrice = Math.round(perKgPaise * weightGrams / 1000);
+        return { ...item, weight_grams: weightGrams, quantity, unit_price_paise: unitPrice };
+      })
+    );
+    setEditingItem(null);
+  };
+
+  const handleRemoveEditedItem = (productId: string) => {
+    Alert.alert(t('admin.removeItem'), t('admin.removeItemConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('admin.removeItem'),
+        style: 'destructive',
+        onPress: () => {
+          setEditedItems((prev) => prev.filter((item) => item.product_id !== productId));
+        },
+      },
+    ]);
+  };
+
+  const handleAddOrderItem = (result: AddOrderItemResult) => {
+    setEditedItems((prev) => [...prev, result]);
+    setAddingItem(false);
+  };
+
+  const handleSaveItems = async () => {
+    if (!id) return;
+    if (editedItems.length === 0) {
+      showToast({ message: t('admin.noItems'), type: 'error' });
+      return;
+    }
+    try {
+      await updateOrderItems({
+        orderId: id,
+        items: editedItems.map((item) => ({
+          product_id: item.product_id,
+          weight_grams: item.weight_grams,
+          quantity: item.quantity,
+        })),
+      }).unwrap();
+      hapticSuccess();
+      showToast({ message: t('admin.itemsSaved'), type: 'success' });
+      setEditing(false);
+      setEditedItems([]);
+    } catch {
+      hapticError();
+      showToast({ message: t('admin.itemsSaveFailed'), type: 'error' });
+    }
+  };
+
+  const editedTotal = editedItems.reduce(
+    (sum, item) => sum + item.unit_price_paise * item.quantity,
+    0
+  );
 
   const handleStatusUpdate = (newStatus: OrderStatus) => {
     const isDanger = newStatus === 'cancelled' || newStatus === 'delivery_failed';
@@ -168,12 +318,22 @@ export default function AdminOrderDetailScreen() {
 
   const handleDispatchInHouse = () => {
     if (!id) return;
-    // TODO: Add staff picker - for now using placeholder
-    Alert.alert(
-      'Dispatch In-House',
-      'Select delivery staff (feature coming soon)',
-      [{ text: 'OK' }]
-    );
+    setStaffPickerVisible(true);
+  };
+
+  const handleStaffSelected = async (staff: DeliveryStaff) => {
+    if (!id) return;
+    try {
+      await dispatchOrder({ orderId: id, deliveryStaffId: staff.id }).unwrap();
+      hapticSuccess();
+      showToast({ message: `Order dispatched to ${staff.name}`, type: 'success' });
+      setStaffPickerVisible(false);
+      refetch();
+    } catch (err: unknown) {
+      hapticError();
+      const errorData = (err as { data?: string })?.data;
+      showToast({ message: errorData || 'Failed to dispatch order', type: 'error' });
+    }
   };
 
   const openTrackingUrl = () => {
@@ -442,22 +602,84 @@ export default function AdminOrderDetailScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.orderItems')}</Text>
-        {(order.items ?? []).map((item) => (
-          <View key={item.id} style={styles.orderItem}>
-            <View style={styles.itemInfo}>
-              <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-              <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
-            </View>
-            <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
-            <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
-          </View>
-        ))}
-        <Divider style={styles.totalDivider} />
-        <View style={styles.totalRow}>
-          <Text variant="titleSmall">{t('cart.total')}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.orderItems')}</Text>
+          {canEditItems && !editing && (
+            <Pressable onPress={handleEnterEditMode} hitSlop={8}>
+              <MaterialCommunityIcons name="pencil" size={18} color={colors.brand} />
+            </Pressable>
+          )}
         </View>
+
+        {!editing ? (
+          <>
+            {(order.items ?? []).map((item) => (
+              <View key={item.id} style={styles.orderItem}>
+                <View style={styles.itemInfo}>
+                  <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
+                  <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
+                </View>
+                <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
+                <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
+              </View>
+            ))}
+            <Divider style={styles.totalDivider} />
+            <View style={styles.totalRow}>
+              <Text variant="titleSmall">{t('cart.total')}</Text>
+              <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            {editedItems.map((item, idx) => (
+              <View key={`${item.product_id}-${idx}`} style={styles.orderItem}>
+                <View style={styles.itemInfo}>
+                  <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
+                  <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
+                </View>
+                <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
+                <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.unit_price_paise * item.quantity)}</Text>
+                <Pressable onPress={() => handleEditItem(item)} hitSlop={8} style={styles.editIcon}>
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.brand} />
+                </Pressable>
+                <Pressable onPress={() => handleRemoveEditedItem(item.product_id)} hitSlop={8} style={styles.deleteIcon}>
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.negative} />
+                </Pressable>
+              </View>
+            ))}
+
+            <Pressable style={styles.addItemRow} onPress={() => setAddingItem(true)}>
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.brand} />
+              <Text variant="bodyMedium" style={styles.addItemText}>{t('admin.addItem')}</Text>
+            </Pressable>
+
+            <Divider style={styles.totalDivider} />
+            <View style={styles.totalRow}>
+              <Text variant="titleSmall">{t('cart.total')}</Text>
+              <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(editedTotal)}</Text>
+            </View>
+
+            <View style={styles.editActionsRow}>
+              <View style={styles.editActionBtn}>
+                <AppButton variant="secondary" size="md" fullWidth onPress={handleCancelEdit}>
+                  {t('common.cancel')}
+                </AppButton>
+              </View>
+              <View style={styles.editActionBtn}>
+                <AppButton
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  loading={savingItems}
+                  disabled={savingItems}
+                  onPress={handleSaveItems}
+                >
+                  {t('admin.saveChanges')}
+                </AppButton>
+              </View>
+            </View>
+          </>
+        )}
       </View>
 
       {order.notes && (
@@ -466,6 +688,53 @@ export default function AdminOrderDetailScreen() {
           <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
         </View>
       )}
+
+      <View style={styles.section}>
+        <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.adminNotes')}</Text>
+        <TextInput
+          style={styles.adminNotesInput}
+          value={adminNotes}
+          onChangeText={(text) => setAdminNotes(text.slice(0, 300))}
+          placeholder={t('admin.adminNotesPlaceholder')}
+          placeholderTextColor={colors.text.secondary}
+          multiline
+          maxLength={300}
+        />
+        <Text variant="bodySmall" style={styles.charCounter}>{adminNotes.length}/300</Text>
+        {adminNotes !== savedNotes && (
+          <View style={{ marginTop: spacing.sm }}>
+            <AppButton
+              variant="primary"
+              size="md"
+              fullWidth
+              loading={savingNotes}
+              disabled={savingNotes}
+              onPress={handleSaveNotes}
+            >
+              {t('common.save')}
+            </AppButton>
+          </View>
+        )}
+      </View>
+
+      <DeliveryStaffPicker
+        visible={staffPickerVisible}
+        onClose={() => setStaffPickerVisible(false)}
+        onSelect={handleStaffSelected}
+        loading={dispatching}
+      />
+
+      <EditOrderItemSheet
+        item={editingItem}
+        onDismiss={() => setEditingItem(null)}
+        onUpdate={handleUpdateEditedItem}
+      />
+
+      <AddOrderItemSheet
+        visible={addingItem}
+        onDismiss={() => setAddingItem(false)}
+        onAdd={handleAddOrderItem}
+      />
     </ScrollView>
   );
 }
@@ -520,7 +789,8 @@ const styles = StyleSheet.create({
   date: { color: colors.text.secondary },
   deliveryTypeBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs },
   deliveryTypeText: { color: colors.text.secondary },
-  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12, flex: 1 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   actionsRow: { flexDirection: 'row', gap: 12 },
   actionButtonWrapper: { flex: 1 },
   segmentedButtons: { marginBottom: spacing.lg },
@@ -552,4 +822,12 @@ const styles = StyleSheet.create({
   totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   notes: { color: colors.text.secondary, fontStyle: 'italic' },
+  adminNotesInput: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontFamily: fontFamily.regular, color: colors.text.primary, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
+  charCounter: { color: colors.text.secondary, textAlign: 'right', marginTop: spacing.xs },
+  editIcon: { marginLeft: spacing.sm },
+  deleteIcon: { marginLeft: spacing.sm },
+  addItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: spacing.sm },
+  addItemText: { color: colors.brand, fontFamily: fontFamily.semiBold },
+  editActionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.md },
+  editActionBtn: { flex: 1 },
 });

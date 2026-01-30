@@ -72,6 +72,12 @@ export interface Address {
   updated_at?: string;
 }
 
+export interface AdminAddress extends Address {
+  lat?: number | null;
+  lng?: number | null;
+  formatted_address?: string | null;
+}
+
 // Legacy address type for checkout form (kept for backward compatibility)
 export interface DeliveryAddress {
   address_line1: string;
@@ -157,6 +163,7 @@ export interface Order {
   delivery_pincode?: string;
   delivery_otp?: string;
   notes?: string;
+  admin_notes?: string;
   // Delivery type (in-house or Porter)
   delivery_type?: DeliveryType;
   delivery_staff_id?: string;
@@ -201,6 +208,12 @@ export interface ConfirmImageResponse {
   status?: string;
   error?: string;
   message?: string;
+}
+
+// Update Order Items
+export interface UpdateOrderItemsRequest {
+  orderId: string;
+  items: { product_id: string; weight_grams: number; quantity: number }[];
 }
 
 // API Response types
@@ -284,4 +297,15 @@ export interface PorterCancelResponse {
   fallback_to_inhouse: boolean;
   message: string;
   error?: string;
+}
+
+// Delivery staff type (for in-house dispatch)
+export interface DeliveryStaff {
+  id: string;
+  name: string;
+  phone: string;
+  is_active?: boolean;
+  is_available?: boolean;
+  current_order_id?: string | null;
+  created_at?: string;
 }

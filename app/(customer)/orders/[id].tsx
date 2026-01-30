@@ -187,6 +187,13 @@ export default function OrderDetailScreen() {
         </View>
       )}
 
+      {order.admin_notes ? (
+        <View style={styles.section}>
+          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.adminNotes')}</Text>
+          <Text variant="bodyMedium" style={styles.notes}>{order.admin_notes}</Text>
+        </View>
+      ) : null}
+
       {(order.status === 'delivered' || order.status === 'cancelled') && (
         <View style={styles.reorderContainer}>
           <AppButton

@@ -21,6 +21,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      },
       "package": "com.masalaspiceshop.app"
     },
     "web": {
@@ -32,6 +37,12 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-image-picker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location to help place the map pin."
+        }
+      ],
       [
         "expo-font",
         {

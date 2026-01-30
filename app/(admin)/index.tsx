@@ -38,7 +38,7 @@ function AnimatedKPI({ value, label, icon, bg, delay, theme }: { value: number; 
   }, [value, animatedValue]);
 
   return (
-    <Animated.View entering={FadeInUp.delay(delay).duration(400)}>
+    <Animated.View entering={FadeInUp.delay(delay).duration(400)} style={{ flex: 1 }}>
       <View style={styles.statCard}>
         <View style={styles.statContent}>
           <View style={[styles.kpiIconContainer, { backgroundColor: bg }]}>
@@ -87,17 +87,32 @@ export default function AdminDashboard() {
       </Animated.View>
 
       <View style={styles.statsGrid}>
-        {KPI_CONFIG.map((kpi, index) => (
-          <AnimatedKPI
-            key={kpi.key}
-            value={kpiValues[index]}
-            label={t(`admin.${kpi.key}`)}
-            icon={kpi.icon}
-            bg={kpi.bg}
-            delay={index * 100}
-            theme={theme}
-          />
-        ))}
+        <View style={styles.statsRow}>
+          {KPI_CONFIG.slice(0, 2).map((kpi, index) => (
+            <AnimatedKPI
+              key={kpi.key}
+              value={kpiValues[index]}
+              label={t(`admin.${kpi.key}`)}
+              icon={kpi.icon}
+              bg={kpi.bg}
+              delay={index * 100}
+              theme={theme}
+            />
+          ))}
+        </View>
+        <View style={styles.statsRow}>
+          {KPI_CONFIG.slice(2, 4).map((kpi, index) => (
+            <AnimatedKPI
+              key={kpi.key}
+              value={kpiValues[index + 2]}
+              label={t(`admin.${kpi.key}`)}
+              icon={kpi.icon}
+              bg={kpi.bg}
+              delay={(index + 2) * 100}
+              theme={theme}
+            />
+          ))}
+        </View>
       </View>
 
       <Card mode="elevated" style={styles.sectionCard}>
@@ -144,8 +159,9 @@ const styles = StyleSheet.create({
   revenueTextContainer: { flex: 1 },
   revenueLabel: { color: 'rgba(255,255,255,0.8)', marginBottom: spacing.xs },
   revenueValue: { color: colors.text.inverse, fontFamily: fontFamily.bold },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.sm },
-  statCard: { width: '46%' as any, margin: '2%' as any, backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
+  statsGrid: { padding: spacing.sm, gap: spacing.sm },
+  statsRow: { flexDirection: 'row', gap: spacing.sm },
+  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
   statContent: { alignItems: 'center', paddingVertical: spacing.lg },
   kpiIconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.sm },
   statLabel: { color: colors.text.secondary, textAlign: 'center', marginTop: spacing.sm },

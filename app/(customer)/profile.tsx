@@ -30,9 +30,8 @@ export default function ProfileScreen() {
         {
           text: t('auth.logout'),
           style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/');
+          onPress: () => {
+            logout();
           },
         },
       ]

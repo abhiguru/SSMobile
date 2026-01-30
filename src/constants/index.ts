@@ -3,24 +3,44 @@ export const API_BASE_URL = 'https://api-masala.gurucold.in';
 
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzY5MzQxMDAwLCJleHAiOjE4OTM0NTYwMDB9.Aqgd7n3j-riUsqJ54DrU8FLgxtHx4K8vTp9Ij_h35nE';
 
-export function getProductImageUrl(storagePath: string): string {
-  return `${API_BASE_URL}/storage/v1/object/authenticated/product-images/${storagePath}`;
+export interface ImageTransform {
+  width?: number;
+  height?: number;
+  quality?: number;
+}
+
+export function getProductImageUrl(storagePath: string, transform?: ImageTransform): string {
+  if (!transform) {
+    return `${API_BASE_URL}/storage/v1/object/public/product-images/${storagePath}`;
+  }
+  const params = new URLSearchParams();
+  if (transform.width) params.set('width', String(transform.width));
+  if (transform.height) params.set('height', String(transform.height));
+  if (transform.quality) params.set('quality', String(transform.quality));
+  params.set('resize', 'cover');
+  return `${API_BASE_URL}/storage/v1/render/image/public/product-images/${storagePath}?${params}`;
 }
 
 export function resolveImageSource(
   imageUrl: string | undefined | null,
-  accessToken: string | null,
-): { uri: string; headers?: Record<string, string> } | null {
+  _accessToken?: string | null,
+  transform?: ImageTransform,
+): { uri: string } | null {
   if (!imageUrl) return null;
   if (imageUrl.startsWith('http')) return { uri: imageUrl };
-  return {
-    uri: getProductImageUrl(imageUrl),
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'apikey': SUPABASE_ANON_KEY,
-    },
-  };
+  return { uri: getProductImageUrl(imageUrl, transform) };
 }
+
+// Google Places API
+export const GOOGLE_PLACES_API_KEY = 'AIzaSyC_C1PlSB1jSXxYsgoYTc9DChdrR9lSlDI';
+
+// Default map center (Ahmedabad, Gujarat)
+export const DEFAULT_MAP_CENTER = {
+  latitude: 23.0225,
+  longitude: 72.5714,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
 
 // Phone validation
 export const PHONE_REGEX = /^[6-9]\d{9}$/;

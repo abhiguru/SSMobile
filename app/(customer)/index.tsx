@@ -331,7 +331,7 @@ export default function HomeScreen() {
 
     const product = item.product;
     const isFav = favorites.includes(product.id);
-    const imgSource = resolveImageSource(product.image_url, accessToken);
+    const imgSource = resolveImageSource(product.image_url, accessToken, { width: 128, height: 128, quality: 70 });
 
     return (
       <Animated.View entering={FadeInUp.delay(Math.min(index, 10) * 50).duration(400)}>

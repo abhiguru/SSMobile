@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Chip, Text, useTheme } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersQuery } from '../../../src/store/apiSlice';
 import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { colors, spacing, borderRadius, elevation, fontFamily, fontSize } from '../../../src/constants/theme';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
@@ -16,14 +16,29 @@ import { SkeletonBox, SkeletonText } from '../../../src/components/common/Skelet
 import type { AppTheme } from '../../../src/theme';
 
 const STATUS_FILTERS = [
-  { key: 'all', icon: 'filter-variant' },
-  { key: 'placed', icon: 'clock-outline' },
-  { key: 'confirmed', icon: 'check-circle-outline' },
-  { key: 'out_for_delivery', icon: 'truck-delivery-outline' },
-  { key: 'delivered', icon: 'package-variant-closed-check' },
-  { key: 'cancelled', icon: 'cancel' },
-  { key: 'delivery_failed', icon: 'alert-circle-outline' },
+  'all', 'placed', 'confirmed', 'out_for_delivery',
+  'delivered', 'cancelled', 'delivery_failed',
 ] as const;
+
+const FILTER_LABEL_KEYS: Record<string, string> = {
+  all: 'admin.filterAll',
+  placed: 'admin.filterPlaced',
+  confirmed: 'admin.filterConfirmed',
+  out_for_delivery: 'admin.filterOutForDelivery',
+  delivered: 'admin.filterDelivered',
+  cancelled: 'admin.filterCancelled',
+  delivery_failed: 'admin.filterFailed',
+};
+
+const PILL_COLORS: Record<string, { bg: string; text: string }> = {
+  all: { bg: colors.brand, text: colors.text.inverse },
+  placed: { bg: colors.criticalLight, text: colors.critical },
+  confirmed: { bg: colors.informativeLight, text: colors.informative },
+  out_for_delivery: { bg: colors.informativeLight, text: colors.informative },
+  delivered: { bg: colors.positiveLight, text: colors.positive },
+  cancelled: { bg: colors.negativeLight, text: colors.negative },
+  delivery_failed: { bg: colors.negativeLight, text: colors.negative },
+};
 
 function OrdersSkeleton() {
   return (
@@ -45,6 +60,14 @@ export default function AdminOrdersScreen() {
   const theme = useTheme<AppTheme>();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
   const [activeFilter, setActiveFilter] = useState<string>('all');
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: orders.length };
+    for (const o of orders) {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    }
+    return counts;
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === 'all') return orders;
@@ -82,45 +105,86 @@ export default function AdminOrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll} contentContainerStyle={styles.pillRow}>
         {STATUS_FILTERS.map((filter) => {
-          const isActive = activeFilter === filter.key;
+          const isActive = activeFilter === filter;
+          const count = statusCounts[filter] || 0;
+          const pillColor = PILL_COLORS[filter];
           return (
-            <Chip
-              key={filter.key}
-              icon={filter.icon}
-              selected={isActive}
-              onPress={() => setActiveFilter(filter.key)}
-              style={[styles.filterChip, isActive && styles.filterChipActive]}
-              textStyle={isActive ? styles.filterChipTextActive : undefined}
-              showSelectedOverlay={false}
+            <Pressable
+              key={filter}
+              onPress={() => setActiveFilter(filter)}
+              style={[
+                styles.pill,
+                isActive
+                  ? { backgroundColor: pillColor.bg, borderColor: pillColor.bg }
+                  : { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
             >
-              {filter.key === 'all' ? t('admin.allOrders') : t(`status.${filter.key}`)}
-            </Chip>
+              <Text style={[styles.pillLabel, { color: isActive ? pillColor.text : colors.text.secondary }]}>
+                {t(FILTER_LABEL_KEYS[filter])}
+              </Text>
+              {count > 0 && (
+                <View
+                  style={[
+                    styles.pillCount,
+                    { backgroundColor: isActive ? pillColor.text : colors.neutralLight },
+                  ]}
+                >
+                  <Text style={[styles.pillCountText, { color: isActive ? '#fff' : colors.text.secondary }]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
           );
         })}
       </ScrollView>
-      <Text variant="bodySmall" style={styles.showingCount}>{t('admin.showingOrders', { count: filteredOrders.length })}</Text>
-      <FlashList
-        data={filteredOrders}
-        renderItem={renderOrder}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshing={isFetching}
-        onRefresh={refetch}
-      />
+      <View style={styles.listWrapper}>
+        <FlashList
+          data={filteredOrders}
+          renderItem={renderOrder}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshing={isFetching}
+          onRefresh={refetch}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.shell },
-  chipContainer: { paddingHorizontal: 12, paddingVertical: 12, gap: spacing.sm },
-  filterChip: { marginRight: spacing.xs },
-  filterChipActive: { backgroundColor: colors.brand },
-  filterChipTextActive: { color: colors.text.inverse },
-  showingCount: { color: colors.text.secondary, paddingHorizontal: spacing.lg, marginBottom: spacing.xs },
-  listContent: { padding: spacing.lg },
+  pillScroll: { flexGrow: 0 },
+  listWrapper: { flex: 1 },
+  pillRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 6 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    borderWidth: 1,
+    gap: 5,
+  },
+  pillLabel: {
+    fontSize: fontSize.xs,
+    fontFamily: fontFamily.semiBold,
+  },
+  pillCount: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  pillCountText: {
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
+  },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   orderCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
   statusStripe: { width: 4 },
   orderContent: { flex: 1, padding: spacing.lg },

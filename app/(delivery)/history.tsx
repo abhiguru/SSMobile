@@ -36,7 +36,10 @@ export default function DeliveryHistoryScreen() {
   const { t } = useTranslation();
   const theme = useTheme<AppTheme>();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
-  const history = orders.filter((o) => o.status === 'delivered' || o.status === 'delivery_failed');
+  // Filter to show only in-house completed deliveries (exclude Porter deliveries)
+  const history = orders.filter(
+    (o) => (o.status === 'delivered' || o.status === 'delivery_failed') && o.delivery_type !== 'porter'
+  );
 
   const renderOrder = ({ item, index }: { item: Order; index: number }) => {
     const stripeColor = STATUS_STRIPE_COLORS[item.status] || colors.positive;

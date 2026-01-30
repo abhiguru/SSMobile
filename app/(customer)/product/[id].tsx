@@ -3,6 +3,7 @@ import {
   View,
   ScrollView,
   StyleSheet,
+  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -18,12 +19,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useAppDispatch } from '../../../src/store';
-import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../../src/store/apiSlice';
+import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation, useGetProductImagesQuery } from '../../../src/store/apiSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
-import { formatPrice, getPerKgPaise, resolveImageSource } from '../../../src/constants';
-import { getStoredTokens } from '../../../src/services/supabase';
+import { formatPrice, getPerKgPaise, resolveImageSource, getProductImageUrl } from '../../../src/constants';
 import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../../src/constants/theme';
 import { AppButton } from '../../../src/components/common/AppButton';
+import { ImagePreviewModal, PreviewImage } from '../../../src/components/common/ImagePreviewModal';
 import { useToast } from '../../../src/components/common/Toast';
 import { hapticLight, hapticSuccess } from '../../../src/utils/haptics';
 import type { AppTheme } from '../../../src/theme';
@@ -57,10 +58,10 @@ export default function ProductDetailScreen() {
   const [toggleFav] = useToggleFavoriteMutation();
   const isFavorite = favorites.includes(id!);
 
+  const { data: productImages = [] } = useGetProductImagesQuery(id!);
   const [weightGrams, setWeightGrams] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const isGujarati = i18n.language === 'gu';
 
   useEffect(() => {
@@ -108,19 +109,29 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const imgSource = resolveImageSource(product.image_url, accessToken);
+  const imgSource = resolveImageSource(product.image_url, null, { width: 800, height: 800, quality: 80 });
+
+  const previewImages: PreviewImage[] = useMemo(() => {
+    if (productImages.length > 0) {
+      return productImages.map((img) => ({ uri: getProductImageUrl(img.storage_path) }));
+    }
+    if (imgSource) return [imgSource];
+    return [];
+  }, [productImages, imgSource]);
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
           {imgSource ? (
-            <Image
-              source={imgSource}
-              style={styles.heroImage}
-              contentFit="cover"
-              transition={300}
-            />
+            <Pressable onPress={() => previewImages.length > 0 && setPreviewVisible(true)}>
+              <Image
+                source={imgSource}
+                style={styles.heroImage}
+                contentFit="cover"
+                transition={300}
+              />
+            </Pressable>
           ) : (
             <LinearGradient
               colors={gradients.brand as unknown as [string, string]}
@@ -207,6 +218,14 @@ export default function ProductDetailScreen() {
           </AppButton>
         </View>
       </ScrollView>
+      {previewImages.length > 0 && (
+        <ImagePreviewModal
+          images={previewImages}
+          visible={previewVisible}
+          initialIndex={0}
+          onClose={() => setPreviewVisible(false)}
+        />
+      )}
     </View>
   );
 }

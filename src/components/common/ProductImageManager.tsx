@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, StyleSheet, Dimensions, Alert, ActivityIndicator, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
 import { AnimatedPressable } from './AnimatedPressable';
+import { ImagePreviewModal, PreviewImage } from './ImagePreviewModal';
 import {
   useGetProductImagesQuery,
   useUploadProductImageMutation,
   useDeleteProductImageMutation,
 } from '../../store/apiSlice';
-import { getStoredTokens } from '../../services/supabase';
-import { getProductImageUrl, SUPABASE_ANON_KEY } from '../../constants';
+import { getProductImageUrl } from '../../constants';
 import { colors, spacing, borderRadius } from '../../constants/theme';
 import { useToast } from './Toast';
 
@@ -26,25 +27,45 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 interface ProductImageManagerProps {
   productId: string;
   disabled?: boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
-export function ProductImageManager({ productId, disabled }: ProductImageManagerProps) {
+export function ProductImageManager({ productId, disabled, onUploadingChange }: ProductImageManagerProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { data: images = [] } = useGetProductImagesQuery(productId);
   const [uploadImage, { isLoading: uploading }] = useUploadProductImageMutation();
   const [deleteImage] = useDeleteProductImageMutation();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    getStoredTokens().then(({ accessToken: token }) => setAccessToken(token));
-  }, []);
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
+
+  const compressAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    const TAG = '[ImageCompress]';
+    const actions: ImageManipulator.Action[] = [];
+    // Resize to 1200px max (covers 3x retina full-screen)
+    if (asset.width > 1200 || asset.height > 1200) {
+      actions.push(asset.width >= asset.height
+        ? { resize: { width: 1200 } }
+        : { resize: { height: 1200 } });
+    }
+    const manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      actions,
+      { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    console.log(TAG, 'compressed:', asset.width, 'x', asset.height, '→', manipulated.width, 'x', manipulated.height);
+    return manipulated;
+  };
 
   const pickImage = async () => {
     const TAG = '[ImagePicker]';
-    console.log(TAG, 'pickImage called — current images count:', images.length);
+    const remainingSlots = MAX_IMAGES - images.length;
+    console.log(TAG, 'pickImage called — current images count:', images.length, 'remaining slots:', remainingSlots);
 
-    if (images.length >= MAX_IMAGES) {
+    if (remainingSlots <= 0) {
       console.log(TAG, 'ABORT — max images reached');
       showToast({ message: t('admin.maxImagesReached'), type: 'error' });
       return;
@@ -61,49 +82,61 @@ export function ProductImageManager({ productId, disabled }: ProductImageManager
     console.log(TAG, 'launching image library...');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsMultipleSelection: true,
+      selectionLimit: remainingSlots,
       quality: 0.8,
       exif: false,
     });
 
-    if (result.canceled || !result.assets[0]) {
-      console.log(TAG, 'picker cancelled or no asset');
+    if (result.canceled || result.assets.length === 0) {
+      console.log(TAG, 'picker cancelled or no assets');
       return;
     }
 
-    const asset = result.assets[0];
-    const mimeType = asset.mimeType || 'image/jpeg';
-    const fileSize = asset.fileSize || 0;
-    console.log(TAG, 'asset selected — uri:', asset.uri);
-    console.log(TAG, 'mimeType:', mimeType, 'fileSize:', fileSize, 'fileName:', asset.fileName);
-    console.log(TAG, 'asset dimensions:', asset.width, 'x', asset.height);
+    console.log(TAG, 'assets selected:', result.assets.length);
 
-    if (fileSize > MAX_FILE_SIZE) {
-      console.log(TAG, 'ABORT — file too large:', fileSize);
-      showToast({ message: t('admin.imageSizeError'), type: 'error' });
-      return;
-    }
+    const compressAndUpload = async (asset: ImagePicker.ImagePickerAsset) => {
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const fileSize = asset.fileSize || 0;
+      console.log(TAG, 'asset — uri:', asset.uri, 'mimeType:', mimeType, 'fileSize:', fileSize);
+      console.log(TAG, 'asset dimensions:', asset.width, 'x', asset.height);
 
-    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-      console.log(TAG, 'ABORT — unsupported mime type:', mimeType);
-      showToast({ message: t('admin.imageTypeError'), type: 'error' });
-      return;
-    }
+      if (fileSize > MAX_FILE_SIZE) {
+        console.log(TAG, 'SKIP — file too large:', fileSize);
+        showToast({ message: t('admin.imageSizeError'), type: 'error' });
+        return;
+      }
 
-    const uploadParams = {
-      productId,
-      uri: asset.uri,
-      mimeType,
-      fileName: asset.fileName || `product-${Date.now()}.jpg`,
+      if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+        console.log(TAG, 'SKIP — unsupported mime type:', mimeType);
+        showToast({ message: t('admin.imageTypeError'), type: 'error' });
+        return;
+      }
+
+      // Compress before upload
+      const compressed = await compressAsset(asset);
+      console.log(TAG, 'compressed URI:', compressed.uri);
+
+      const uploadParams = {
+        productId,
+        uri: compressed.uri,
+        mimeType: 'image/jpeg',
+        fileName: asset.fileName?.replace(/\.[^.]+$/, '.jpg') || `product-${Date.now()}.jpg`,
+      };
+      console.log(TAG, 'calling uploadImage mutation with:', JSON.stringify(uploadParams));
+      return uploadImage(uploadParams).unwrap();
     };
-    console.log(TAG, 'calling uploadImage mutation with:', JSON.stringify(uploadParams));
 
     try {
-      const result = await uploadImage(uploadParams).unwrap();
-      console.log(TAG, 'upload SUCCESS — result:', JSON.stringify(result));
-      // Refresh token so new thumbnail gets valid auth headers
-      getStoredTokens().then(({ accessToken: t }) => setAccessToken(t));
+      const uploads = result.assets.map((asset) => compressAndUpload(asset));
+      const results = await Promise.allSettled(uploads);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.log(TAG, 'some uploads failed:', failed.length);
+        showToast({ message: t('admin.uploadFailed'), type: 'error' });
+      } else {
+        console.log(TAG, 'all uploads succeeded');
+      }
     } catch (err) {
       console.log(TAG, 'upload FAILED — error:', JSON.stringify(err));
       showToast({ message: t('admin.uploadFailed'), type: 'error' });
@@ -131,6 +164,11 @@ export function ProductImageManager({ productId, disabled }: ProductImageManager
     );
   };
 
+  const previewImages: PreviewImage[] = useMemo(
+    () => images.map((img) => ({ uri: getProductImageUrl(img.storage_path) })),
+    [images],
+  );
+
   const canAdd = images.length < MAX_IMAGES && !uploading && !disabled;
 
   return (
@@ -140,21 +178,16 @@ export function ProductImageManager({ productId, disabled }: ProductImageManager
       </Text>
       <View style={styles.grid}>
         {images.map((img, index) => {
-          const imgUri = getProductImageUrl(img.storage_path);
-          const source = accessToken
-            ? {
-                uri: imgUri,
-                cacheKey: img.id,
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'apikey': SUPABASE_ANON_KEY,
-                },
-              }
-            : { uri: imgUri, cacheKey: img.id };
+          const source = {
+            uri: getProductImageUrl(img.storage_path, { width: 160, height: 160, quality: 70 }),
+            cacheKey: img.id,
+          };
 
           return (
             <View key={img.id} style={styles.thumb}>
-              <Image source={source} style={styles.thumbImage} contentFit="cover" transition={200} />
+              <Pressable onPress={() => setPreviewIndex(index)} style={styles.thumbImage}>
+                <Image source={source} style={styles.thumbImage} contentFit="cover" transition={200} />
+              </Pressable>
               {index === 0 && (
                 <View style={styles.primaryBadge}>
                   <Text style={styles.primaryText}>{t('admin.primaryImage')}</Text>
@@ -184,6 +217,12 @@ export function ProductImageManager({ productId, disabled }: ProductImageManager
           </AnimatedPressable>
         )}
       </View>
+      <ImagePreviewModal
+        images={previewImages}
+        visible={previewIndex !== null}
+        initialIndex={previewIndex ?? 0}
+        onClose={() => setPreviewIndex(null)}
+      />
     </View>
   );
 }

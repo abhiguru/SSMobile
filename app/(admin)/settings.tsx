@@ -1,5 +1,4 @@
 import { View, StyleSheet, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, List, Divider, useTheme } from 'react-native-paper';
 
@@ -13,7 +12,6 @@ import type { AppTheme } from '../../src/theme';
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const [logout] = useLogoutMutation();
   const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
@@ -28,9 +26,8 @@ export default function AdminSettingsScreen() {
         {
           text: t('auth.logout'),
           style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/');
+          onPress: () => {
+            logout();
           },
         },
       ]

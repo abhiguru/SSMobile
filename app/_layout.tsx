@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PaperProvider } from 'react-native-paper';
@@ -19,17 +19,26 @@ import { registerPushToken } from '../src/services/supabase';
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const [checkSession] = useCheckSessionMutation();
-  useGetFavoritesQuery();
+  const favQuery = useGetFavoritesQuery();
   const [syncFavorites] = useSyncFavoritesMutation();
+  const router = useRouter();
+  const wasAuthenticated = useRef(false);
+
+  console.log('[Favorites:AppInit] render — isAuthenticated:', isAuthenticated,
+    'favStatus:', favQuery.status, 'favIds:', favQuery.data?.length ?? 'undefined');
 
   // Initial app setup
   useEffect(() => {
+    console.log('[Favorites:AppInit] mount effect — calling checkSession');
     checkSession();
   }, [checkSession]);
 
   // Post-authentication setup
   useEffect(() => {
+    console.log('[Favorites:AppInit] auth effect — isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
+      wasAuthenticated.current = true;
+      console.log('[Favorites:AppInit] calling syncFavorites');
       syncFavorites();
 
       registerForPushNotificationsAsync().then((token) => {
@@ -37,8 +46,11 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           registerPushToken(token);
         }
       });
+    } else if (wasAuthenticated.current) {
+      wasAuthenticated.current = false;
+      router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, syncFavorites]);
+  }, [isAuthenticated, syncFavorites, router]);
 
   return <>{children}</>;
 }

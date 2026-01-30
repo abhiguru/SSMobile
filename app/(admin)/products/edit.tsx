@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -56,6 +56,8 @@ export default function EditProductScreen() {
   const [descriptionGu, setDescriptionGu] = useState('');
   const [priceRupees, setPriceRupees] = useState('');
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const handleUploadingChange = useCallback((v: boolean) => setImageUploading(v), []);
 
   useEffect(() => {
     if (product) {
@@ -187,7 +189,7 @@ export default function EditProductScreen() {
         {/* Step 0: Identity */}
         {currentStep === 0 && (
           <View style={styles.card}>
-            <ProductImageManager productId={productId} disabled={saving} />
+            <ProductImageManager productId={productId} disabled={saving} onUploadingChange={handleUploadingChange} />
             <TextInput
               label={t('admin.nameEn')}
               value={name}
@@ -305,7 +307,7 @@ export default function EditProductScreen() {
               variant="primary"
               size="lg"
               fullWidth
-              disabled={currentStep === 0 ? !step0Valid : !step1Valid}
+              disabled={currentStep === 0 ? !step0Valid || imageUploading : !step1Valid}
               onPress={goNext}
             >
               {t('common.next')}

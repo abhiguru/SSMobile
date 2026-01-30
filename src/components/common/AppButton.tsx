@@ -1,4 +1,4 @@
-import { StyleSheet, ActivityIndicator, View } from 'react-native';
+import { StyleSheet, ActivityIndicator, View, ViewStyle, StyleProp } from 'react-native';
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { AnimatedPressable } from './AnimatedPressable';
@@ -15,6 +15,7 @@ interface AppButtonProps {
   icon?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   fullWidth?: boolean;
   onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
 }
 
@@ -40,6 +41,7 @@ export function AppButton({
   icon,
   fullWidth = false,
   onPress,
+  style: containerStyle,
   children,
 }: AppButtonProps) {
   const variantStyle = VARIANT_STYLES[variant];
@@ -62,6 +64,7 @@ export function AppButton({
         },
         fullWidth && styles.fullWidth,
         variant !== 'text' && variant !== 'outline' && elevation.level1,
+        containerStyle,
       ]}
     >
       <View style={styles.content}>

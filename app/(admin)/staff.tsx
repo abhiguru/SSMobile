@@ -209,7 +209,6 @@ export default function StaffScreen() {
         <FlashList
           data={sortedStaff}
           renderItem={renderStaffCard}
-          estimatedItemSize={120}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

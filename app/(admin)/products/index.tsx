@@ -163,7 +163,7 @@ export default function AdminProductsScreen() {
           })}
         </ScrollView>
       </View>
-      <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} estimatedItemSize={82} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
+      <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
     </View>
   );
 }

@@ -493,7 +493,6 @@ export default function UsersScreen() {
         <FlashList
           data={users}
           renderItem={renderUserCard}
-          estimatedItemSize={130}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}

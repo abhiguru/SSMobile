@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Modal,
   View,
   StyleSheet,
   Dimensions,
   StatusBar,
   Pressable,
   Image,
+  BackHandler,
 } from 'react-native';
+import { Portal } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useTranslation } from 'react-i18next';
 import {
@@ -68,6 +69,16 @@ export function ImagePreviewModal({
     }
   }, [visible, initialIndex]);
 
+  // Handle Android back button
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   const resetZoom = useCallback(() => {
     'worklet';
     scale.value = withTiming(1);
@@ -127,7 +138,7 @@ export function ImagePreviewModal({
     })
     .onEnd((e) => {
       'worklet';
-      runOnJS(log)('Pan onEnd — tX:', e.translationX, 'vX:', e.velocityX, 'savedScale:', savedScale.value);
+      runOnJS(log)('Pan onEnd — tX:', e.translationX, 'savedScale:', savedScale.value);
       if (savedScale.value > 1) {
         const s = scale.value;
         const maxX = (SCREEN_WIDTH * (s - 1)) / 2;
@@ -181,54 +192,55 @@ export function ImagePreviewModal({
     savedTranslateY.value = 0;
   }, [activeIndex]);
 
-  if (!images.length) return null;
+  if (!visible || !images.length) return null;
   const activeImage = images[activeIndex];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <StatusBar hidden />
-      <GestureHandlerRootView style={styles.backdrop}>
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[styles.imageContainer, animatedStyle]}>
-            <Image
-              source={{ uri: activeImage.uri, headers: activeImage.headers }}
-              style={styles.image}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </GestureDetector>
-
-        <Pressable
-          style={styles.closeButton}
-          onPress={onClose}
-          accessibilityLabel={t('common.closePreview')}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="close" size={28} color="#fff" />
-        </Pressable>
-
-        {images.length > 1 && (
-          <View style={styles.dotsContainer} pointerEvents="none">
-            {images.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === activeIndex && styles.dotActive]}
+    <Portal>
+      <View style={styles.fullscreen}>
+        <StatusBar hidden />
+        <GestureHandlerRootView style={styles.backdrop}>
+          <GestureDetector gesture={gesture}>
+            <Animated.View style={[styles.imageContainer, animatedStyle]}>
+              <Image
+                source={{ uri: activeImage.uri, headers: activeImage.headers }}
+                style={styles.image}
+                resizeMode="contain"
               />
-            ))}
-          </View>
-        )}
-      </GestureHandlerRootView>
-    </Modal>
+            </Animated.View>
+          </GestureDetector>
+
+          <Pressable
+            style={styles.closeButton}
+            onPress={onClose}
+            accessibilityLabel={t('common.closePreview')}
+            hitSlop={12}
+          >
+            <MaterialCommunityIcons name="close" size={28} color="#fff" />
+          </Pressable>
+
+          {images.length > 1 && (
+            <View style={styles.dotsContainer} pointerEvents="none">
+              {images.map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, i === activeIndex && styles.dotActive]}
+                />
+              ))}
+            </View>
+          )}
+        </GestureHandlerRootView>
+      </View>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
+  fullscreen: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: '#000',

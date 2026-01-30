@@ -1,9 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Pressable,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +65,9 @@ export default function ProductDetailScreen() {
   const [weightGrams, setWeightGrams] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const isGujarati = i18n.language === 'gu';
+  const screenWidth = Dimensions.get('window').width;
 
   useEffect(() => {
     setWeightGrams(0);
@@ -109,29 +114,74 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const imgSource = resolveImageSource(product.image_url, null, { width: 800, height: 800, quality: 80 });
-
-  const previewImages: PreviewImage[] = useMemo(() => {
+  const carouselImages = useMemo(() => {
     if (productImages.length > 0) {
-      return productImages.map((img) => ({ uri: getProductImageUrl(img.storage_path) }));
+      return productImages.map((img) => ({
+        display: { uri: getProductImageUrl(img.storage_path, { width: 400, height: 400, quality: 75 }), cacheKey: `display-${img.id}` },
+        full: { uri: getProductImageUrl(img.storage_path) },
+      }));
     }
-    if (imgSource) return [imgSource];
+    const fallback = resolveImageSource(product.image_url, null, { width: 400, height: 400, quality: 75 });
+    const fallbackFull = resolveImageSource(product.image_url);
+    if (fallback && fallbackFull) {
+      return [{ display: fallback, full: fallbackFull }];
+    }
     return [];
-  }, [productImages, imgSource]);
+  }, [productImages, product.image_url]);
+
+  const previewImages: PreviewImage[] = useMemo(
+    () => carouselImages.map((img) => img.full),
+    [carouselImages],
+  );
+
+  const handleCarouselScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offset = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / screenWidth);
+    setActiveImageIndex(index);
+  }, [screenWidth]);
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
-          {imgSource ? (
-            <Pressable onPress={() => previewImages.length > 0 && setPreviewVisible(true)}>
-              <Image
-                source={imgSource}
-                style={styles.heroImage}
-                contentFit="cover"
-                transition={300}
-              />
-            </Pressable>
+          {carouselImages.length > 0 ? (
+            <>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handleCarouselScroll}
+                scrollEventThrottle={16}
+              >
+                {carouselImages.map((img, index) => (
+                  <Pressable
+                    key={index}
+                    onPress={() => {
+                      setActiveImageIndex(index);
+                      setPreviewVisible(true);
+                    }}
+                  >
+                    <Image
+                      source={img.display}
+                      style={[styles.heroImage, { width: screenWidth }]}
+                      contentFit="cover"
+                      transition={200}
+                      priority={index === 0 ? 'high' : 'low'}
+                    />
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {carouselImages.length > 1 && (
+                <View style={styles.dotsContainer} pointerEvents="none">
+                  {carouselImages.map((_, i) => (
+                    <View
+                      key={i}
+                      style={[styles.dot, i === activeImageIndex && styles.dotActive]}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
             <LinearGradient
               colors={gradients.brand as unknown as [string, string]}
@@ -222,7 +272,7 @@ export default function ProductDetailScreen() {
         <ImagePreviewModal
           images={previewImages}
           visible={previewVisible}
-          initialIndex={0}
+          initialIndex={activeImageIndex}
           onClose={() => setPreviewVisible(false)}
         />
       )}
@@ -237,6 +287,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   imageContainer: { height: 300, position: 'relative' },
   heroImage: { width: '100%', height: 300, justifyContent: 'center', alignItems: 'center' },
+  dotsContainer: { position: 'absolute', bottom: 12, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.5)' },
+  dotActive: { backgroundColor: '#fff', width: 9, height: 9, borderRadius: 4.5 },
   favoriteButton: { position: 'absolute', top: spacing.sm, right: spacing.sm },
   content: { padding: spacing.lg },
   name: { fontFamily: fontFamily.bold, color: colors.text.primary, marginBottom: spacing.sm },

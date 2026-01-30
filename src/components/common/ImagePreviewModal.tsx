@@ -86,42 +86,48 @@ export function ImagePreviewModal({
     setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
   }, []);
 
+  // ── Logging helper (safe to call from worklets via runOnJS) ───
+  const log = useCallback((...args: unknown[]) => {
+    console.log('[ImagePreview]', ...args);
+  }, []);
+
   // ── Gestures ───────────────────────────────────────────────────
 
   const pinch = Gesture.Pinch()
-    .onBegin((e) => {
-      console.log('[Pinch] onBegin — scale:', e.scale, 'fingers:', e.numberOfPointers);
+    .onBegin(() => {
+      'worklet';
+      runOnJS(log)('Pinch onBegin');
     })
     .onUpdate((e) => {
-      console.log('[Pinch] onUpdate — e.scale:', e.scale, 'computed:', savedScale.value * e.scale);
+      'worklet';
       scale.value = Math.min(savedScale.value * e.scale, MAX_SCALE);
     })
     .onEnd(() => {
-      console.log('[Pinch] onEnd — final scale:', scale.value);
+      'worklet';
+      runOnJS(log)('Pinch onEnd — scale:', scale.value);
       if (scale.value <= 1.05) {
         resetZoom();
       } else {
         savedScale.value = scale.value;
       }
-    })
-    .onFinalize((_e, success) => {
-      console.log('[Pinch] onFinalize — success:', success);
     });
 
   const pan = Gesture.Pan()
     .minDistance(10)
-    .onBegin((e) => {
-      console.log('[Pan] onBegin — x:', e.x, 'y:', e.y);
+    .onBegin(() => {
+      'worklet';
+      runOnJS(log)('Pan onBegin');
     })
     .onUpdate((e) => {
-      console.log('[Pan] onUpdate — tX:', e.translationX, 'tY:', e.translationY, 'savedScale:', savedScale.value);
+      'worklet';
       if (savedScale.value > 1) {
         translateX.value = savedTranslateX.value + e.translationX;
         translateY.value = savedTranslateY.value + e.translationY;
       }
     })
     .onEnd((e) => {
-      console.log('[Pan] onEnd — tX:', e.translationX, 'vX:', e.velocityX, 'savedScale:', savedScale.value);
+      'worklet';
+      runOnJS(log)('Pan onEnd — tX:', e.translationX, 'vX:', e.velocityX, 'savedScale:', savedScale.value);
       if (savedScale.value > 1) {
         const s = scale.value;
         const maxX = (SCREEN_WIDTH * (s - 1)) / 2;
@@ -139,32 +145,23 @@ export function ImagePreviewModal({
           runOnJS(goPrev)();
         }
       }
-    })
-    .onFinalize((_e, success) => {
-      console.log('[Pan] onFinalize — success:', success);
     });
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
-    .onBegin(() => {
-      console.log('[DoubleTap] onBegin');
-    })
     .onEnd(() => {
-      console.log('[DoubleTap] onEnd — savedScale:', savedScale.value);
+      'worklet';
+      runOnJS(log)('DoubleTap onEnd — savedScale:', savedScale.value);
       if (savedScale.value > 1) {
         resetZoom();
       } else {
         scale.value = withTiming(DOUBLE_TAP_SCALE);
         savedScale.value = DOUBLE_TAP_SCALE;
       }
-    })
-    .onFinalize((_e, success) => {
-      console.log('[DoubleTap] onFinalize — success:', success);
     });
 
   const composed = Gesture.Simultaneous(pinch, pan);
   const gesture = Gesture.Exclusive(doubleTap, composed);
-  console.log('[ImagePreview] gesture tree built — visible:', visible, 'images:', images.length);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

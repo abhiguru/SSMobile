@@ -2,6 +2,7 @@ import { View, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } f
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Button, Switch, useTheme } from 'react-native-paper';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
@@ -16,6 +17,7 @@ export default function NewAddressScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const theme = useTheme<AppTheme>();
+  const headerHeight = useHeaderHeight();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [addAddress, { isLoading }] = useAddAddressMutation();
 
@@ -34,8 +36,8 @@ export default function NewAddressScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={headerHeight}>
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={styles.input} />
           <FormTextInput control={control} name="full_name" mode="outlined" label={`${t('addresses.fullName')} *`} placeholder={t('addresses.fullNamePlaceholder')} style={styles.input} />
@@ -60,6 +62,7 @@ export default function NewAddressScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.shell },
+  scrollContent: { paddingBottom: 40 },
   section: { backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.md },
   input: { backgroundColor: colors.surface, marginBottom: spacing.xs },
   row: { flexDirection: 'row', gap: 12 },

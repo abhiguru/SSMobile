@@ -603,9 +603,9 @@ export default function AdminOrderDetailScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.orderItems')}</Text>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { marginBottom: 0 }]}>{t('admin.orderItems')}</Text>
           {canEditItems && !editing && (
-            <Pressable onPress={handleEnterEditMode} hitSlop={8}>
+            <Pressable onPress={handleEnterEditMode} style={styles.editPencilBtn} hitSlop={8}>
               <MaterialCommunityIcons name="pencil" size={18} color={colors.brand} />
             </Pressable>
           )}
@@ -789,8 +789,9 @@ const styles = StyleSheet.create({
   date: { color: colors.text.secondary },
   deliveryTypeBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs },
   deliveryTypeText: { color: colors.text.secondary },
-  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12, flex: 1 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  editPencilBtn: { padding: spacing.sm, borderRadius: borderRadius.sm, backgroundColor: colors.brandLight },
   actionsRow: { flexDirection: 'row', gap: 12 },
   actionButtonWrapper: { flex: 1 },
   segmentedButtons: { marginBottom: spacing.lg },

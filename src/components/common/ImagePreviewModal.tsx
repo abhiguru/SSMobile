@@ -81,10 +81,10 @@ export function ImagePreviewModal({
 
   const resetZoom = useCallback(() => {
     'worklet';
-    scale.value = withTiming(1);
+    scale.value = withTiming(1, { duration: 300 });
     savedScale.value = 1;
-    translateX.value = withTiming(0);
-    translateY.value = withTiming(0);
+    translateX.value = withTiming(0, { duration: 300 });
+    translateY.value = withTiming(0, { duration: 300 });
     savedTranslateX.value = 0;
     savedTranslateY.value = 0;
   }, []);
@@ -97,25 +97,24 @@ export function ImagePreviewModal({
     setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
   }, []);
 
-  // ── Logging helper (safe to call from worklets via runOnJS) ───
-  const log = useCallback((...args: unknown[]) => {
-    console.log('[ImagePreview]', ...args);
-  }, []);
+  // ── Gestures (all callbacks run entirely on UI thread) ────────
 
-  // ── Gestures ───────────────────────────────────────────────────
+  const pinchFocalX = useSharedValue(0);
+  const pinchFocalY = useSharedValue(0);
 
   const pinch = Gesture.Pinch()
-    .onBegin(() => {
+    .onStart((e) => {
       'worklet';
-      runOnJS(log)('Pinch onBegin');
+      pinchFocalX.value = e.focalX;
+      pinchFocalY.value = e.focalY;
     })
     .onUpdate((e) => {
       'worklet';
-      scale.value = Math.min(savedScale.value * e.scale, MAX_SCALE);
+      const newScale = Math.max(1, Math.min(savedScale.value * e.scale, MAX_SCALE));
+      scale.value = newScale;
     })
     .onEnd(() => {
       'worklet';
-      runOnJS(log)('Pinch onEnd — scale:', scale.value);
       if (scale.value <= 1.05) {
         resetZoom();
       } else {
@@ -124,11 +123,9 @@ export function ImagePreviewModal({
     });
 
   const pan = Gesture.Pan()
-    .minDistance(10)
-    .onBegin(() => {
-      'worklet';
-      runOnJS(log)('Pan onBegin');
-    })
+    .minDistance(5)
+    .minPointers(1)
+    .maxPointers(2)
     .onUpdate((e) => {
       'worklet';
       if (savedScale.value > 1) {
@@ -138,15 +135,14 @@ export function ImagePreviewModal({
     })
     .onEnd((e) => {
       'worklet';
-      runOnJS(log)('Pan onEnd — tX:', e.translationX, 'savedScale:', savedScale.value);
       if (savedScale.value > 1) {
         const s = scale.value;
         const maxX = (SCREEN_WIDTH * (s - 1)) / 2;
         const maxY = (SCREEN_HEIGHT * (s - 1)) / 2;
         const clampedX = Math.max(-maxX, Math.min(maxX, translateX.value));
         const clampedY = Math.max(-maxY, Math.min(maxY, translateY.value));
-        translateX.value = withTiming(clampedX);
-        translateY.value = withTiming(clampedY);
+        translateX.value = withTiming(clampedX, { duration: 200 });
+        translateY.value = withTiming(clampedY, { duration: 200 });
         savedTranslateX.value = clampedX;
         savedTranslateY.value = clampedY;
       } else {
@@ -160,13 +156,13 @@ export function ImagePreviewModal({
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
+    .maxDuration(300)
     .onEnd(() => {
       'worklet';
-      runOnJS(log)('DoubleTap onEnd — savedScale:', savedScale.value);
       if (savedScale.value > 1) {
         resetZoom();
       } else {
-        scale.value = withTiming(DOUBLE_TAP_SCALE);
+        scale.value = withTiming(DOUBLE_TAP_SCALE, { duration: 300 });
         savedScale.value = DOUBLE_TAP_SCALE;
       }
     });

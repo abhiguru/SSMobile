@@ -1,4 +1,4 @@
-import { View, ScrollView, StyleSheet, Linking, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Linking, Pressable, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, Divider, ActivityIndicator } from 'react-native-paper';
@@ -25,9 +25,10 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const { data: order, isLoading } = useGetOrderByIdQuery(id!, {
+  const { data: order, isLoading, isFetching, refetch } = useGetOrderByIdQuery(id!, {
     skip: !id,
     pollingInterval: 15_000,
+    refetchOnMountOrArgChange: true,
   });
   const [reorder, { isLoading: reorderLoading }] = useReorderMutation();
 
@@ -73,7 +74,10 @@ export default function OrderDetailScreen() {
   const porterDelivery = order.porter_delivery;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.brand} colors={[colors.brand]} />}
+    >
       <View style={styles.section}>
         <View style={styles.headerRow}>
           <Text variant="titleMedium" style={styles.orderId}>{t('orders.orderNumber', { id: getOrderDisplayNumber(order) })}</Text>

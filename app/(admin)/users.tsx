@@ -103,10 +103,10 @@ export default function UsersScreen() {
 
   const { data: users = [], isLoading, isFetching, isError, refetch } = useGetUsersQuery(
     debouncedSearch || undefined,
-    { pollingInterval: 5000 },
+    { pollingInterval: 30_000 },
   );
   const { data: deletionRequests = [] } = useGetDeletionRequestsQuery(undefined, {
-    pollingInterval: 5000,
+    pollingInterval: 30_000,
   });
   const pendingDeletionUserIds = new Set(deletionRequests.map((r) => r.user_id));
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateUserRoleMutation();

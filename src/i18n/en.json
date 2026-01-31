@@ -267,6 +267,7 @@
     "roleChangeConfirmMessage": "Change {{name}}'s role to {{role}}?",
     "roleChanged": "Role updated successfully",
     "roleChangeFailed": "Failed to update role",
+    "deletionRequested": "Deletion Requested",
     "blockConfirmTitle": "Block User",
     "blockConfirmMessage": "Block {{name}}? They will not be able to log in.",
     "unblockConfirmTitle": "Unblock User",

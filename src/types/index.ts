@@ -11,6 +11,17 @@ export interface User {
   created_at?: string;
 }
 
+export interface AccountDeletionRequest {
+  id: string;
+  user_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string | null;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
 // Product types
 export interface WeightOption {
   id: string;

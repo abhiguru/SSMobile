@@ -267,6 +267,7 @@
     "roleChangeConfirmMessage": "{{name}} ની ભૂમિકા {{role}} માં બદલશો?",
     "roleChanged": "ભૂમિકા સફળતાપૂર્વક અપડેટ થઈ",
     "roleChangeFailed": "ભૂમિકા અપડેટ કરવામાં નિષ્ફળ",
+    "deletionRequested": "ડિલીશન વિનંતી",
     "blockConfirmTitle": "યુઝર બ્લોક કરો",
     "blockConfirmMessage": "{{name}} ને બ્લોક કરશો? તેઓ લોગિન કરી શકશે નહીં.",
     "unblockConfirmTitle": "યુઝર અનબ્લોક કરો",

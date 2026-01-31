@@ -14,6 +14,7 @@ import {
   useUpdateAdminAddressMutation,
   useDeleteAdminAddressMutation,
   useUpdateUserRoleMutation,
+  useGetDeletionRequestsQuery,
 } from '../../src/store/apiSlice';
 import { User, UserRole, AdminAddress } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -96,6 +97,8 @@ export default function UsersScreen() {
   const { data: users = [], isLoading, isError, refetch } = useGetUsersQuery(
     debouncedSearch || undefined,
   );
+  const { data: deletionRequests = [] } = useGetDeletionRequestsQuery();
+  const pendingDeletionUserIds = new Set(deletionRequests.map((r) => r.user_id));
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateUserRoleMutation();
   const [addAdminAddress, { isLoading: isAddingAddress }] = useAddAdminAddressMutation();
   const [updateAdminAddress, { isLoading: isUpdatingAddress }] = useUpdateAdminAddressMutation();
@@ -405,6 +408,7 @@ export default function UsersScreen() {
     const role = item.role || 'customer';
     const isActive = item.is_active !== false;
     const badgeStyle = ROLE_BADGE_STYLES[role];
+    const hasPendingDeletion = pendingDeletionUserIds.has(item.id);
 
     return (
       <Pressable style={[styles.card, !isActive && styles.cardBlocked]} onPress={() => openEditSheet(item)}>
@@ -440,10 +444,16 @@ export default function UsersScreen() {
             style={styles.activeSwitch}
           />
         </View>
+        {hasPendingDeletion && (
+          <View style={styles.deletionBadgeRow}>
+            <MaterialCommunityIcons name="alert-circle" size={16} color={colors.negative} />
+            <Text style={styles.deletionBadgeText}>{t('admin.deletionRequested')}</Text>
+          </View>
+        )}
         <UserCardAddresses userId={item.id} />
       </Pressable>
     );
-  }, [openEditSheet, handleToggleActive, t]);
+  }, [openEditSheet, handleToggleActive, pendingDeletionUserIds, t]);
 
   if (isLoading) {
     return (
@@ -1014,6 +1024,20 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 12,
     fontFamily: fontFamily.semiBold,
+  },
+  deletionBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  deletionBadgeText: {
+    fontSize: 12,
+    fontFamily: fontFamily.semiBold,
+    color: colors.negative,
+    marginLeft: 6,
   },
   // Address section on cards
   addressSection: {

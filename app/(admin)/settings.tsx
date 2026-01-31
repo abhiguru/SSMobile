@@ -1,4 +1,5 @@
 import { View, StyleSheet, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, List, Divider, useTheme } from 'react-native-paper';
 
@@ -12,6 +13,7 @@ import type { AppTheme } from '../../src/theme';
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
   const theme = useTheme<AppTheme>();
@@ -48,7 +50,13 @@ export default function AdminSettingsScreen() {
             try {
               await requestAccountDeletion().unwrap();
               Alert.alert('', t('profile.deleteAccountSuccess'), [
-                { text: t('common.done'), onPress: () => logout() },
+                {
+                  text: t('common.done'),
+                  onPress: () => {
+                    router.replace('/(auth)/login');
+                    setTimeout(() => logout(), 100);
+                  },
+                },
               ]);
             } catch {
               Alert.alert('', t('profile.deleteAccountFailed'));

@@ -52,7 +52,13 @@ export default function ProfileScreen() {
             try {
               await requestAccountDeletion().unwrap();
               Alert.alert('', t('profile.deleteAccountSuccess'), [
-                { text: t('common.done'), onPress: () => logout() },
+                {
+                  text: t('common.done'),
+                  onPress: () => {
+                    router.replace('/(auth)/login');
+                    setTimeout(() => logout(), 100);
+                  },
+                },
               ]);
             } catch {
               Alert.alert('', t('profile.deleteAccountFailed'));

@@ -10,7 +10,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff, UpdateOrderItemsRequest } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
@@ -68,7 +68,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users', 'UserAddresses'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users', 'UserAddresses', 'DeletionRequests'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -927,6 +927,16 @@ export const apiSlice = createApi({
         url: '/functions/v1/request-account-deletion',
         method: 'POST',
       }),
+      invalidatesTags: ['DeletionRequests'],
+    }),
+
+    getDeletionRequests: builder.query<AccountDeletionRequest[], void>({
+      query: () => ({
+        url: '/rest/v1/account_deletion_requests?select=id,user_id,status,created_at,admin_notes&status=eq.pending&order=created_at.desc',
+      }),
+      transformResponse: (response: unknown) =>
+        Array.isArray(response) ? response : [],
+      providesTags: ['DeletionRequests'],
     }),
 
     logout: builder.mutation<null, void>({
@@ -1107,6 +1117,7 @@ export const {
   useCheckSessionMutation,
   useLogoutMutation,
   useRequestAccountDeletionMutation,
+  useGetDeletionRequestsQuery,
 } = apiSlice;
 
 export const {

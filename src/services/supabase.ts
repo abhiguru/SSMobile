@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Storage as SqliteKvStore } from 'expo-sqlite/kv-store';
+import { Platform } from 'react-native';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 import { SendOtpResponse, VerifyOtpResponse, User, UserRole } from '../types';
 
@@ -230,7 +231,7 @@ export const registerPushToken = async (token: string): Promise<boolean> => {
   try {
     const response = await authenticatedFetch('/functions/v1/register-push-token', {
       method: 'POST',
-      body: JSON.stringify({ push_token: token }),
+      body: JSON.stringify({ push_token: token, platform: Platform.OS }),
     });
     return response.ok;
   } catch (error) {

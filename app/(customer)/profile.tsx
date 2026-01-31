@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
-import { useLogoutMutation } from '../../src/store/apiSlice';
+import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import { colors, spacing, elevation, gradients, borderRadius, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -17,6 +17,7 @@ export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [logout] = useLogoutMutation();
+  const [requestAccountDeletion] = useRequestAccountDeletionMutation();
   const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
@@ -38,6 +39,30 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t('profile.deleteAccountConfirmTitle'),
+      t('profile.deleteAccountConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('profile.deleteAccountConfirmButton'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await requestAccountDeletion().unwrap();
+              Alert.alert('', t('profile.deleteAccountSuccess'), [
+                { text: t('common.done'), onPress: () => logout() },
+              ]);
+            } catch {
+              Alert.alert('', t('profile.deleteAccountFailed'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleLanguageToggle = async (lang: string) => {
     await changeLanguage(lang);
   };
@@ -47,6 +72,7 @@ export default function ProfileScreen() {
     { icon: 'bell-outline' as const, bg: colors.criticalLight, iconColor: colors.critical, title: t('profile.notifications'), onPress: () => {} },
     { icon: 'information' as const, bg: colors.positiveLight, iconColor: colors.positive, title: t('profile.aboutUs'), onPress: () => {} },
     { icon: 'help-circle' as const, bg: colors.brandLight + '33', iconColor: colors.brand, title: t('profile.help'), onPress: () => {} },
+    { icon: 'delete-outline' as const, bg: colors.negativeLight, iconColor: colors.negative, title: t('profile.deleteAccount'), onPress: handleDeleteAccount },
   ];
 
   return (

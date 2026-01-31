@@ -120,7 +120,13 @@
     "aboutUs": "About Us",
     "help": "Help & Support",
     "savedAddresses": "Saved Addresses",
-    "guest": "Guest"
+    "guest": "Guest",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirmTitle": "Delete Account",
+    "deleteAccountConfirmMessage": "This will permanently delete your account and all associated data. This action cannot be undone.",
+    "deleteAccountConfirmButton": "Delete My Account",
+    "deleteAccountSuccess": "Your account deletion request has been submitted. You will be logged out.",
+    "deleteAccountFailed": "Failed to submit deletion request. Please try again."
   },
   "addresses": {
     "title": "Saved Addresses",

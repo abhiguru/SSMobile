@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Text, List, Divider, useTheme } from 'react-native-paper';
 
 import { useAppSelector } from '../../src/store';
-import { useLogoutMutation } from '../../src/store/apiSlice';
+import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import { colors, spacing, borderRadius, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -13,6 +13,7 @@ import type { AppTheme } from '../../src/theme';
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
   const [logout] = useLogoutMutation();
+  const [requestAccountDeletion] = useRequestAccountDeletionMutation();
   const theme = useTheme<AppTheme>();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
@@ -34,6 +35,30 @@ export default function AdminSettingsScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t('profile.deleteAccountConfirmTitle'),
+      t('profile.deleteAccountConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('profile.deleteAccountConfirmButton'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await requestAccountDeletion().unwrap();
+              Alert.alert('', t('profile.deleteAccountSuccess'), [
+                { text: t('common.done'), onPress: () => logout() },
+              ]);
+            } catch {
+              Alert.alert('', t('profile.deleteAccountFailed'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleLanguageToggle = async (lang: string) => { await changeLanguage(lang); };
 
   return (
@@ -46,6 +71,13 @@ export default function AdminSettingsScreen() {
         <Divider />
         <AnimatedPressable>
           <List.Item title="Role" description="Admin" />
+        </AnimatedPressable>
+        <Divider />
+        <AnimatedPressable onPress={handleDeleteAccount}>
+          <List.Item
+            title={t('profile.deleteAccount')}
+            titleStyle={{ color: colors.negative }}
+          />
         </AnimatedPressable>
       </View>
       <View style={styles.section}>

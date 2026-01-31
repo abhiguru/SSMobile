@@ -120,7 +120,13 @@
     "aboutUs": "અમારા વિશે",
     "help": "મદદ અને સપોર્ટ",
     "savedAddresses": "સાચવેલા સરનામાં",
-    "guest": "મહેમાન"
+    "guest": "મહેમાન",
+    "deleteAccount": "એકાઉન્ટ કાઢી નાખો",
+    "deleteAccountConfirmTitle": "એકાઉન્ટ કાઢી નાખો",
+    "deleteAccountConfirmMessage": "આ તમારું એકાઉન્ટ અને તમામ સંબંધિત ડેટા કાયમી ધોરણે કાઢી નાખશે. આ ક્રિયા પૂર્વવત્ કરી શકાતી નથી.",
+    "deleteAccountConfirmButton": "મારું એકાઉન્ટ કાઢી નાખો",
+    "deleteAccountSuccess": "તમારી એકાઉન્ટ ડિલીશન વિનંતી સબમિટ થઈ છે. તમને લોગઆઉટ કરવામાં આવશે.",
+    "deleteAccountFailed": "ડિલીશન વિનંતી સબમિટ કરવામાં નિષ્ફળ. કૃપા કરી ફરી પ્રયાસ કરો."
   },
   "addresses": {
     "title": "સાચવેલા સરનામાં",

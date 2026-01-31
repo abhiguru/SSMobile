@@ -922,6 +922,13 @@ export const apiSlice = createApi({
       },
     }),
 
+    requestAccountDeletion: builder.mutation<null, void>({
+      query: () => ({
+        url: '/functions/v1/request-account-deletion',
+        method: 'POST',
+      }),
+    }),
+
     logout: builder.mutation<null, void>({
       queryFn: async () => {
         await logoutApi();
@@ -1099,6 +1106,7 @@ export const {
   useVerifyOtpMutation,
   useCheckSessionMutation,
   useLogoutMutation,
+  useRequestAccountDeletionMutation,
 } = apiSlice;
 
 export const {

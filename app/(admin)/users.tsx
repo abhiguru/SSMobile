@@ -103,8 +103,11 @@ export default function UsersScreen() {
 
   const { data: users = [], isLoading, isFetching, isError, refetch } = useGetUsersQuery(
     debouncedSearch || undefined,
+    { pollingInterval: 5000 },
   );
-  const { data: deletionRequests = [] } = useGetDeletionRequestsQuery();
+  const { data: deletionRequests = [] } = useGetDeletionRequestsQuery(undefined, {
+    pollingInterval: 5000,
+  });
   const pendingDeletionUserIds = new Set(deletionRequests.map((r) => r.user_id));
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateUserRoleMutation();
   const [processAccountDeletion, { isLoading: isProcessingDeletion }] = useProcessAccountDeletionMutation();

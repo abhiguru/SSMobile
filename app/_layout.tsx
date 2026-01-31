@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +6,9 @@ import { Provider } from 'react-redux';
 import { PaperProvider } from 'react-native-paper';
 import { I18nextProvider } from 'react-i18next';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 import { store, useAppSelector } from '../src/store';
 import i18n from '../src/i18n';
@@ -62,12 +65,18 @@ export default function RootLayout() {
     '72-Bold': require('../assets/fonts/72-Bold.ttf'),
   });
 
+  const onLayoutReady = useCallback(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} onLayout={onLayoutReady}>
       <ErrorBoundary>
         <Provider store={store}>
           <PaperProvider theme={paperTheme}>

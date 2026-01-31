@@ -50,6 +50,14 @@
         }
       ],
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 300,
+          "backgroundColor": "#FFF8F0"
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": [

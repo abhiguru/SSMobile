@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native-paper';
@@ -26,8 +26,8 @@ function ProductsSkeleton() {
     <View style={{ padding: spacing.lg }}>
       {Array.from({ length: 5 }).map((_, i) => (
         <View key={i} style={styles.skeletonCard}>
-          <SkeletonBox width={50} height={50} borderRadius={borderRadius.md} />
-          <View style={{ flex: 1, marginLeft: 12 }}>
+          <SkeletonBox width={44} height={44} borderRadius={borderRadius.md} />
+          <View style={{ flex: 1, marginLeft: spacing.md }}>
             <SkeletonText lines={1} width="60%" />
             <SkeletonText lines={1} width="30%" style={{ marginTop: spacing.xs }} />
           </View>
@@ -127,7 +127,7 @@ export default function AdminProductsScreen() {
             <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
               {item.is_available ? t('admin.available') : t('admin.unavailable')}
             </Text>
-            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} />
+            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} ios_backgroundColor={colors.border} />
           </View>
         </View>
       </AnimatedPressable>
@@ -163,6 +163,12 @@ export default function AdminProductsScreen() {
         </ScrollView>
       </View>
       <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
+      <Pressable
+        style={styles.fab}
+        onPress={() => router.push('/(admin)/products/edit')}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color={colors.text.inverse} />
+      </Pressable>
     </View>
   );
 }
@@ -172,14 +178,15 @@ const styles = StyleSheet.create({
   sortBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   sortBarContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
   listContent: { padding: spacing.lg },
-  productCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
+  productCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
   productCardContent: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },
   productImage: {},
-  thumbnail: { width: 50, height: 50, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
-  productInfo: { flex: 1, marginLeft: 12 },
+  thumbnail: { width: 44, height: 44, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  productInfo: { flex: 1, marginLeft: spacing.md },
   productName: { fontFamily: fontFamily.regular, color: colors.text.primary, marginBottom: spacing.xs },
   productOptions: { color: colors.text.secondary },
   toggleContainer: { alignItems: 'center' },
   toggleLabel: { color: colors.neutral, marginBottom: spacing.xs },
-  skeletonCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: 12, ...elevation.level1 },
+  skeletonCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
+  fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
 });

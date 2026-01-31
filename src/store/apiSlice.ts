@@ -115,6 +115,30 @@ export const apiSlice = createApi({
       invalidatesTags: ['Products'],
     }),
 
+    createProduct: builder.mutation<
+      Product,
+      Pick<Product, 'name' | 'name_gu' | 'price_per_kg_paise' | 'category_id'> & { description?: string; description_gu?: string }
+    >({
+      query: (body) => ({
+        url: '/rest/v1/products',
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: { ...body, is_available: true },
+      }),
+      transformResponse: (response: Product | Product[]) =>
+        Array.isArray(response) ? response[0] : response,
+      invalidatesTags: ['Products'],
+    }),
+
+    deactivateProduct: builder.mutation<null, string>({
+      query: (productId) => ({
+        url: `/rest/v1/products?id=eq.${productId}`,
+        method: 'PATCH',
+        body: { is_active: false, is_available: false },
+      }),
+      invalidatesTags: ['Products'],
+    }),
+
     // ── Product Images ──────────────────────────────────────────
     getProductImages: builder.query<ProductImage[], string>({
       query: (productId) => ({
@@ -1085,6 +1109,8 @@ export const {
   useGetCategoriesQuery,
   useToggleProductAvailabilityMutation,
   useUpdateProductMutation,
+  useCreateProductMutation,
+  useDeactivateProductMutation,
   useGetProductImagesQuery,
   useUploadProductImageMutation,
   useDeleteProductImageMutation,

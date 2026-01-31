@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -15,17 +15,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useGetProductsQuery,
   useUpdateProductMutation,
+  useCreateProductMutation,
+  useDeactivateProductMutation,
+  useGetCategoriesQuery,
   useGetProductImagesQuery,
 } from '../../../src/store/apiSlice';
 import { getStoredTokens } from '../../../src/services/supabase';
 import { formatPrice, getProductImageUrl, SUPABASE_ANON_KEY } from '../../../src/constants';
 import { colors, spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
 import { AppButton } from '../../../src/components/common/AppButton';
+import { Toolbar } from '../../../src/components/common/Toolbar';
 import { ProductImageManager } from '../../../src/components/common/ProductImageManager';
 import { useToast } from '../../../src/components/common/Toast';
+import { FioriDialog } from '../../../src/components/common/FioriDialog';
 
 const STEP_SIZE = 32;
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const STEPS = [
   { labelKey: 'admin.step_identity', icon: 'tag-outline' as const },
@@ -41,13 +45,19 @@ export default function EditProductScreen() {
   const isGujarati = i18n.language === 'gu';
   const { productId } = useLocalSearchParams<{ productId: string }>();
 
+  const isCreateMode = !productId;
+
   const { data: products = [] } = useGetProductsQuery({ includeUnavailable: true });
   const product = useMemo(
     () => products.find((p) => p.id === productId),
     [products, productId],
   );
+  const { data: categories = [] } = useGetCategoriesQuery(undefined, { skip: !isCreateMode });
   const { data: productImages = [] } = useGetProductImagesQuery(productId || '', { skip: !productId });
   const [updateProduct, { isLoading: saving }] = useUpdateProductMutation();
+  const [createProduct, { isLoading: creating }] = useCreateProductMutation();
+  const [deactivateProduct, { isLoading: deactivating }] = useDeactivateProductMutation();
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [name, setName] = useState('');
@@ -106,21 +116,53 @@ export default function EditProductScreen() {
     }
   };
 
+  const isBusy = saving || creating || deactivating;
+
   const handleSave = async () => {
-    if (!product) return;
     const pricePaise = Math.round(parseFloat(priceRupees) * 100);
     try {
-      await updateProduct({
-        productId: product.id,
-        updates: {
+      if (isCreateMode) {
+        const defaultCategoryId = categories[0]?.id;
+        if (!defaultCategoryId) {
+          showToast({ message: t('common.error'), type: 'error' });
+          return;
+        }
+        await createProduct({
           name,
           name_gu: nameGu,
           description: description || undefined,
           description_gu: descriptionGu || undefined,
-          price_per_kg_paise: isNaN(pricePaise) ? product.price_per_kg_paise : pricePaise,
-        },
-      }).unwrap();
-      showToast({ message: t('admin.productUpdated'), type: 'success' });
+          price_per_kg_paise: pricePaise,
+          category_id: defaultCategoryId,
+        }).unwrap();
+        showToast({ message: t('admin.productCreated'), type: 'success' });
+        router.back();
+      } else {
+        if (!product) return;
+        await updateProduct({
+          productId: product.id,
+          updates: {
+            name,
+            name_gu: nameGu,
+            description: description || undefined,
+            description_gu: descriptionGu || undefined,
+            price_per_kg_paise: isNaN(pricePaise) ? product.price_per_kg_paise : pricePaise,
+          },
+        }).unwrap();
+        showToast({ message: t('admin.productUpdated'), type: 'success' });
+        router.back();
+      }
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!productId) return;
+    setDeleteDialogVisible(false);
+    try {
+      await deactivateProduct(productId).unwrap();
+      showToast({ message: t('admin.productDeleted'), type: 'success' });
       router.back();
     } catch {
       showToast({ message: t('common.error'), type: 'error' });
@@ -131,7 +173,7 @@ export default function EditProductScreen() {
   const step0Valid = name.trim().length > 0 && nameGu.trim().length > 0;
   const step1Valid = !isNaN(parseFloat(priceRupees)) && parseFloat(priceRupees) > 0;
 
-  if (!product || !productId) return null;
+  if (!isCreateMode && !product) return null;
 
   return (
     <View style={styles.root}>
@@ -189,14 +231,21 @@ export default function EditProductScreen() {
         {/* Step 0: Identity */}
         {currentStep === 0 && (
           <View style={styles.card}>
-            <ProductImageManager productId={productId} disabled={saving} onUploadingChange={handleUploadingChange} />
+            {isCreateMode ? (
+              <View style={styles.imageNote}>
+                <MaterialCommunityIcons name="image-off-outline" size={20} color={colors.neutral} />
+                <Text variant="bodySmall" style={styles.imageNoteText}>{t('admin.saveFirstForImages')}</Text>
+              </View>
+            ) : (
+              <ProductImageManager productId={productId!} disabled={saving} onUploadingChange={handleUploadingChange} />
+            )}
             <TextInput
               label={t('admin.nameEn')}
               value={name}
               onChangeText={setName}
               mode="outlined"
               style={styles.input}
-              outlineColor={colors.fieldBorder}
+              outlineColor={colors.border}
               activeOutlineColor={colors.brand}
             />
             <TextInput
@@ -205,7 +254,7 @@ export default function EditProductScreen() {
               onChangeText={setNameGu}
               mode="outlined"
               style={styles.input}
-              outlineColor={colors.fieldBorder}
+              outlineColor={colors.border}
               activeOutlineColor={colors.brand}
             />
           </View>
@@ -222,7 +271,7 @@ export default function EditProductScreen() {
               multiline
               numberOfLines={3}
               style={styles.input}
-              outlineColor={colors.fieldBorder}
+              outlineColor={colors.border}
               activeOutlineColor={colors.brand}
             />
             <TextInput
@@ -233,7 +282,7 @@ export default function EditProductScreen() {
               multiline
               numberOfLines={3}
               style={styles.input}
-              outlineColor={colors.fieldBorder}
+              outlineColor={colors.border}
               activeOutlineColor={colors.brand}
             />
             <TextInput
@@ -243,7 +292,7 @@ export default function EditProductScreen() {
               mode="outlined"
               keyboardType="numeric"
               style={styles.input}
-              outlineColor={colors.fieldBorder}
+              outlineColor={colors.border}
               activeOutlineColor={colors.brand}
             />
           </View>
@@ -284,6 +333,7 @@ export default function EditProductScreen() {
             <ReviewRow label={t('admin.descriptionGu')} value={descriptionGu || '—'} />
             <ReviewRow
               label={t('admin.pricePerKg')}
+              isLast
               value={
                 !isNaN(parseFloat(priceRupees))
                   ? formatPrice(Math.round(parseFloat(priceRupees) * 100))
@@ -292,10 +342,24 @@ export default function EditProductScreen() {
             />
           </View>
         )}
+
+        {/* Delete button — only in edit mode on review step */}
+        {!isCreateMode && currentStep === 2 && (
+          <AppButton
+            variant="danger"
+            size="lg"
+            fullWidth
+            disabled={isBusy}
+            onPress={() => setDeleteDialogVisible(true)}
+            style={styles.deleteBtn}
+          >
+            {t('admin.deleteProduct')}
+          </AppButton>
+        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.md }]}>
+      <Toolbar>
         <View style={styles.bottomBtn}>
           <AppButton variant="outline" size="lg" fullWidth onPress={goBack}>
             {currentStep === 0 ? t('common.cancel') : t('common.back')}
@@ -307,7 +371,7 @@ export default function EditProductScreen() {
               variant="primary"
               size="lg"
               fullWidth
-              disabled={currentStep === 0 ? !step0Valid || imageUploading : !step1Valid}
+              disabled={currentStep === 0 ? !step0Valid || (!isCreateMode && imageUploading) : !step1Valid}
               onPress={goNext}
             >
               {t('common.next')}
@@ -317,22 +381,36 @@ export default function EditProductScreen() {
               variant="primary"
               size="lg"
               fullWidth
-              loading={saving}
-              disabled={saving}
+              loading={isBusy}
+              disabled={isBusy}
               onPress={handleSave}
             >
-              {t('admin.saveChanges')}
+              {isCreateMode ? t('admin.createProduct') : t('admin.saveChanges')}
             </AppButton>
           )}
         </View>
-      </View>
+      </Toolbar>
+
+      <FioriDialog
+        visible={deleteDialogVisible}
+        onDismiss={() => setDeleteDialogVisible(false)}
+        title={t('admin.deleteProductConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDeleteDialogVisible(false), variant: 'text' },
+          { label: t('admin.deleteProduct'), onPress: handleDelete, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium" style={{ color: colors.text.secondary }}>
+          {t('admin.deleteProductConfirm')}
+        </Text>
+      </FioriDialog>
     </View>
   );
 }
 
-function ReviewRow({ label, value }: { label: string; value: string }) {
+function ReviewRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
   return (
-    <View style={styles.reviewRow}>
+    <View style={[styles.reviewRow, !isLast && styles.reviewRowBorder]}>
       <Text variant="labelSmall" style={styles.reviewLabel}>
         {label}
       </Text>
@@ -397,15 +475,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
   },
 
-  // Card
+  // Card (Fiori: 12pt radius, 1px border, elevation 1)
   card: {
     backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...elevation.level1,
   },
   input: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     backgroundColor: colors.surface,
   },
 
@@ -420,7 +500,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   reviewRow: {
+    paddingBottom: spacing.md,
     marginBottom: spacing.md,
+  },
+  reviewRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   reviewLabel: {
     color: colors.text.secondary,
@@ -432,15 +517,21 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
 
-  // Bottom Bar
-  bottomBar: {
+  deleteBtn: {
+    marginTop: spacing.xl,
+  },
+  imageNote: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.shell,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  imageNoteText: {
+    color: colors.neutral,
+    marginLeft: spacing.sm,
+    flex: 1,
   },
   bottomBtn: {
     flex: 1,

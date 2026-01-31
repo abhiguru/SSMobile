@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFF8F0"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.masalaspiceshop.app"
@@ -53,8 +48,18 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 300,
-          "backgroundColor": "#FFF8F0"
+          "imageWidth": 200,
+          "backgroundColor": "#FFF8F0",
+          "android": {
+            "image": "./assets/splash-icon.png",
+            "imageWidth": 200,
+            "backgroundColor": "#FFF8F0"
+          },
+          "ios": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#FFF8F0",
+            "resizeMode": "contain"
+          }
         }
       ],
       [

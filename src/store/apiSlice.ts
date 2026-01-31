@@ -74,11 +74,11 @@ export const apiSlice = createApi({
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
       query: (options) => {
         const includeUnavailable = options?.includeUnavailable ?? false;
-        const base = '/rest/v1/products?select=*,weight_options(*)';
+        const base = '/rest/v1/products?select=*,weight_options(*)&is_active=eq.true';
         return {
           url: includeUnavailable
             ? base
-            : `${base}&is_available=eq.true&is_active=eq.true`,
+            : `${base}&is_available=eq.true`,
         };
       },
       providesTags: ['Products'],

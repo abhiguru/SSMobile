@@ -114,25 +114,30 @@ export default function AdminProductsScreen() {
   };
 
   const renderRightActions = (item: Product) => (
-    _progress: RNAnimated.AnimatedInterpolation<number>,
+    progress: RNAnimated.AnimatedInterpolation<number>,
     dragX: RNAnimated.AnimatedInterpolation<number>,
   ) => {
     const scale = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [1, 0.5],
+      inputRange: [-100, -60, 0],
+      outputRange: [1, 0.8, 0.4],
       extrapolate: 'clamp',
+    });
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0.6, 1],
     });
     return (
       <Pressable
         style={styles.swipeDeleteAction}
         onPress={() => {
+          hapticSelection();
           openSwipeableRef.current?.close();
           setDeleteTarget(item);
         }}
       >
-        <RNAnimated.View style={{ transform: [{ scale }] }}>
-          <MaterialCommunityIcons name="delete-outline" size={24} color={colors.text.inverse} />
-          <Text variant="labelSmall" style={styles.swipeDeleteLabel}>{t('admin.deleteProduct')}</Text>
+        <RNAnimated.View style={[styles.swipeDeleteContent, { opacity, transform: [{ scale }] }]}>
+          <MaterialCommunityIcons name="delete-outline" size={22} color={colors.text.inverse} />
+          <Text style={styles.swipeDeleteLabel}>{t('common.delete')}</Text>
         </RNAnimated.View>
       </Pressable>
     );
@@ -251,8 +256,9 @@ const styles = StyleSheet.create({
   productOptions: { color: colors.text.secondary },
   toggleContainer: { alignItems: 'center' },
   toggleLabel: { color: colors.neutral, marginBottom: spacing.xs },
-  swipeDeleteAction: { backgroundColor: colors.negative, borderRadius: borderRadius.lg, marginBottom: spacing.md, justifyContent: 'center', alignItems: 'center', width: 80 },
-  swipeDeleteLabel: { color: colors.text.inverse, marginTop: spacing.xs, fontSize: 10 },
+  swipeDeleteAction: { backgroundColor: colors.negative, borderTopRightRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.lg, marginBottom: spacing.md, justifyContent: 'center', alignItems: 'center', width: 88, marginLeft: -borderRadius.lg },
+  swipeDeleteContent: { alignItems: 'center', paddingLeft: borderRadius.lg },
+  swipeDeleteLabel: { color: colors.text.inverse, fontFamily: fontFamily.semiBold, marginTop: 2, fontSize: 11, letterSpacing: 0.3 },
   skeletonCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
   fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
 });

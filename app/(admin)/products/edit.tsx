@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -345,16 +345,14 @@ export default function EditProductScreen() {
 
         {/* Delete button — only in edit mode on review step */}
         {!isCreateMode && currentStep === 2 && (
-          <AppButton
-            variant="danger"
-            size="lg"
-            fullWidth
+          <Pressable
+            style={styles.deleteBtn}
             disabled={isBusy}
             onPress={() => setDeleteDialogVisible(true)}
-            style={styles.deleteBtn}
           >
-            {t('admin.deleteProduct')}
-          </AppButton>
+            <MaterialCommunityIcons name="delete-outline" size={18} color={colors.negative} />
+            <Text style={styles.deleteBtnText}>{t('admin.deleteProduct')}</Text>
+          </Pressable>
         )}
       </ScrollView>
 
@@ -518,7 +516,19 @@ const styles = StyleSheet.create({
   },
 
   deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
     marginTop: spacing.xl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+  },
+  deleteBtnText: {
+    color: colors.negative,
+    fontFamily: fontFamily.semiBold,
+    fontSize: 14,
   },
   imageNote: {
     flexDirection: 'row',

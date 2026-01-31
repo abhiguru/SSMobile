@@ -328,7 +328,18 @@
     "removeItemConfirm": "આ આઇટમ ઓર્ડરમાંથી દૂર કરશો?",
     "itemsSaved": "ઓર્ડર આઇટમ્સ અપડેટ થયા",
     "itemsSaveFailed": "ઓર્ડર આઇટમ્સ અપડેટ કરવામાં નિષ્ફળ",
-    "noItems": "ઓર્ડરમાં ઓછામાં ઓછી એક આઇટમ હોવી જોઈએ"
+    "noItems": "ઓર્ડરમાં ઓછામાં ઓછી એક આઇટમ હોવી જોઈએ",
+    "deletionRequestBanner": "આ યુઝરે એકાઉન્ટ ડિલીશનની વિનંતી કરી છે",
+    "deletionRequestDate": "{{date}} ના રોજ વિનંતી કરી",
+    "approveDeletion": "ડિલીશન મંજૂર કરો",
+    "rejectDeletion": "નકારો",
+    "approveDeletionConfirmTitle": "એકાઉન્ટ ડિલીશન મંજૂર કરો",
+    "approveDeletionConfirmMessage": "આ {{name}} નું એકાઉન્ટ અને તમામ ડેટા કાયમી ધોરણે કાઢી નાખશે. આ પૂર્વવત્ કરી શકાતું નથી.",
+    "rejectDeletionConfirmTitle": "ડિલીશન વિનંતી નકારો",
+    "rejectDeletionConfirmMessage": "{{name}} ની એકાઉન્ટ ડિલીશન વિનંતી નકારશો? તેઓ પછીથી નવી વિનંતી કરી શકે છે.",
+    "deletionApproved": "ડિલીશન વિનંતી મંજૂર થઈ",
+    "deletionRejected": "ડિલીશન વિનંતી નકારવામાં આવી",
+    "deletionProcessFailed": "ડિલીશન વિનંતી પ્રક્રિયા કરવામાં નિષ્ફળ"
   },
   "delivery": {
     "deliveries": "ડિલિવરીઓ",

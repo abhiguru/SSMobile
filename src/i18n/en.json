@@ -328,7 +328,18 @@
     "removeItemConfirm": "Remove this item from the order?",
     "itemsSaved": "Order items updated",
     "itemsSaveFailed": "Failed to update order items",
-    "noItems": "Order must have at least one item"
+    "noItems": "Order must have at least one item",
+    "deletionRequestBanner": "This user has requested account deletion",
+    "deletionRequestDate": "Requested on {{date}}",
+    "approveDeletion": "Approve Deletion",
+    "rejectDeletion": "Reject",
+    "approveDeletionConfirmTitle": "Approve Account Deletion",
+    "approveDeletionConfirmMessage": "This will permanently delete {{name}}'s account and all their data. This cannot be undone.",
+    "rejectDeletionConfirmTitle": "Reject Deletion Request",
+    "rejectDeletionConfirmMessage": "Reject the account deletion request from {{name}}? They can submit a new request later.",
+    "deletionApproved": "Deletion request approved",
+    "deletionRejected": "Deletion request rejected",
+    "deletionProcessFailed": "Failed to process deletion request"
   },
   "delivery": {
     "deliveries": "Deliveries",

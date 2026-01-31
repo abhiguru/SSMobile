@@ -15,6 +15,7 @@ import {
   useDeleteAdminAddressMutation,
   useUpdateUserRoleMutation,
   useGetDeletionRequestsQuery,
+  useProcessAccountDeletionMutation,
 } from '../../src/store/apiSlice';
 import { User, UserRole, AdminAddress } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -100,6 +101,7 @@ export default function UsersScreen() {
   const { data: deletionRequests = [] } = useGetDeletionRequestsQuery();
   const pendingDeletionUserIds = new Set(deletionRequests.map((r) => r.user_id));
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateUserRoleMutation();
+  const [processAccountDeletion, { isLoading: isProcessingDeletion }] = useProcessAccountDeletionMutation();
   const [addAdminAddress, { isLoading: isAddingAddress }] = useAddAdminAddressMutation();
   const [updateAdminAddress, { isLoading: isUpdatingAddress }] = useUpdateAdminAddressMutation();
   const [deleteAdminAddress] = useDeleteAdminAddressMutation();
@@ -562,6 +564,92 @@ export default function UsersScreen() {
                 disabled
                 dense
               />
+
+              {/* Deletion request banner */}
+              {(() => {
+                const req = selectedUser ? deletionRequests.find((r) => r.user_id === selectedUser.id) : undefined;
+                if (!req) return null;
+                const displayName = selectedUser?.name || selectedUser?.phone || '';
+                return (
+                  <View style={styles.deletionBanner}>
+                    <View style={styles.deletionBannerHeader}>
+                      <MaterialCommunityIcons name="alert-circle" size={20} color={colors.negative} />
+                      <Text variant="bodyMedium" style={styles.deletionBannerText}>
+                        {t('admin.deletionRequestBanner')}
+                      </Text>
+                    </View>
+                    <Text variant="bodySmall" style={styles.deletionBannerDate}>
+                      {t('admin.deletionRequestDate', { date: new Date(req.created_at).toLocaleDateString() })}
+                    </Text>
+                    <View style={styles.deletionBannerActions}>
+                      <View style={{ flex: 1 }}>
+                        <AppButton
+                          variant="outline"
+                          size="sm"
+                          fullWidth
+                          disabled={isProcessingDeletion}
+                          onPress={() => {
+                            Alert.alert(
+                              t('admin.rejectDeletionConfirmTitle'),
+                              t('admin.rejectDeletionConfirmMessage', { name: displayName }),
+                              [
+                                { text: t('common.cancel'), style: 'cancel' },
+                                {
+                                  text: t('common.confirm'),
+                                  onPress: async () => {
+                                    try {
+                                      await processAccountDeletion({ requestId: req.id, action: 'rejected' }).unwrap();
+                                      Alert.alert(t('admin.deletionRejected'));
+                                    } catch {
+                                      Alert.alert(t('common.error'), t('admin.deletionProcessFailed'));
+                                    }
+                                  },
+                                },
+                              ],
+                            );
+                          }}
+                        >
+                          {t('admin.rejectDeletion')}
+                        </AppButton>
+                      </View>
+                      <View style={{ width: spacing.sm }} />
+                      <View style={{ flex: 1 }}>
+                        <AppButton
+                          variant="danger"
+                          size="sm"
+                          fullWidth
+                          disabled={isProcessingDeletion}
+                          loading={isProcessingDeletion}
+                          onPress={() => {
+                            Alert.alert(
+                              t('admin.approveDeletionConfirmTitle'),
+                              t('admin.approveDeletionConfirmMessage', { name: displayName }),
+                              [
+                                { text: t('common.cancel'), style: 'cancel' },
+                                {
+                                  text: t('common.confirm'),
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      await processAccountDeletion({ requestId: req.id, action: 'approved' }).unwrap();
+                                      Alert.alert(t('admin.deletionApproved'));
+                                      closeSheet();
+                                    } catch {
+                                      Alert.alert(t('common.error'), t('admin.deletionProcessFailed'));
+                                    }
+                                  },
+                                },
+                              ],
+                            );
+                          }}
+                        >
+                          {t('admin.approveDeletion')}
+                        </AppButton>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })()}
 
               {/* Role picker */}
               <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userRole')}</Text>
@@ -1074,6 +1162,34 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fontFamily.semiBold,
     color: colors.positive,
+  },
+  // Deletion request banner in edit sheet
+  deletionBanner: {
+    backgroundColor: '#FFF0F0',
+    borderWidth: 1,
+    borderColor: colors.negative,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  deletionBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  deletionBannerText: {
+    fontFamily: fontFamily.semiBold,
+    color: colors.negative,
+    flex: 1,
+  },
+  deletionBannerDate: {
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
+    marginLeft: 28,
+  },
+  deletionBannerActions: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
   },
   // Full-screen sheet
   sheetFull: {

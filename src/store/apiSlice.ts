@@ -939,6 +939,15 @@ export const apiSlice = createApi({
       providesTags: ['DeletionRequests'],
     }),
 
+    processAccountDeletion: builder.mutation<null, { requestId: string; action: 'approved' | 'rejected' }>({
+      query: ({ requestId, action }) => ({
+        url: '/functions/v1/process-account-deletion',
+        method: 'POST',
+        body: { request_id: requestId, action },
+      }),
+      invalidatesTags: ['DeletionRequests', 'Users'],
+    }),
+
     logout: builder.mutation<null, void>({
       queryFn: async () => {
         await logoutApi();
@@ -1118,6 +1127,7 @@ export const {
   useLogoutMutation,
   useRequestAccountDeletionMutation,
   useGetDeletionRequestsQuery,
+  useProcessAccountDeletionMutation,
 } = apiSlice;
 
 export const {

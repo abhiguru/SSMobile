@@ -11,20 +11,21 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
-import { store, useAppSelector } from '../src/store';
+import { store, useAppSelector, useAppDispatch } from '../src/store';
 import i18n from '../src/i18n';
 import { paperTheme } from '../src/theme';
-import { useCheckSessionMutation, useGetFavoritesQuery, useSyncFavoritesMutation } from '../src/store/apiSlice';
+import { apiSlice, useCheckSessionMutation, useGetFavoritesQuery, useSyncFavoritesMutation } from '../src/store/apiSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 import { ToastProvider } from '../src/components/common/Toast';
-import { registerForPushNotificationsAsync } from '../src/services/notifications';
+import { registerForPushNotificationsAsync, addNotificationListener, addNotificationResponseListener } from '../src/services/notifications';
 import { registerPushToken } from '../src/services/supabase';
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const [checkSession] = useCheckSessionMutation();
   const favQuery = useGetFavoritesQuery();
   const [syncFavorites] = useSyncFavoritesMutation();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const wasAuthenticated = useRef(false);
 
@@ -55,6 +56,46 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, syncFavorites, router]);
+
+  // Notification listeners
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Foreground: invalidate order caches so lists and detail screens auto-refresh
+    const notificationSub = addNotificationListener((notification) => {
+      const data = notification.request.content.data as Record<string, string> | undefined;
+      if (data?.type === 'order_update' || data?.type === 'new_order') {
+        const tags: Array<{ type: 'Order'; id: string } | 'Orders'> = ['Orders'];
+        if (data.order_id) {
+          tags.push({ type: 'Order', id: data.order_id });
+        }
+        dispatch(apiSlice.util.invalidateTags(tags));
+      }
+    });
+
+    // Tap/response: navigate to the appropriate screen
+    const responseSub = addNotificationResponseListener((response) => {
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      if (!data?.type) return;
+
+      switch (data.type) {
+        case 'order_update':
+          router.push('/(customer)/orders');
+          break;
+        case 'new_order':
+          router.push('/(admin)/orders');
+          break;
+        case 'delivery_assignment':
+          router.push('/(delivery)');
+          break;
+      }
+    });
+
+    return () => {
+      notificationSub.remove();
+      responseSub.remove();
+    };
+  }, [isAuthenticated, dispatch, router]);
 
   return <>{children}</>;
 }

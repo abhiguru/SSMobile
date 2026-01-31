@@ -51,7 +51,10 @@ export default function AdminOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { data: order, isLoading, refetch } = useGetOrderByIdQuery(id!, { skip: !id });
+  const { data: order, isLoading, refetch } = useGetOrderByIdQuery(id!, {
+    skip: !id,
+    pollingInterval: 15_000,
+  });
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [getPorterQuote, { isLoading: quoteLoading }] = useGetPorterQuoteMutation();
   const [bookPorterDelivery, { isLoading: bookingPorter }] = useBookPorterDeliveryMutation();

@@ -25,7 +25,10 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
+  const { data: order, isLoading } = useGetOrderByIdQuery(id!, {
+    skip: !id,
+    pollingInterval: 15_000,
+  });
   const [reorder, { isLoading: reorderLoading }] = useReorderMutation();
 
   const handleReorder = async () => {

@@ -20,14 +20,14 @@ export default function DeliveryLayout() {
         },
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
           fontFamily: fontFamily.semiBold,
+          fontSize: 17,
         },
         headerShadowVisible: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t('delivery.currentDeliveries'), tabBarLabel: 'Deliveries', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="truck-delivery" color={color} size={size} /> }} />
-      <Tabs.Screen name="history" options={{ title: t('delivery.history'), tabBarLabel: 'History', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="history" color={color} size={size} /> }} />
+      <Tabs.Screen name="index" options={{ title: t('delivery.currentDeliveries'), tabBarLabel: 'Deliveries', tabBarIcon: ({ color, size, focused }) => <MaterialCommunityIcons name={focused ? 'truck-delivery' : 'truck-delivery-outline'} color={color} size={size} /> }} />
+      <Tabs.Screen name="history" options={{ title: t('delivery.history'), tabBarLabel: 'History', tabBarIcon: ({ color, size, focused }) => <MaterialCommunityIcons name={focused ? 'history' : 'history'} color={color} size={size} /> }} />
       <Tabs.Screen name="[id]" options={{ href: null }} />
     </Tabs>
   );

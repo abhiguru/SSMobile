@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, Modal, Alert, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
+import { View, StyleSheet, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, RadioButton, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, TextInput, RadioButton, ActivityIndicator } from 'react-native-paper';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
+import { colors, spacing, borderRadius, fontFamily, fontSize, elevation } from '../../src/constants/theme';
 import {
   useGetUsersQuery,
   useGetAdminUserAddressesQuery,
@@ -19,14 +19,19 @@ import {
 } from '../../src/store/apiSlice';
 import { User, UserRole, AdminAddress } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
+import { FioriSearchBar } from '../../src/components/common/FioriSearchBar';
+import { FioriDialog } from '../../src/components/common/FioriDialog';
+import { useToast } from '../../src/components/common/Toast';
 import { MapPinPicker } from '../../src/components/common/MapPinPicker';
 import { PlacesAutocomplete, type PlaceDetails } from '../../src/components/common/PlacesAutocomplete';
-import type { AppTheme } from '../../src/theme';
 
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
+
+// Fiori tag-spec colors (spec 18)
 const ROLE_BADGE_STYLES: Record<UserRole, { bg: string; text: string }> = {
-  customer: { bg: colors.informativeLight, text: colors.informative },
-  admin: { bg: '#FFF3E0', text: colors.brand },
-  delivery_staff: { bg: colors.positiveLight, text: colors.positive },
+  customer: { bg: '#EBF8FF', text: '#0040B0' },
+  admin: { bg: '#FEF7F1', text: '#AA5808' },
+  delivery_staff: { bg: '#F5FAE5', text: '#256F14' },
   super_admin: { bg: '#F3E5F5', text: '#7B1FA2' },
 };
 
@@ -89,7 +94,8 @@ function UserCardAddresses({ userId }: { userId: string }) {
 
 export default function UsersScreen() {
   const { t } = useTranslation();
-  const theme = useTheme<AppTheme>();
+  const { showToast } = useToast();
+  const [dialog, setDialog] = useState<{ title: string; message: string; onConfirm: () => void; confirmLabel: string; variant?: ButtonVariant } | null>(null);
 
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -292,25 +298,22 @@ export default function UsersScreen() {
 
   const handleDeleteAddress = useCallback((addr: AdminAddress) => {
     if (!selectedUser) return;
-    Alert.alert(
-      t('admin.deleteAddress'),
-      t('admin.deleteAddressConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAdminAddress({ address_id: addr.id, _userId: selectedUser.id }).unwrap();
-            } catch {
-              Alert.alert(t('common.error'), t('admin.addressDeleteFailed'));
-            }
-          },
-        },
-      ],
-    );
-  }, [selectedUser, deleteAdminAddress, t]);
+    const userId = selectedUser.id;
+    setDialog({
+      title: t('admin.deleteAddress'),
+      message: t('admin.deleteAddressConfirm'),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      onConfirm: async () => {
+        setDialog(null);
+        try {
+          await deleteAdminAddress({ address_id: addr.id, _userId: userId }).unwrap();
+        } catch {
+          showToast({ message: t('admin.addressDeleteFailed'), type: 'error' });
+        }
+      },
+    });
+  }, [selectedUser, deleteAdminAddress, showToast, t]);
 
   const handleSave = useCallback(() => {
     if (!selectedUser) return;
@@ -346,17 +349,16 @@ export default function UsersScreen() {
 
     if (roleChanged) {
       const roleName = t(ROLE_LABELS[formRole]);
-      Alert.alert(
-        t('admin.roleChangeConfirmTitle'),
-        t('admin.roleChangeConfirmMessage', {
+      setDialog({
+        title: t('admin.roleChangeConfirmTitle'),
+        message: t('admin.roleChangeConfirmMessage', {
           name: selectedUser.name || selectedUser.phone || '',
           role: roleName,
         }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('common.confirm'), onPress: doSave },
-        ],
-      );
+        confirmLabel: t('common.confirm'),
+        variant: 'primary',
+        onConfirm: () => { setDialog(null); doSave(); },
+      });
     } else {
       doSave();
     }
@@ -365,46 +367,23 @@ export default function UsersScreen() {
   const handleToggleActive = useCallback((user: User) => {
     const isActive = user.is_active !== false;
     const name = user.name || user.phone || '';
+    const userId = user.id;
 
-    if (isActive) {
-      Alert.alert(
-        t('admin.blockConfirmTitle'),
-        t('admin.blockConfirmMessage', { name }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.confirm'),
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await updateRole({ user_id: user.id, is_active: false }).unwrap();
-              } catch {
-                Alert.alert(t('common.error'), t('admin.blockFailed'));
-              }
-            },
-          },
-        ],
-      );
-    } else {
-      Alert.alert(
-        t('admin.unblockConfirmTitle'),
-        t('admin.unblockConfirmMessage', { name }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.confirm'),
-            onPress: async () => {
-              try {
-                await updateRole({ user_id: user.id, is_active: true }).unwrap();
-              } catch {
-                Alert.alert(t('common.error'), t('admin.blockFailed'));
-              }
-            },
-          },
-        ],
-      );
-    }
-  }, [updateRole, t]);
+    setDialog({
+      title: isActive ? t('admin.blockConfirmTitle') : t('admin.unblockConfirmTitle'),
+      message: isActive ? t('admin.blockConfirmMessage', { name }) : t('admin.unblockConfirmMessage', { name }),
+      confirmLabel: t('common.confirm'),
+      variant: isActive ? 'danger' : 'primary',
+      onConfirm: async () => {
+        setDialog(null);
+        try {
+          await updateRole({ user_id: userId, is_active: !isActive }).unwrap();
+        } catch {
+          showToast({ message: t('admin.blockFailed'), type: 'error' });
+        }
+      },
+    });
+  }, [updateRole, showToast, t]);
 
   const renderUserCard = useCallback(({ item }: { item: User }) => {
     const role = item.role || 'customer';
@@ -427,8 +406,8 @@ export default function UsersScreen() {
             </Text>
           </View>
           {!isActive ? (
-            <View style={[styles.roleBadge, { backgroundColor: '#FFEBEE' }]}>
-              <Text style={[styles.roleBadgeText, { color: colors.critical }]}>
+            <View style={[styles.roleBadge, styles.blockedBadge]}>
+              <Text style={[styles.roleBadgeText, styles.blockedBadgeText]}>
                 {t('admin.blocked')}
               </Text>
             </View>
@@ -443,6 +422,7 @@ export default function UsersScreen() {
             value={isActive}
             onValueChange={() => handleToggleActive(item)}
             trackColor={{ false: colors.critical, true: colors.positive }}
+            ios_backgroundColor={colors.critical}
             style={styles.activeSwitch}
           />
         </View>
@@ -460,7 +440,7 @@ export default function UsersScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
   }
@@ -470,7 +450,7 @@ export default function UsersScreen() {
       <View style={styles.centered}>
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.critical} />
         <Text variant="bodyMedium" style={styles.errorText}>{t('common.error')}</Text>
-        <View style={{ marginTop: spacing.md }}>
+        <View style={styles.retryContainer}>
           <AppButton variant="secondary" size="sm" onPress={refetch}>
             {t('common.retry')}
           </AppButton>
@@ -482,17 +462,10 @@ export default function UsersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <TextInput
+        <FioriSearchBar
           placeholder={t('admin.searchUsers')}
           value={searchText}
-          onChangeText={handleSearchChange}
-          mode="outlined"
-          style={styles.searchInput}
-          left={<TextInput.Icon icon="magnify" />}
-          right={searchText ? <TextInput.Icon icon="close" onPress={() => { setSearchText(''); setDebouncedSearch(''); }} /> : undefined}
-          outlineColor={colors.fieldBorder}
-          activeOutlineColor={theme.colors.primary}
-          dense
+          onChangeText={(text) => { handleSearchChange(text); }}
         />
       </View>
 
@@ -521,25 +494,28 @@ export default function UsersScreen() {
           style={styles.sheetFull}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.sheetHeader}>
+          <View style={[styles.sheetHeader, { paddingTop: insets.top + spacing.md }]}>
             <Pressable onPress={closeSheet} hitSlop={8}>
               <MaterialCommunityIcons name="close" size={24} color={colors.text.primary} />
             </Pressable>
-            <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
-              {t('admin.editUser')}
-            </Text>
-            <View style={{ width: 24 }} />
+            <View style={styles.sheetHeaderCenter}>
+              <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
+                {t('admin.editUser')}
+              </Text>
+              {selectedUser && (
+                <Text variant="bodySmall" style={styles.sheetHeaderSubtitle}>
+                  {selectedUser.phone || ''}
+                </Text>
+              )}
+            </View>
+            <View style={styles.headerSpacer} />
           </View>
-          {selectedUser && (
-            <Text variant="bodyMedium" style={styles.sheetSubtitle}>
-              {selectedUser.phone || ''}
-            </Text>
-          )}
 
             <ScrollView
               keyboardShouldPersistTaps="handled"
               style={styles.sheetScroll}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.sheetScrollContent}
             >
               {/* Name field */}
               <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userName')}</Text>
@@ -549,8 +525,8 @@ export default function UsersScreen() {
                 placeholder={t('admin.userNamePlaceholder')}
                 mode="outlined"
                 style={styles.fieldInput}
-                outlineColor={colors.fieldBorder}
-                activeOutlineColor={theme.colors.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.brand}
                 dense
               />
 
@@ -560,7 +536,7 @@ export default function UsersScreen() {
                 value={selectedUser?.phone || ''}
                 mode="outlined"
                 style={styles.fieldInput}
-                outlineColor={colors.fieldBorder}
+                outlineColor={colors.border}
                 disabled
                 dense
               />
@@ -582,38 +558,35 @@ export default function UsersScreen() {
                       {t('admin.deletionRequestDate', { date: new Date(req.created_at).toLocaleDateString() })}
                     </Text>
                     <View style={styles.deletionBannerActions}>
-                      <View style={{ flex: 1 }}>
+                      <View style={styles.flexOne}>
                         <AppButton
                           variant="outline"
                           size="sm"
                           fullWidth
                           disabled={isProcessingDeletion}
                           onPress={() => {
-                            Alert.alert(
-                              t('admin.rejectDeletionConfirmTitle'),
-                              t('admin.rejectDeletionConfirmMessage', { name: displayName }),
-                              [
-                                { text: t('common.cancel'), style: 'cancel' },
-                                {
-                                  text: t('common.confirm'),
-                                  onPress: async () => {
-                                    try {
-                                      await processAccountDeletion({ requestId: req.id, action: 'rejected' }).unwrap();
-                                      Alert.alert(t('admin.deletionRejected'));
-                                    } catch {
-                                      Alert.alert(t('common.error'), t('admin.deletionProcessFailed'));
-                                    }
-                                  },
-                                },
-                              ],
-                            );
+                            setDialog({
+                              title: t('admin.rejectDeletionConfirmTitle'),
+                              message: t('admin.rejectDeletionConfirmMessage', { name: displayName }),
+                              confirmLabel: t('common.confirm'),
+                              variant: 'primary',
+                              onConfirm: async () => {
+                                setDialog(null);
+                                try {
+                                  await processAccountDeletion({ requestId: req.id, action: 'rejected' }).unwrap();
+                                  showToast({ message: t('admin.deletionRejected'), type: 'success' });
+                                } catch {
+                                  showToast({ message: t('admin.deletionProcessFailed'), type: 'error' });
+                                }
+                              },
+                            });
                           }}
                         >
                           {t('admin.rejectDeletion')}
                         </AppButton>
                       </View>
-                      <View style={{ width: spacing.sm }} />
-                      <View style={{ flex: 1 }}>
+                      <View style={styles.bannerActionGap} />
+                      <View style={styles.flexOne}>
                         <AppButton
                           variant="danger"
                           size="sm"
@@ -621,26 +594,22 @@ export default function UsersScreen() {
                           disabled={isProcessingDeletion}
                           loading={isProcessingDeletion}
                           onPress={() => {
-                            Alert.alert(
-                              t('admin.approveDeletionConfirmTitle'),
-                              t('admin.approveDeletionConfirmMessage', { name: displayName }),
-                              [
-                                { text: t('common.cancel'), style: 'cancel' },
-                                {
-                                  text: t('common.confirm'),
-                                  style: 'destructive',
-                                  onPress: async () => {
-                                    try {
-                                      await processAccountDeletion({ requestId: req.id, action: 'approved' }).unwrap();
-                                      Alert.alert(t('admin.deletionApproved'));
-                                      closeSheet();
-                                    } catch {
-                                      Alert.alert(t('common.error'), t('admin.deletionProcessFailed'));
-                                    }
-                                  },
-                                },
-                              ],
-                            );
+                            setDialog({
+                              title: t('admin.approveDeletionConfirmTitle'),
+                              message: t('admin.approveDeletionConfirmMessage', { name: displayName }),
+                              confirmLabel: t('common.confirm'),
+                              variant: 'danger',
+                              onConfirm: async () => {
+                                setDialog(null);
+                                try {
+                                  await processAccountDeletion({ requestId: req.id, action: 'approved' }).unwrap();
+                                  showToast({ message: t('admin.deletionApproved'), type: 'success' });
+                                  closeSheet();
+                                } catch {
+                                  showToast({ message: t('admin.deletionProcessFailed'), type: 'error' });
+                                }
+                              },
+                            });
                           }}
                         >
                           {t('admin.approveDeletion')}
@@ -653,28 +622,34 @@ export default function UsersScreen() {
 
               {/* Role picker */}
               <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userRole')}</Text>
-              <RadioButton.Group
-                value={formRole}
-                onValueChange={(v) => setFormRole(v as UserRole)}
-              >
-                {ALL_ROLES.map((role) => {
-                  const badgeStyle = ROLE_BADGE_STYLES[role];
-                  return (
-                    <Pressable
-                      key={role}
-                      style={styles.roleOption}
-                      onPress={() => setFormRole(role)}
-                    >
-                      <RadioButton value={role} color={theme.colors.primary} />
-                      <View style={[styles.roleOptionBadge, { backgroundColor: badgeStyle.bg }]}>
-                        <Text style={[styles.roleOptionText, { color: badgeStyle.text }]}>
-                          {t(ROLE_LABELS[role])}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </RadioButton.Group>
+              <View style={styles.roleCard}>
+                <RadioButton.Group
+                  value={formRole}
+                  onValueChange={(v) => setFormRole(v as UserRole)}
+                >
+                  {ALL_ROLES.map((role, index) => {
+                    const badgeStyle = ROLE_BADGE_STYLES[role];
+                    return (
+                      <Pressable
+                        key={role}
+                        style={({ pressed }) => [
+                          styles.roleOption,
+                          pressed && styles.roleOptionPressed,
+                          index < ALL_ROLES.length - 1 && styles.roleOptionBorder,
+                        ]}
+                        onPress={() => setFormRole(role)}
+                      >
+                        <RadioButton value={role} color={colors.brand} />
+                        <View style={[styles.roleOptionBadge, { backgroundColor: badgeStyle.bg }]}>
+                          <Text style={[styles.roleOptionText, { color: badgeStyle.text }]}>
+                            {t(ROLE_LABELS[role])}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </RadioButton.Group>
+              </View>
 
               {/* Active toggle */}
               <View style={styles.activeRow}>
@@ -683,13 +658,14 @@ export default function UsersScreen() {
                   value={formActive}
                   onValueChange={setFormActive}
                   trackColor={{ false: colors.critical, true: colors.positive }}
+                  ios_backgroundColor={colors.critical}
                 />
               </View>
 
               {/* Addresses with CRUD */}
               <View style={styles.addressHeaderRow}>
                 <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userAddresses')}</Text>
-                <Pressable style={styles.addAddressBtn} onPress={() => openAddressForm()}>
+                <Pressable style={({ pressed }) => [styles.addAddressBtn, pressed && styles.addAddressBtnPressed]} onPress={() => openAddressForm()}>
                   <MaterialCommunityIcons name="plus" size={16} color={colors.brand} />
                   <Text style={styles.addAddressBtnText}>{t('admin.addAddress')}</Text>
                 </Pressable>
@@ -778,14 +754,16 @@ export default function UsersScreen() {
       >
         <View style={styles.sheetFull}>
           {/* Header */}
-          <View style={styles.sheetHeader}>
+          <View style={[styles.sheetHeader, { paddingTop: insets.top + spacing.md }]}>
             <Pressable onPress={closeAddressForm} hitSlop={8}>
               <MaterialCommunityIcons name="close" size={24} color={colors.text.primary} />
             </Pressable>
-            <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
-              {editingAddress ? t('admin.editAddress') : t('admin.addAddress')}
-            </Text>
-            <View style={{ width: 24 }} />
+            <View style={styles.sheetHeaderCenter}>
+              <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
+                {editingAddress ? t('admin.editAddress') : t('admin.addAddress')}
+              </Text>
+            </View>
+            <View style={styles.headerSpacer} />
           </View>
 
           {/* Step Indicator */}
@@ -835,14 +813,14 @@ export default function UsersScreen() {
           </View>
 
           <KeyboardAvoidingView
-            style={{ flex: 1 }}
+            style={styles.flexOne}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <ScrollView
               keyboardShouldPersistTaps="handled"
               style={styles.sheetScroll}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: spacing.lg }}
+              contentContainerStyle={styles.sheetScrollContent}
             >
               {/* Step 0: Contact */}
               {addrStep === 0 && (
@@ -854,8 +832,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressLabelPlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     dense
                   />
 
@@ -866,8 +844,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressFullNamePlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     dense
                   />
 
@@ -878,8 +856,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressPhonePlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     keyboardType="phone-pad"
                     dense
                   />
@@ -904,8 +882,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressLine2Placeholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     dense
                   />
 
@@ -916,8 +894,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressCityPlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     dense
                   />
 
@@ -928,8 +906,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressStatePlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     dense
                   />
 
@@ -940,8 +918,8 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressPincodePlaceholder')}
                     mode="outlined"
                     style={styles.fieldInput}
-                    outlineColor={colors.fieldBorder}
-                    activeOutlineColor={theme.colors.primary}
+                    outlineColor={colors.border}
+                    activeOutlineColor={colors.brand}
                     keyboardType="numeric"
                     maxLength={6}
                     dense
@@ -952,7 +930,8 @@ export default function UsersScreen() {
                     <Switch
                       value={addrIsDefault}
                       onValueChange={setAddrIsDefault}
-                      trackColor={{ false: colors.neutral, true: colors.positive }}
+                      trackColor={{ false: colors.border, true: colors.positive }}
+                      ios_backgroundColor={colors.border}
                     />
                   </View>
                 </View>
@@ -1039,6 +1018,18 @@ export default function UsersScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      <FioriDialog
+        visible={dialog !== null}
+        onDismiss={() => setDialog(null)}
+        title={dialog?.title ?? ''}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDialog(null), variant: 'text' },
+          { label: dialog?.confirmLabel ?? t('common.confirm'), onPress: () => dialog?.onConfirm(), variant: dialog?.variant ?? 'primary' },
+        ]}
+      >
+        <Text variant="bodyMedium">{dialog?.message}</Text>
+      </FioriDialog>
     </View>
   );
 }
@@ -1059,6 +1050,9 @@ const styles = StyleSheet.create({
     color: colors.critical,
     marginTop: spacing.md,
   },
+  retryContainer: {
+    marginTop: spacing.md,
+  },
   emptyTitle: {
     fontFamily: fontFamily.bold,
     color: colors.text.primary,
@@ -1068,9 +1062,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: 0,
   },
-  searchInput: {
-    backgroundColor: colors.surface,
-  },
   listContent: {
     padding: spacing.md,
   },
@@ -1078,6 +1069,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...elevation.level1,
   },
   cardRow: {
@@ -1110,7 +1103,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   roleBadgeText: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
     fontFamily: fontFamily.semiBold,
   },
   deletionBadgeRow: {
@@ -1122,10 +1115,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   deletionBadgeText: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
     fontFamily: fontFamily.semiBold,
     color: colors.negative,
-    marginLeft: 6,
+    marginLeft: spacing.xs,
   },
   // Address section on cards
   addressSection: {
@@ -1137,35 +1130,42 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   addressIcon: {
-    marginRight: 6,
+    marginRight: spacing.xs,
   },
   addressText: {
     flex: 1,
     color: colors.text.secondary,
-    fontSize: 12,
+    fontSize: fontSize.xs,
   },
   addressTextDefault: {
     fontFamily: fontFamily.semiBold,
     color: colors.text.primary,
   },
   defaultBadge: {
-    backgroundColor: colors.positiveLight,
-    paddingHorizontal: 6,
+    backgroundColor: '#F5FAE5',
+    paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: borderRadius.xs,
-    marginLeft: 6,
+    marginLeft: spacing.xs,
   },
   defaultBadgeText: {
     fontSize: 10,
     fontFamily: fontFamily.semiBold,
-    color: colors.positive,
+    color: '#256F14',
+  },
+  // Fiori tag-spec negative colors
+  blockedBadge: {
+    backgroundColor: '#FFF4F2',
+  },
+  blockedBadgeText: {
+    color: '#AA161F',
   },
   // Deletion request banner in edit sheet
   deletionBanner: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: '#FFF4F2',
     borderWidth: 1,
     borderColor: colors.negative,
     borderRadius: borderRadius.md,
@@ -1185,11 +1185,17 @@ const styles = StyleSheet.create({
   deletionBannerDate: {
     color: colors.text.secondary,
     marginTop: spacing.xs,
-    marginLeft: 28,
+    marginLeft: 20 + spacing.xs, // icon (20) + gap
   },
   deletionBannerActions: {
     flexDirection: 'row',
     marginTop: spacing.md,
+  },
+  flexOne: {
+    flex: 1,
+  },
+  bannerActionGap: {
+    width: spacing.sm,
   },
   // Full-screen sheet
   sheetFull: {
@@ -1205,23 +1211,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  sheetHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   sheetHeaderTitle: {
     fontFamily: fontFamily.bold,
     color: colors.text.primary,
   },
-  sheetSubtitle: {
+  sheetHeaderSubtitle: {
     color: colors.text.secondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    marginTop: 2,
+  },
+  headerSpacer: {
+    width: 24,
   },
   sheetScroll: {
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
+  sheetScrollContent: {
+    paddingBottom: spacing.lg,
+  },
+  // Text input spec 06: label 13pt, Regular (400), #556B82
   fieldLabel: {
-    fontFamily: fontFamily.semiBold,
+    fontSize: fontSize.label,
+    fontFamily: fontFamily.regular,
     color: colors.text.secondary,
     marginBottom: spacing.xs,
     marginTop: spacing.md,
@@ -1229,10 +1244,25 @@ const styles = StyleSheet.create({
   fieldInput: {
     backgroundColor: colors.surface,
   },
+  // Fiori card for role options
+  roleCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
   roleOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    minHeight: 44,
+    paddingVertical: spacing.xs,
+  },
+  roleOptionPressed: {
+    backgroundColor: colors.pressedSurface,
+  },
+  roleOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   roleOptionBadge: {
     paddingHorizontal: spacing.md,
@@ -1241,7 +1271,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   roleOptionText: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     fontFamily: fontFamily.semiBold,
   },
   activeRow: {
@@ -1273,15 +1303,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
+  addAddressBtnPressed: {
+    opacity: 0.6,
+  },
   addAddressBtnText: {
-    fontSize: 13,
+    fontSize: fontSize.label,
     fontFamily: fontFamily.semiBold,
     color: colors.brand,
-    marginLeft: 4,
+    marginLeft: spacing.xs,
   },
   addrActionBtn: {
-    padding: 4,
-    marginLeft: 6,
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   sheetAddressList: {
     marginTop: spacing.xs,
@@ -1304,8 +1337,8 @@ const styles = StyleSheet.create({
   sheetAddressText: {
     flex: 1,
     color: colors.text.secondary,
-    fontSize: 13,
-    marginLeft: 6,
+    fontSize: fontSize.label,
+    marginLeft: spacing.xs,
   },
   formError: {
     color: colors.critical,
@@ -1357,6 +1390,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...elevation.level1,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -1373,7 +1408,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.text.secondary,
     marginLeft: spacing.xs,
-    fontSize: 13,
+    fontSize: fontSize.label,
   },
   sheetFooter: {
     flexDirection: 'row',

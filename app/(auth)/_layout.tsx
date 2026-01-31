@@ -10,8 +10,8 @@ export default function AuthLayout() {
         },
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
           fontFamily: fontFamily.semiBold,
+          fontSize: 17,
         },
         headerShadowVisible: false,
         animation: 'slide_from_right',

@@ -1,17 +1,19 @@
 import { Platform } from 'react-native';
 
 // ─── SAP Fiori Horizon (Morning) Color System ───────────────────────────────
-// Brand color: #FF6B35 (replaces SAP's default blue #0070F2)
+// Brand color: #f69000 (Fiori-compliant orange)
 
 export const colors = {
   // Brand
-  brand: '#FF6B35',
-  brandLight: '#FFAB91',
-  brandDark: '#E55A2B',
+  brand: '#f69000',
+  brandLight: '#FFF0D9',
+  brandDark: '#dd8200',
 
   // Surfaces
   shell: '#F5F6F7',
   surface: '#FFFFFF',
+  pressedSurface: '#F5F6F7',
+  fieldBackground: '#F2F2F7',
 
   // Text
   text: {
@@ -22,13 +24,13 @@ export const colors = {
   },
 
   // Semantic (Fiori Horizon exact values)
-  negative: '#D20A0A',
+  negative: '#D32030',
   negativeLight: '#FFEAF4',
-  critical: '#C35500',
+  critical: '#E9730C',
   criticalLight: '#FFF3B8',
-  positive: '#188918',
+  positive: '#36A41D',
   positiveLight: '#F5FAE5',
-  informative: '#0070F2',
+  informative: '#0057D2',
   informativeLight: '#D1EFFF',
   neutral: '#5B738B',
   neutralLight: '#E5E5E5',
@@ -36,6 +38,8 @@ export const colors = {
   // Derived
   brandTint: '#FFF5F2',
   toastDefault: '#323232',
+  badgeRed: '#D32030',
+  activeBorder: '#0057D2',
 
   // Borders & Fields
   border: '#E5E5E5',
@@ -45,9 +49,9 @@ export const colors = {
   // Button (Fiori spec adapted with orange brand)
   button: {
     background: '#FFFFFF',
-    border: '#FF6B35',
-    text: '#FF6B35',
-    emphasizedBg: '#FF6B35',
+    border: '#f69000',
+    text: '#f69000',
+    emphasizedBg: '#f69000',
     emphasizedText: '#FFFFFF',
   },
 } as const;
@@ -68,13 +72,17 @@ export const borderRadius = {
   sm: 4,
   md: 8,
   lg: 12,
+  pill: 16,
+  xl: 16,
 } as const;
 
 // ─── Fiori Type Scale ───────────────────────────────────────────────────────
 export const fontSize = {
   xs: 12,
+  label: 13,
   sm: 14,
   md: 16,
+  body: 17,
   lg: 18,
   xl: 20,
   '2xl': 24,
@@ -119,8 +127,8 @@ export const elevation = {
 
 // ─── Gradient Presets ───────────────────────────────────────────────────────
 export const gradients = {
-  brand: ['#FF6B35', '#FF8F65'] as readonly string[],
-  warmHeader: ['#FF6B35', '#E55A2B'] as readonly string[],
+  brand: ['#f69000', '#FFB347'] as readonly string[],
+  warmHeader: ['#f69000', '#dd8200'] as readonly string[],
 };
 
 // ─── Animation Config ───────────────────────────────────────────────────────

@@ -1,13 +1,16 @@
-import { View, StyleSheet, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Card, Text, Button, Chip, FAB, useTheme } from 'react-native-paper';
+import { Card, Text, Button, FAB, useTheme } from 'react-native-paper';
 
 import { useGetAddressesQuery, useDeleteAddressMutation, useSetDefaultAddressMutation } from '../../../src/store/apiSlice';
 import { Address } from '../../../src/types';
 import { EmptyState } from '../../../src/components/common/EmptyState';
 import { LoadingScreen } from '../../../src/components/common/LoadingScreen';
+import { FioriChip } from '../../../src/components/common/FioriChip';
+import { FioriDialog } from '../../../src/components/common/FioriDialog';
 import { colors, spacing, borderRadius } from '../../../src/constants/theme';
 import type { AppTheme } from '../../../src/theme';
 
@@ -18,14 +21,14 @@ export default function AddressesScreen() {
   const { data: addresses = [], isLoading, isFetching, refetch } = useGetAddressesQuery();
   const [deleteAddress] = useDeleteAddressMutation();
   const [setDefaultAddress] = useSetDefaultAddressMutation();
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddAddress = () => { router.push('/(customer)/addresses/new'); };
   const handleEditAddress = (id: string) => { router.push(`/(customer)/addresses/${id}`); };
   const handleDeleteAddress = (id: string) => {
-    Alert.alert(t('addresses.deleteConfirmTitle'), t('addresses.deleteConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: () => deleteAddress(id) },
-    ]);
+    setDeletingId(id);
+    setDeleteDialogVisible(true);
   };
   const handleSetDefault = (id: string) => { setDefaultAddress(id); };
 
@@ -35,7 +38,7 @@ export default function AddressesScreen() {
         <View style={styles.addressHeader}>
           <View style={styles.labelContainer}>
             <Text variant="titleSmall">{item.label || item.full_name}</Text>
-            {item.is_default && <Chip compact style={styles.defaultChip} textStyle={styles.defaultChipText}>{t('addresses.default')}</Chip>}
+            {item.is_default && <FioriChip label={t('addresses.default')} selected variant="positive" />}
           </View>
         </View>
         <Text variant="bodyMedium" style={styles.addressName}>{item.full_name}</Text>
@@ -63,6 +66,18 @@ export default function AddressesScreen() {
           <FAB icon="plus" style={styles.fab} onPress={handleAddAddress} />
         </>
       )}
+
+      <FioriDialog
+        visible={deleteDialogVisible}
+        onDismiss={() => setDeleteDialogVisible(false)}
+        title={t('addresses.deleteConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDeleteDialogVisible(false), variant: 'text' },
+          { label: t('common.delete'), onPress: () => { setDeleteDialogVisible(false); if (deletingId) deleteAddress(deletingId); }, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium">{t('addresses.deleteConfirmMessage')}</Text>
+      </FioriDialog>
     </View>
   );
 }

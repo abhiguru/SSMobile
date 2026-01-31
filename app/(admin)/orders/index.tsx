@@ -30,14 +30,15 @@ const FILTER_LABEL_KEYS: Record<string, string> = {
   delivery_failed: 'admin.filterFailed',
 };
 
+// Fiori tag-spec colors (spec 18) for semantic filter pills
 const PILL_COLORS: Record<string, { bg: string; text: string }> = {
   all: { bg: colors.brand, text: colors.text.inverse },
-  placed: { bg: colors.criticalLight, text: colors.critical },
-  confirmed: { bg: colors.informativeLight, text: colors.informative },
-  out_for_delivery: { bg: colors.informativeLight, text: colors.informative },
-  delivered: { bg: colors.positiveLight, text: colors.positive },
-  cancelled: { bg: colors.negativeLight, text: colors.negative },
-  delivery_failed: { bg: colors.negativeLight, text: colors.negative },
+  placed: { bg: '#FEF7F1', text: '#AA5808' },
+  confirmed: { bg: '#EBF8FF', text: '#0040B0' },
+  out_for_delivery: { bg: '#EBF8FF', text: '#0040B0' },
+  delivered: { bg: '#F5FAE5', text: '#256F14' },
+  cancelled: { bg: '#FFF4F2', text: '#AA161F' },
+  delivery_failed: { bg: '#FFF4F2', text: '#AA161F' },
 };
 
 function OrdersSkeleton() {
@@ -92,7 +93,7 @@ export default function AdminOrdersScreen() {
             <Text variant="bodyMedium" numberOfLines={1} style={styles.orderAddress}>{item.delivery_address}</Text>
             <View style={styles.orderFooter}>
               <Text variant="bodySmall" style={styles.itemCount}>{item.items?.length ?? 0} items</Text>
-              <Text variant="titleMedium" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
+              <Text variant="titleMedium" style={styles.orderPrice}>{formatPrice(item.total_paise)}</Text>
             </View>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={16} color={colors.neutral} style={{ alignSelf: 'center', marginRight: spacing.sm }} />
@@ -114,11 +115,11 @@ export default function AdminOrdersScreen() {
             <Pressable
               key={filter}
               onPress={() => setActiveFilter(filter)}
-              style={[
+              style={({ pressed }) => [
                 styles.pill,
                 isActive
-                  ? { backgroundColor: pillColor.bg, borderColor: pillColor.bg }
-                  : { backgroundColor: colors.surface, borderColor: colors.border },
+                  ? { backgroundColor: pressed ? colors.brandDark : pillColor.bg }
+                  : { backgroundColor: pressed ? colors.neutralLight : colors.fieldBackground },
               ]}
             >
               <Text style={[styles.pillLabel, { color: isActive ? pillColor.text : colors.text.secondary }]}>
@@ -158,15 +159,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.shell },
   pillScroll: { flexGrow: 0 },
   listWrapper: { flex: 1 },
-  pillRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 6 },
+  pillRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 30,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    borderWidth: 1,
-    gap: 5,
+    height: 32,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.pill,
+    gap: spacing.xs,
   },
   pillLabel: {
     fontSize: fontSize.xs,
@@ -178,21 +178,22 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   pillCountText: {
     fontSize: 10,
     fontFamily: fontFamily.bold,
   },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  orderCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
+  listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg },
+  orderCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: spacing.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
   statusStripe: { width: 4 },
   orderContent: { flex: 1, padding: spacing.lg },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   orderId: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
   orderDate: { color: colors.text.secondary, marginBottom: spacing.xs },
-  orderAddress: { color: colors.text.primary, marginBottom: 12 },
-  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  orderAddress: { color: colors.text.primary, marginBottom: spacing.md },
+  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
+  orderPrice: { color: colors.brand, fontFamily: fontFamily.bold },
   itemCount: { color: colors.text.secondary },
-  skeletonCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: 12 },
+  skeletonCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md },
 });

@@ -1,5 +1,5 @@
 import { MD3LightTheme } from 'react-native-paper';
-import { fontFamily } from '../constants/theme';
+import { colors, fontFamily } from '../constants/theme';
 
 export { colors, spacing, borderRadius, fontSize, elevation, fontFamily } from '../constants/theme';
 
@@ -26,18 +26,18 @@ export const paperTheme = {
   },
   colors: {
     ...MD3LightTheme.colors,
-    primary: '#FF6B35',
+    primary: colors.brand,
     onPrimary: '#FFFFFF',
-    primaryContainer: '#FFAB91',
-    onPrimaryContainer: '#FF6B35',
-    secondary: '#C35500',
+    primaryContainer: colors.brandLight,
+    onPrimaryContainer: colors.brand,
+    secondary: colors.critical,
     onSecondary: '#FFFFFF',
     secondaryContainer: '#FFF3B8',
-    onSecondaryContainer: '#C35500',
-    error: '#D20A0A',
+    onSecondaryContainer: colors.critical,
+    error: colors.negative,
     onError: '#FFFFFF',
     errorContainer: '#FFEAF4',
-    onErrorContainer: '#D20A0A',
+    onErrorContainer: colors.negative,
     background: '#F5F6F7',
     onBackground: '#1D2D3E',
     surface: '#FFFFFF',
@@ -48,14 +48,14 @@ export const paperTheme = {
     outlineVariant: '#E5E5E5',
   },
   custom: {
-    positive: '#188918',
+    positive: colors.positive,
     positiveContainer: '#F5FAE5',
     onPositive: '#FFFFFF',
-    critical: '#C35500',
+    critical: colors.critical,
     criticalContainer: '#FFF3B8',
-    informative: '#0070F2',
+    informative: colors.informative,
     informativeContainer: '#D1EFFF',
-    disabledButton: '#FFAB91',
+    disabledButton: colors.brandLight,
   },
 };
 

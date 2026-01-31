@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, Dimensions, ActivityIndicator, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -8,6 +8,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 
 import { AnimatedPressable } from './AnimatedPressable';
+import { FioriDialog } from './FioriDialog';
 import { ImagePreviewModal, PreviewImage } from './ImagePreviewModal';
 import {
   useGetProductImagesQuery,
@@ -37,6 +38,7 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
   const [uploadImage, { isLoading: uploading }] = useUploadProductImageMutation();
   const [deleteImage] = useDeleteProductImageMutation();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ imageId: string; storagePath: string } | null>(null);
 
   useEffect(() => {
     onUploadingChange?.(uploading);
@@ -75,7 +77,7 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     console.log(TAG, 'permission status:', status);
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow photo access to upload images.');
+      showToast({ message: 'Please allow photo access to upload images.', type: 'info' });
       return;
     }
 
@@ -144,24 +146,18 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
   };
 
   const handleDelete = (imageId: string, storagePath: string) => {
-    Alert.alert(
-      t('admin.deleteImage'),
-      t('admin.deleteImageConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteImage({ imageId, productId, storagePath }).unwrap();
-            } catch {
-              showToast({ message: t('admin.deleteFailed'), type: 'error' });
-            }
-          },
-        },
-      ],
-    );
+    setDeleteTarget({ imageId, storagePath });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { imageId, storagePath } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      await deleteImage({ imageId, productId, storagePath }).unwrap();
+    } catch {
+      showToast({ message: t('admin.deleteFailed'), type: 'error' });
+    }
   };
 
   const previewImages: PreviewImage[] = useMemo(
@@ -223,6 +219,17 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
         initialIndex={previewIndex ?? 0}
         onClose={() => setPreviewIndex(null)}
       />
+      <FioriDialog
+        visible={deleteTarget !== null}
+        onDismiss={() => setDeleteTarget(null)}
+        title={t('admin.deleteImage')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDeleteTarget(null), variant: 'text' },
+          { label: t('common.delete'), onPress: confirmDelete, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium">{t('admin.deleteImageConfirm')}</Text>
+      </FioriDialog>
     </View>
   );
 }

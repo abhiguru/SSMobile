@@ -13,8 +13,8 @@ export default function AdminOrdersLayout() {
         },
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
           fontFamily: fontFamily.semiBold,
+          fontSize: 17,
         },
         headerShadowVisible: false,
         animation: 'slide_from_right',

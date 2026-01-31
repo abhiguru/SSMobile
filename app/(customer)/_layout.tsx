@@ -107,8 +107,8 @@ export default function CustomerLayout() {
         },
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
           fontFamily: fontFamily.semiBold,
+          fontSize: 17,
         },
         headerShadowVisible: false,
         headerRight: () => <HeaderCartButton />,
@@ -119,8 +119,8 @@ export default function CustomerLayout() {
         options={{
           title: t('home.title'),
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'home' : 'home-outline'} color={color} size={size} />
           ),
         }}
       />
@@ -130,9 +130,9 @@ export default function CustomerLayout() {
           title: t('cart.title'),
           tabBarLabel: 'Cart',
           headerRight: () => null,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <View>
-              <MaterialCommunityIcons name="cart" color={color} size={size} />
+              <MaterialCommunityIcons name={focused ? 'cart' : 'cart-outline'} color={color} size={size} />
               <CartBadge />
             </View>
           ),
@@ -143,8 +143,8 @@ export default function CustomerLayout() {
         options={{
           title: t('orders.title'),
           tabBarLabel: 'Orders',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="package-variant" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'package-variant' : 'package-variant-closed'} color={color} size={size} />
           ),
           headerShown: false,
         }}
@@ -154,8 +154,8 @@ export default function CustomerLayout() {
         options={{
           title: t('favorites.title'),
           tabBarLabel: 'Favorites',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="heart" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'heart' : 'heart-outline'} color={color} size={size} />
           ),
         }}
       />
@@ -165,8 +165,8 @@ export default function CustomerLayout() {
           title: t('profile.title'),
           tabBarLabel: 'Profile',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'account' : 'account-outline'} color={color} size={size} />
           ),
         }}
       />

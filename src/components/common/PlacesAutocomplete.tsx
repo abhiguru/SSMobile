@@ -1,11 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Keyboard } from 'react-native';
-import { TextInput, Text, ActivityIndicator, useTheme } from 'react-native-paper';
+import { TextInput, Text, ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import * as Crypto from 'expo-crypto';
 import { GOOGLE_PLACES_API_KEY } from '../../constants';
-import { colors, spacing, borderRadius, fontFamily, elevation } from '../../constants/theme';
-import type { AppTheme } from '../../theme';
+import { colors, spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
 
 export interface PlaceDetails {
   addressLine1: string;
@@ -103,7 +102,6 @@ function parseAddressComponents(
 
 export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder }: PlacesAutocompleteProps) {
   const { t } = useTranslation();
-  const theme = useTheme<AppTheme>();
 
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -228,7 +226,7 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
   }, [onPlaceSelected]);
 
   const rightIcon = isFetchingDetails || isSearching
-    ? <TextInput.Icon icon={() => <ActivityIndicator size={16} color={theme.colors.primary} />} />
+    ? <TextInput.Icon icon={() => <ActivityIndicator size={16} color={colors.brand} />} />
     : undefined;
 
   return (
@@ -240,8 +238,8 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
         mode="outlined"
         style={styles.input}
         right={rightIcon}
-        outlineColor={colors.fieldBorder}
-        activeOutlineColor={theme.colors.primary}
+        outlineColor={colors.border}
+        activeOutlineColor={colors.brand}
         dense
         autoCorrect={false}
       />
@@ -288,7 +286,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.fieldBorder,
+    borderColor: colors.border,
     marginTop: spacing.xs,
     ...elevation.level2,
   },
@@ -299,12 +297,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   suggestionPressed: {
-    backgroundColor: colors.shell,
+    backgroundColor: colors.pressedSurface,
   },
   suggestionMain: {
     fontFamily: fontFamily.semiBold,
     color: colors.text.primary,
-    fontSize: 13,
+    fontSize: fontSize.label,
   },
   suggestionSecondary: {
     color: colors.text.secondary,

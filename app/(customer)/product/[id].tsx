@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, IconButton, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, IconButton, ActivityIndicator } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,11 +27,10 @@ import { addToCart } from '../../../src/store/slices/cartSlice';
 import { formatPrice, getPerKgPaise, resolveImageSource, getProductImageUrl } from '../../../src/constants';
 import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../../src/constants/theme';
 import { AppButton } from '../../../src/components/common/AppButton';
+import { StepperControl } from '../../../src/components/common/StepperControl';
 import { ImagePreviewModal, PreviewImage } from '../../../src/components/common/ImagePreviewModal';
 import { useToast } from '../../../src/components/common/Toast';
 import { hapticLight, hapticSuccess } from '../../../src/utils/haptics';
-import type { AppTheme } from '../../../src/theme';
-
 function formatWeight(grams: number): string {
   if (grams >= 1000) {
     const kg = grams / 1000;
@@ -52,7 +51,6 @@ export default function ProductDetailScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const theme = useTheme<AppTheme>();
   const { showToast } = useToast();
 
   const { data: products = [] } = useGetProductsQuery();
@@ -241,13 +239,12 @@ export default function ProductDetailScreen() {
 
           <View style={styles.quantitySection}>
             <Text variant="titleMedium" style={styles.sectionTitle}>{t('product.quantity')}</Text>
-            <View style={styles.quantityControl}>
-              <IconButton icon="minus" mode="contained-tonal" size={20} onPress={() => setQuantity(Math.max(1, quantity - 1))} />
-              <View style={styles.quantityBadge}>
-                <Text variant="titleLarge" style={styles.quantityValue}>{quantity}</Text>
-              </View>
-              <IconButton icon="plus" mode="contained-tonal" size={20} onPress={() => setQuantity(quantity + 1)} />
-            </View>
+            <StepperControl
+              value={quantity}
+              onValueChange={setQuantity}
+              min={1}
+              max={99}
+            />
           </View>
 
           <View style={styles.totalContainer}>
@@ -307,9 +304,6 @@ const styles = StyleSheet.create({
   weightDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl },
   weightValue: { fontFamily: fontFamily.bold, color: colors.text.primary },
   quantitySection: {},
-  quantityControl: { flexDirection: 'row', alignItems: 'center' },
-  quantityBadge: { backgroundColor: colors.informativeLight, borderRadius: borderRadius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, minWidth: 48, alignItems: 'center' },
-  quantityValue: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
   totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md },
   totalLabel: { color: colors.text.secondary },
 });

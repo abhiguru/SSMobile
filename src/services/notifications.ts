@@ -66,7 +66,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       name: 'Default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF6B35',
+      lightColor: '#f69000',
     });
 
     await Notifications.setNotificationChannelAsync('orders', {

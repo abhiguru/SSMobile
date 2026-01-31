@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useCallback, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import React, { createContext, useContext, useCallback, useState, useRef } from 'react';
+import { View, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, {
   useSharedValue,
@@ -15,10 +15,16 @@ import { colors, spacing, borderRadius, elevation, fontFamily } from '../../cons
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
 interface ToastConfig {
   message: string;
   type?: ToastType;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextType {
@@ -36,21 +42,39 @@ const TOAST_BG: Record<ToastType, { bg: string }> = {
   warning: { bg: colors.critical },
 };
 
+const screenWidth = Dimensions.get('window').width;
+
+function getAutoHideDuration(config: ToastConfig): number {
+  if (config.duration) return config.duration;
+  if (config.action) return 8000;
+  if (config.message.length > 80) return 6000;
+  return 4000;
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastConfig | null>(null);
+  const queueRef = useRef<ToastConfig[]>([]);
+  const isShowingRef = useRef(false);
   const translateY = useSharedValue(100);
   const opacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const hideToast = useCallback(() => {
     setToast(null);
+    isShowingRef.current = false;
+    // Process queue
+    if (queueRef.current.length > 0) {
+      const next = queueRef.current.shift()!;
+      // Slight delay before next toast
+      setTimeout(() => showToastInternal(next), 200);
+    }
   }, []);
 
-  const showToast = useCallback((config: ToastConfig) => {
+  const showToastInternal = useCallback((config: ToastConfig) => {
+    isShowingRef.current = true;
     setToast(config);
-    const duration = config.duration || 3000;
+    const duration = getAutoHideDuration(config);
 
-    // Chain: reset → slide in → hold → slide out
     translateY.value = withSequence(
       withTiming(100, { duration: 0 }),
       withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) }),
@@ -64,6 +88,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }))
     );
   }, [translateY, opacity, hideToast]);
+
+  const showToast = useCallback((config: ToastConfig) => {
+    if (isShowingRef.current) {
+      queueRef.current.push(config);
+      return;
+    }
+    showToastInternal(config);
+  }, [showToastInternal]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -89,6 +121,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <Text variant="bodyMedium" style={styles.message}>
               {toast.message}
             </Text>
+            {toast.action && (
+              <Pressable
+                onPress={() => {
+                  toast.action?.onPress();
+                  hideToast();
+                }}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionLabel}>{toast.action.label}</Text>
+              </Pressable>
+            )}
           </Pressable>
         </Animated.View>
       )}
@@ -101,6 +144,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
+    minHeight: 48,
+    width: screenWidth - 32,
+    alignSelf: 'center',
     borderRadius: borderRadius.md,
     ...elevation.level3,
     zIndex: 9999,
@@ -116,5 +162,15 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
     fontFamily: fontFamily.regular,
     fontSize: 14,
+  },
+  actionButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  actionLabel: {
+    color: colors.text.inverse,
+    fontFamily: fontFamily.semiBold,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });

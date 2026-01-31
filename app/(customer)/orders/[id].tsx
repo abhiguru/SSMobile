@@ -1,19 +1,19 @@
 import { View, ScrollView, StyleSheet, Linking, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Divider, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, Divider, ActivityIndicator } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInLeft } from 'react-native-reanimated';
 
 import { useGetOrderByIdQuery, useReorderMutation } from '../../../src/store/apiSlice';
-import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
+import { formatPrice } from '../../../src/constants';
 import { colors, spacing, borderRadius, fontFamily } from '../../../src/constants/theme';
 import { Order, PorterDelivery } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
+import { SectionHeader } from '../../../src/components/common/SectionHeader';
+import { KeyValueRow } from '../../../src/components/common/KeyValueRow';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { hapticSuccess } from '../../../src/utils/haptics';
-import type { AppTheme } from '../../../src/theme';
-
 const TIMELINE_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
   placed: 'clock-outline',
   confirmed: 'check-circle-outline',
@@ -25,7 +25,6 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
   const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
   const [reorder, { isLoading: reorderLoading }] = useReorderMutation();
 
@@ -82,7 +81,7 @@ export default function OrderDetailScreen() {
 
       {order.status !== 'cancelled' && order.status !== 'delivery_failed' && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('orders.trackOrder')}</Text>
+          <SectionHeader title={t('orders.trackOrder')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.timeline}>
             {statusSteps.map((step, index) => {
               const isActive = index <= currentStepIndex;
@@ -142,7 +141,7 @@ export default function OrderDetailScreen() {
       )}
 
       <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('orders.itemsTitle')}</Text>
+        <SectionHeader title={t('orders.itemsTitle')} style={{ paddingHorizontal: 0 }} />
         {(order.items ?? []).map((item) => (
           <View key={item.id} style={styles.orderItem}>
             <View style={styles.itemInfo}>
@@ -155,10 +154,7 @@ export default function OrderDetailScreen() {
         ))}
         {hasShippingBreakdown && (
           <>
-            <View style={styles.breakdownRow}>
-              <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.subtotal')}</Text>
-              <Text variant="bodyMedium">{formatPrice(subtotal)}</Text>
-            </View>
+            <KeyValueRow label={t('checkout.subtotal')} value={formatPrice(subtotal)} />
             <View style={styles.breakdownRow}>
               <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.shipping')}</Text>
               {shipping === 0 ? <Text variant="bodyMedium" style={{ color: colors.positive, fontFamily: fontFamily.semiBold }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
@@ -173,7 +169,7 @@ export default function OrderDetailScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
+        <SectionHeader title={t('checkout.deliveryAddress')} style={{ paddingHorizontal: 0 }} />
         {order.shipping_full_name && <Text variant="bodyMedium" style={styles.addressName}>{order.shipping_full_name}</Text>}
         <Text variant="bodyMedium" style={styles.address}>{getDeliveryAddress(order)}</Text>
         <Text variant="bodySmall" style={styles.pincode}>{t('common.pincode')}: {getDeliveryPincode(order)}</Text>
@@ -182,14 +178,14 @@ export default function OrderDetailScreen() {
 
       {order.notes && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
+          <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
           <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
         </View>
       )}
 
       {order.admin_notes ? (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.adminNotes')}</Text>
+          <SectionHeader title={t('admin.adminNotes')} style={{ paddingHorizontal: 0 }} />
           <Text variant="bodyMedium" style={styles.notes}>{order.admin_notes}</Text>
         </View>
       ) : null}
@@ -336,14 +332,6 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
   date: { color: colors.text.secondary },
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily: fontFamily.semiBold,
-    color: colors.text.secondary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: spacing.lg,
-  },
   timeline: { flexDirection: 'row', justifyContent: 'space-between' },
   timelineStep: { alignItems: 'center', flex: 1 },
   timelineDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },

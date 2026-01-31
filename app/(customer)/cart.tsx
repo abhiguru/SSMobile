@@ -12,6 +12,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { PriceText } from '../../src/components/common/PriceText';
 import { AppButton } from '../../src/components/common/AppButton';
+import { StepperControl } from '../../src/components/common/StepperControl';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { EditCartItemSheet } from '../../src/components/common/EditCartItemSheet';
 import { useToast } from '../../src/components/common/Toast';
@@ -109,13 +110,18 @@ export default function CartScreen() {
               onPress={() => handleRemove(item.product_id, item.weight_grams)}
               style={styles.deleteBtn}
             />
-            <View style={styles.quantityContainer}>
-              <IconButton icon="minus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_grams, -1, item.quantity)} />
-              <View style={styles.quantityBadge}>
-                <Text variant="titleMedium" style={styles.quantity}>{item.quantity}</Text>
-              </View>
-              <IconButton icon="plus" mode="contained-tonal" size={16} onPress={() => handleQuantityChange(item.product_id, item.weight_grams, 1, item.quantity)} />
-            </View>
+            <StepperControl
+              value={item.quantity}
+              onValueChange={(newQty) => {
+                if (newQty <= 0) {
+                  handleRemove(item.product_id, item.weight_grams);
+                } else {
+                  handleQuantityChange(item.product_id, item.weight_grams, newQty - item.quantity, item.quantity);
+                }
+              }}
+              min={1}
+              max={99}
+            />
           </View>
         </View>
       </AnimatedPressable>

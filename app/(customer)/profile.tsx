@@ -1,72 +1,50 @@
-import { View, StyleSheet, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, List, Divider, useTheme } from 'react-native-paper';
+import { Text, List, Divider } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
 import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
-import { colors, spacing, elevation, gradients, borderRadius, fontFamily } from '../../src/constants/theme';
+import { colors, spacing, elevation, gradients, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { AppButton } from '../../src/components/common/AppButton';
-import type { AppTheme } from '../../src/theme';
-
+import { SectionHeader } from '../../src/components/common/SectionHeader';
+import { SegmentedControl } from '../../src/components/common/SegmentedControl';
+import { FioriDialog } from '../../src/components/common/FioriDialog';
+import { useToast } from '../../src/components/common/Toast';
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
-  const theme = useTheme<AppTheme>();
+  const { showToast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      t('auth.logoutConfirmTitle'),
-      t('auth.logoutConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('auth.logout'),
-          style: 'destructive',
-          onPress: () => {
-            logout();
-          },
-        },
-      ]
-    );
+    setLogoutDialogVisible(true);
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      t('profile.deleteAccountConfirmTitle'),
-      t('profile.deleteAccountConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('profile.deleteAccountConfirmButton'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await requestAccountDeletion().unwrap();
-              Alert.alert('', t('profile.deleteAccountSuccess'), [
-                {
-                  text: t('common.done'),
-                  onPress: () => {
-                    router.replace('/(auth)/login');
-                    setTimeout(() => logout(), 100);
-                  },
-                },
-              ]);
-            } catch {
-              Alert.alert('', t('profile.deleteAccountFailed'));
-            }
-          },
-        },
-      ]
-    );
+    setDeleteDialogVisible(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDeleteDialogVisible(false);
+    try {
+      await requestAccountDeletion().unwrap();
+      showToast({ message: t('profile.deleteAccountSuccess'), type: 'success' });
+      router.replace('/(auth)/login');
+      setTimeout(() => logout(), 100);
+    } catch {
+      showToast({ message: t('profile.deleteAccountFailed'), type: 'error' });
+    }
   };
 
   const handleLanguageToggle = async (lang: string) => {
@@ -97,20 +75,16 @@ export default function ProfileScreen() {
       </LinearGradient>
 
       <View style={styles.section}>
-        <Text variant="labelLarge" style={styles.sectionLabel}>{t('profile.language')}</Text>
-        <View style={styles.languageSegmented}>
-          <AnimatedPressable
-            onPress={() => handleLanguageToggle('en')}
-            style={[styles.langPill, !isGujarati && styles.langPillActive]}
-          >
-            <Text style={[styles.langText, !isGujarati && styles.langTextActive]}>English</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => handleLanguageToggle('gu')}
-            style={[styles.langPill, isGujarati && styles.langPillActive]}
-          >
-            <Text style={[styles.langText, isGujarati && styles.langTextActive]}>ગુજરાતી</Text>
-          </AnimatedPressable>
+        <SectionHeader title={t('profile.language')} />
+        <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+          <SegmentedControl
+            options={[
+              { key: 'en', label: 'English' },
+              { key: 'gu', label: 'ગુજરાતી' },
+            ]}
+            selectedKey={isGujarati ? 'gu' : 'en'}
+            onSelect={handleLanguageToggle}
+          />
         </View>
       </View>
 
@@ -138,6 +112,30 @@ export default function ProfileScreen() {
           {t('auth.logout')}
         </AppButton>
       </View>
+
+      <FioriDialog
+        visible={logoutDialogVisible}
+        onDismiss={() => setLogoutDialogVisible(false)}
+        title={t('auth.logoutConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setLogoutDialogVisible(false), variant: 'text' },
+          { label: t('auth.logout'), onPress: () => { setLogoutDialogVisible(false); logout(); }, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium">{t('auth.logoutConfirmMessage')}</Text>
+      </FioriDialog>
+
+      <FioriDialog
+        visible={deleteDialogVisible}
+        onDismiss={() => setDeleteDialogVisible(false)}
+        title={t('profile.deleteAccountConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDeleteDialogVisible(false), variant: 'text' },
+          { label: t('profile.deleteAccountConfirmButton'), onPress: confirmDeleteAccount, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium">{t('profile.deleteAccountConfirmMessage')}</Text>
+      </FioriDialog>
     </View>
   );
 }
@@ -149,20 +147,6 @@ const styles = StyleSheet.create({
   name: { fontFamily: fontFamily.semiBold, color: colors.text.inverse, marginBottom: spacing.xs },
   phone: { color: 'rgba(255,255,255,0.85)' },
   section: { backgroundColor: colors.surface, marginBottom: spacing.md, paddingVertical: spacing.sm },
-  sectionLabel: {
-    fontSize: 13,
-    fontFamily: fontFamily.semiBold,
-    color: colors.text.secondary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  languageSegmented: { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.shell, borderRadius: borderRadius.md, padding: 4 },
-  langPill: { flex: 1, paddingVertical: spacing.sm, borderRadius: borderRadius.md, alignItems: 'center' },
-  langPillActive: { backgroundColor: colors.brand },
-  langText: { fontWeight: '500', color: colors.text.secondary },
-  langTextActive: { color: colors.text.inverse },
   menuIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.sm },
   logoutContainer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });

@@ -17,7 +17,6 @@ import {
   Text,
   TextInput,
   Card,
-  Chip,
   RadioButton,
   Divider,
   IconButton,
@@ -39,7 +38,11 @@ import { getStoredTokens } from '../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../src/constants/theme';
 import { Address } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
+import { FioriChip } from '../../src/components/common/FioriChip';
+import { SectionHeader } from '../../src/components/common/SectionHeader';
+import { KeyValueRow } from '../../src/components/common/KeyValueRow';
 import { useToast } from '../../src/components/common/Toast';
+import { Toolbar } from '../../src/components/common/Toolbar';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 
@@ -229,12 +232,7 @@ export default function CheckoutScreen() {
 
         {/* ── Address Section ────────────────────────────────────── */}
         <View style={styles.card} onLayout={handleSectionLayout(0)}>
-          <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={styles.sectionTitle} accessibilityRole="header">
-              {t('checkout.deliveryAddress')}
-            </Text>
-            <AppButton variant="text" size="sm" onPress={handleAddAddress}>{t('checkout.addNew')}</AppButton>
-          </View>
+          <SectionHeader title={t('checkout.deliveryAddress')} actionLabel={t('checkout.addNew')} onAction={handleAddAddress} style={{ paddingHorizontal: 0 }} />
           {addresses.length === 0 ? (
             <EmptyState
               icon="map-marker-off"
@@ -262,9 +260,7 @@ export default function CheckoutScreen() {
                         <View style={styles.addressLabelRow}>
                           <Text variant="titleSmall">{address.label || address.full_name}</Text>
                           {address.is_default && (
-                            <Chip compact style={styles.defaultChip} textStyle={styles.defaultChipText}>
-                              {t('addresses.default')}
-                            </Chip>
+                            <FioriChip label={t('addresses.default')} selected variant="positive" />
                           )}
                         </View>
                         <IconButton
@@ -294,9 +290,7 @@ export default function CheckoutScreen() {
 
         {/* ── Notes Section ──────────────────────────────────────── */}
         <View style={styles.card} onLayout={handleSectionLayout(1)}>
-          <Text variant="titleMedium" style={styles.sectionTitle} accessibilityRole="header">
-            {t('checkout.orderNotes')}
-          </Text>
+          <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
           <TextInput
             mode="outlined"
             placeholder={t('checkout.orderNotesPlaceholder')}
@@ -315,9 +309,7 @@ export default function CheckoutScreen() {
         {/* ── Summary Section ────────────────────────────────────── */}
         <View style={styles.summaryCard} onLayout={handleSectionLayout(2)}>
           <View style={styles.summaryBody}>
-            <Text variant="titleMedium" style={styles.sectionTitle} accessibilityRole="header">
-              {t('checkout.orderSummary')} ({items.length})
-            </Text>
+            <SectionHeader title={`${t('checkout.orderSummary')} (${items.length})`} style={{ paddingHorizontal: 0 }} />
 
             {/* ── Line Items ─────────────────────────────────────── */}
             {items.map((item, idx) => {
@@ -356,10 +348,7 @@ export default function CheckoutScreen() {
 
             {/* ── Breakdown ──────────────────────────────────────── */}
             <Divider style={styles.divider} />
-            <View style={styles.summaryRow}>
-              <Text variant="bodyMedium" style={styles.summaryLabel}>{t('checkout.subtotal')}</Text>
-              <Text variant="bodyMedium" style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
-            </View>
+            <KeyValueRow label={t('checkout.subtotal')} value={formatPrice(subtotal)} />
             <View style={styles.summaryRow}>
               <Text variant="bodyMedium" style={styles.summaryLabel}>{t('checkout.shipping')}</Text>
               {shippingCharge === 0 ? (
@@ -390,8 +379,9 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        {/* ── Place Order ────────────────────────────────────────── */}
-        <View style={styles.placeOrderCard}>
+      </ScrollView>
+      <Toolbar>
+        <View style={styles.toolbarInner}>
           <AppButton
             variant="primary"
             size="lg"
@@ -403,7 +393,7 @@ export default function CheckoutScreen() {
             {t('checkout.placeOrder')}
           </AppButton>
         </View>
-      </ScrollView>
+      </Toolbar>
     </KeyboardAvoidingView>
   );
 }
@@ -413,7 +403,7 @@ const styles = StyleSheet.create({
   // Layout
   root: { flex: 1, backgroundColor: BG_BLACK },
   container: { flex: 1, backgroundColor: BG_BLACK },
-  scrollContent: { paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  scrollContent: { paddingTop: spacing.lg, paddingBottom: 100 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG_BLACK },
 
   // Step Indicator
@@ -458,20 +448,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     ...elevation.level2,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily: fontFamily.semiBold,
-    color: colors.text.secondary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-
   // Address Cards
   addressCard: { marginBottom: spacing.sm, borderRadius: borderRadius.lg },
   addressCardSelected: {
@@ -485,8 +461,6 @@ const styles = StyleSheet.create({
   addressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   addressLabelRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   editBtn: { margin: 0 },
-  defaultChip: { marginLeft: spacing.sm, backgroundColor: colors.positiveLight },
-  defaultChipText: { fontSize: 10, color: colors.positive },
   addressName: { color: colors.text.primary, marginBottom: spacing.xs },
   addressLine: { color: colors.text.secondary, lineHeight: 20 },
   addressPhone: { color: colors.text.secondary, marginTop: spacing.xs },
@@ -581,13 +555,6 @@ const styles = StyleSheet.create({
   },
   minOrderWarning: { color: colors.negative, marginLeft: spacing.sm },
 
-  // Place Order
-  placeOrderCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    ...elevation.level2,
-  },
+  // Toolbar
+  toolbarInner: { flex: 1 },
 });

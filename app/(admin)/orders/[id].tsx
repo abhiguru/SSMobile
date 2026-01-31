@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Divider, ActivityIndicator, useTheme, SegmentedButtons } from 'react-native-paper';
+import { Text, ActivityIndicator, SegmentedButtons } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import {
@@ -20,13 +20,17 @@ import { formatPrice, getPerKgPaise, ORDER_STATUS_COLORS } from '../../../src/co
 import { colors, spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
 import { OrderStatus, DeliveryType, PorterQuoteResponse, DeliveryStaff, OrderItem, Product } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
+import { SectionHeader } from '../../../src/components/common/SectionHeader';
+import { KeyValueRow } from '../../../src/components/common/KeyValueRow';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { DeliveryStaffPicker } from '../../../src/components/common/DeliveryStaffPicker';
 import { EditOrderItemSheet } from '../../../src/components/common/EditOrderItemSheet';
 import { AddOrderItemSheet, AddOrderItemResult } from '../../../src/components/common/AddOrderItemSheet';
 import { useToast } from '../../../src/components/common/Toast';
+import { FioriDialog } from '../../../src/components/common/FioriDialog';
 import { hapticSuccess, hapticError } from '../../../src/utils/haptics';
-import type { AppTheme } from '../../../src/theme';
+
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
 
 interface EditableItem {
   product_id: string;
@@ -46,7 +50,6 @@ const STATUS_ACTIONS: Record<string, OrderStatus[]> = {
 export default function AdminOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
-  const theme = useTheme<AppTheme>();
   const { showToast } = useToast();
   const { data: order, isLoading, refetch } = useGetOrderByIdQuery(id!, { skip: !id });
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
@@ -59,6 +62,7 @@ export default function AdminOrderDetailScreen() {
   const [updateOrderItems, { isLoading: savingItems }] = useUpdateOrderItemsMutation();
   const { data: allProducts = [] } = useGetProductsQuery({ includeUnavailable: false });
 
+  const [dialog, setDialog] = useState<{ title: string; message: string; onConfirm: () => void; confirmLabel: string; variant?: ButtonVariant } | null>(null);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('porter');
   const [porterQuote, setPorterQuote] = useState<PorterQuoteResponse['quote'] | null>(null);
   const [staffPickerVisible, setStaffPickerVisible] = useState(false);
@@ -146,16 +150,16 @@ export default function AdminOrderDetailScreen() {
   };
 
   const handleRemoveEditedItem = (productId: string) => {
-    Alert.alert(t('admin.removeItem'), t('admin.removeItemConfirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('admin.removeItem'),
-        style: 'destructive',
-        onPress: () => {
-          setEditedItems((prev) => prev.filter((item) => item.product_id !== productId));
-        },
+    setDialog({
+      title: t('admin.removeItem'),
+      message: t('admin.removeItemConfirm'),
+      confirmLabel: t('admin.removeItem'),
+      variant: 'danger',
+      onConfirm: () => {
+        setDialog(null);
+        setEditedItems((prev) => prev.filter((item) => item.product_id !== productId));
       },
-    ]);
+    });
   };
 
   const handleAddOrderItem = (result: AddOrderItemResult) => {
@@ -196,38 +200,29 @@ export default function AdminOrderDetailScreen() {
   const handleStatusUpdate = (newStatus: OrderStatus) => {
     const isDanger = newStatus === 'cancelled' || newStatus === 'delivery_failed';
 
+    const doUpdate = async () => {
+      if (!id) return;
+      try {
+        await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
+        hapticSuccess();
+        showToast({ message: t(`status.${newStatus}`), type: 'success' });
+      } catch (err: unknown) {
+        hapticError();
+        const errorData = (err as { data?: string })?.data;
+        showToast({ message: errorData || t('common.error'), type: 'error' });
+      }
+    };
+
     if (isDanger) {
-      Alert.alert(t('admin.confirmStatusUpdate'), t('admin.updateStatusTo', { status: t(`status.${newStatus}`) }), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.confirm'),
-          onPress: async () => {
-            if (!id) return;
-            try {
-              await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
-              hapticSuccess();
-              showToast({ message: t(`status.${newStatus}`), type: 'success' });
-            } catch (err: unknown) {
-              hapticError();
-              const errorData = (err as { data?: string })?.data;
-              showToast({ message: errorData || t('common.error'), type: 'error' });
-            }
-          },
-        },
-      ]);
+      setDialog({
+        title: t('admin.confirmStatusUpdate'),
+        message: t('admin.updateStatusTo', { status: t(`status.${newStatus}`) }),
+        confirmLabel: t('common.confirm'),
+        variant: 'danger',
+        onConfirm: () => { setDialog(null); doUpdate(); },
+      });
     } else {
-      (async () => {
-        if (!id) return;
-        try {
-          await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
-          hapticSuccess();
-          showToast({ message: t(`status.${newStatus}`), type: 'success' });
-        } catch (err: unknown) {
-          hapticError();
-          const errorData = (err as { data?: string })?.data;
-          showToast({ message: errorData || t('common.error'), type: 'error' });
-        }
-      })();
+      doUpdate();
     }
   };
 
@@ -249,36 +244,33 @@ export default function AdminOrderDetailScreen() {
     }
   };
 
-  const handleBookPorter = async () => {
+  const handleBookPorter = () => {
     if (!id) return;
-    Alert.alert(
-      'Book Porter Delivery',
-      `Estimated fare: ${porterQuote?.fare_display || 'N/A'}\nETA: ${porterQuote?.estimated_time_display || 'N/A'}`,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: 'Book Porter',
-          onPress: async () => {
-            try {
-              const result = await bookPorterDelivery(id).unwrap();
-              if (result.success) {
-                hapticSuccess();
-                showToast({ message: 'Porter delivery booked!', type: 'success' });
-                setPorterQuote(null);
-                refetch();
-              } else {
-                hapticError();
-                showToast({ message: result.message || 'Booking failed', type: 'error' });
-              }
-            } catch (err: unknown) {
-              hapticError();
-              const errorData = (err as { data?: string })?.data;
-              showToast({ message: errorData || 'Failed to book Porter', type: 'error' });
-            }
-          },
-        },
-      ]
-    );
+    setDialog({
+      title: 'Book Porter Delivery',
+      message: `Estimated fare: ${porterQuote?.fare_display || 'N/A'}\nETA: ${porterQuote?.estimated_time_display || 'N/A'}`,
+      confirmLabel: 'Book Porter',
+      variant: 'primary',
+      onConfirm: async () => {
+        setDialog(null);
+        try {
+          const result = await bookPorterDelivery(id).unwrap();
+          if (result.success) {
+            hapticSuccess();
+            showToast({ message: 'Porter delivery booked!', type: 'success' });
+            setPorterQuote(null);
+            refetch();
+          } else {
+            hapticError();
+            showToast({ message: result.message || 'Booking failed', type: 'error' });
+          }
+        } catch (err: unknown) {
+          hapticError();
+          const errorData = (err as { data?: string })?.data;
+          showToast({ message: errorData || 'Failed to book Porter', type: 'error' });
+        }
+      },
+    });
   };
 
   const handleCancelPorter = (fallbackToInhouse: boolean) => {
@@ -288,32 +280,32 @@ export default function AdminOrderDetailScreen() {
       ? 'Cancel Porter delivery and return order to dispatch queue?'
       : 'Cancel Porter delivery? Order will be marked as delivery failed.';
 
-    Alert.alert(title, message, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: 'Confirm',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await cancelPorterDelivery({
-              orderId: id,
-              reason: fallbackToInhouse ? 'Reassigning to in-house' : 'Cancelled by admin',
-              fallbackToInhouse,
-            }).unwrap();
-            hapticSuccess();
-            showToast({
-              message: fallbackToInhouse ? 'Order returned to dispatch queue' : 'Porter cancelled',
-              type: 'success',
-            });
-            refetch();
-          } catch (err: unknown) {
-            hapticError();
-            const errorData = (err as { data?: string })?.data;
-            showToast({ message: errorData || 'Failed to cancel', type: 'error' });
-          }
-        },
+    setDialog({
+      title,
+      message,
+      confirmLabel: 'Confirm',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDialog(null);
+        try {
+          await cancelPorterDelivery({
+            orderId: id,
+            reason: fallbackToInhouse ? 'Reassigning to in-house' : 'Cancelled by admin',
+            fallbackToInhouse,
+          }).unwrap();
+          hapticSuccess();
+          showToast({
+            message: fallbackToInhouse ? 'Order returned to dispatch queue' : 'Porter cancelled',
+            type: 'success',
+          });
+          refetch();
+        } catch (err: unknown) {
+          hapticError();
+          const errorData = (err as { data?: string })?.data;
+          showToast({ message: errorData || 'Failed to cancel', type: 'error' });
+        }
       },
-    ]);
+    });
   };
 
   const handleDispatchInHouse = () => {
@@ -349,7 +341,7 @@ export default function AdminOrderDetailScreen() {
   };
 
   if (isLoading || !order) {
-    return (<View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>);
+    return (<View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>);
   }
 
   const availableActions = STATUS_ACTIONS[order.status] || [];
@@ -388,7 +380,7 @@ export default function AdminOrderDetailScreen() {
       {/* Standard status actions for placed orders */}
       {order.status === 'placed' && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.updateStatus')}</Text>
+          <SectionHeader title={t('admin.updateStatus')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.actionsRow}>
             {availableActions.map((status) => {
               const isDanger = status === 'cancelled' || status === 'delivery_failed';
@@ -412,7 +404,7 @@ export default function AdminOrderDetailScreen() {
       {/* Delivery type selector for confirmed orders */}
       {isConfirmed && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>Dispatch Order</Text>
+          <SectionHeader title="Dispatch Order" style={{ paddingHorizontal: 0 }} />
 
           <SegmentedButtons
             value={deliveryType}
@@ -447,14 +439,8 @@ export default function AdminOrderDetailScreen() {
                     <Text variant="bodyMedium" style={styles.quoteLabel}>Estimated Fare</Text>
                     <Text variant="titleMedium" style={styles.quoteValue}>{porterQuote.fare_display}</Text>
                   </View>
-                  <View style={styles.quoteRow}>
-                    <Text variant="bodyMedium" style={styles.quoteLabel}>Delivery Time</Text>
-                    <Text variant="bodyMedium">{porterQuote.estimated_time_display}</Text>
-                  </View>
-                  <View style={styles.quoteRow}>
-                    <Text variant="bodyMedium" style={styles.quoteLabel}>Distance</Text>
-                    <Text variant="bodyMedium">{porterQuote.distance_km} km</Text>
-                  </View>
+                  <KeyValueRow label="Delivery Time" value={porterQuote.estimated_time_display} />
+                  <KeyValueRow label="Distance" value={`${porterQuote.distance_km} km`} />
                   <AppButton
                     variant="primary"
                     size="lg"
@@ -503,7 +489,7 @@ export default function AdminOrderDetailScreen() {
       {/* Porter tracking section for out_for_delivery */}
       {isOutForDelivery && isPorterDelivery && porterDelivery && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>Porter Delivery</Text>
+          <SectionHeader title="Porter Delivery" style={{ paddingHorizontal: 0 }} />
 
           <View style={styles.porterStatusCard}>
             <View style={styles.porterStatusRow}>
@@ -567,7 +553,7 @@ export default function AdminOrderDetailScreen() {
       {/* Standard actions for out_for_delivery (in-house) */}
       {isOutForDelivery && !isPorterDelivery && availableActions.length > 0 && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.updateStatus')}</Text>
+          <SectionHeader title={t('admin.updateStatus')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.actionsRow}>
             {availableActions.map((status) => {
               const isDanger = status === 'cancelled' || status === 'delivery_failed';
@@ -589,7 +575,7 @@ export default function AdminOrderDetailScreen() {
       )}
 
       <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
+        <SectionHeader title={t('checkout.deliveryAddress')} style={{ paddingHorizontal: 0 }} />
         <Text variant="bodyMedium" style={styles.address}>
           {order.shipping_address_line1 || order.delivery_address}
         </Text>
@@ -624,10 +610,10 @@ export default function AdminOrderDetailScreen() {
                 <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
               </View>
             ))}
-            <Divider style={styles.totalDivider} />
+            <View style={styles.totalDivider} />
             <View style={styles.totalRow}>
               <Text variant="titleSmall">{t('cart.total')}</Text>
-              <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
+              <Text variant="titleMedium" style={styles.totalPrice}>{formatPrice(order.total_paise)}</Text>
             </View>
           </>
         ) : (
@@ -654,10 +640,10 @@ export default function AdminOrderDetailScreen() {
               <Text variant="bodyMedium" style={styles.addItemText}>{t('admin.addItem')}</Text>
             </Pressable>
 
-            <Divider style={styles.totalDivider} />
+            <View style={styles.totalDivider} />
             <View style={styles.totalRow}>
               <Text variant="titleSmall">{t('cart.total')}</Text>
-              <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(editedTotal)}</Text>
+              <Text variant="titleMedium" style={styles.totalPrice}>{formatPrice(editedTotal)}</Text>
             </View>
 
             <View style={styles.editActionsRow}>
@@ -685,13 +671,13 @@ export default function AdminOrderDetailScreen() {
 
       {order.notes && (
         <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
+          <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
           <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
         </View>
       )}
 
       <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('admin.adminNotes')}</Text>
+        <SectionHeader title={t('admin.adminNotes')} style={{ paddingHorizontal: 0 }} />
         <TextInput
           style={styles.adminNotesInput}
           value={adminNotes}
@@ -736,6 +722,18 @@ export default function AdminOrderDetailScreen() {
         onDismiss={() => setAddingItem(false)}
         onAdd={handleAddOrderItem}
       />
+
+      <FioriDialog
+        visible={dialog !== null}
+        onDismiss={() => setDialog(null)}
+        title={dialog?.title ?? ''}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDialog(null), variant: 'text' },
+          { label: dialog?.confirmLabel ?? t('common.confirm'), onPress: () => dialog?.onConfirm(), variant: dialog?.variant ?? 'primary' },
+        ]}
+      >
+        <Text variant="bodyMedium">{dialog?.message}</Text>
+      </FioriDialog>
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -792,20 +790,20 @@ const styles = StyleSheet.create({
   date: { color: colors.text.secondary },
   deliveryTypeBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs },
   deliveryTypeText: { color: colors.text.secondary },
-  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.md },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   editPencilBtn: { padding: spacing.sm, borderRadius: borderRadius.sm, backgroundColor: colors.brandLight },
-  actionsRow: { flexDirection: 'row', gap: 12 },
+  actionsRow: { flexDirection: 'row', gap: spacing.md },
   actionButtonWrapper: { flex: 1 },
   segmentedButtons: { marginBottom: spacing.lg },
   porterSection: { marginTop: spacing.sm },
-  quoteCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md },
+  quoteCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border },
   quoteRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
   quoteLabel: { color: colors.text.secondary },
   quoteValue: { color: colors.brand, fontFamily: fontFamily.bold },
   inHouseSection: { marginTop: spacing.sm },
   cancelOption: { marginTop: spacing.md, alignItems: 'center' },
-  porterStatusCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md },
+  porterStatusCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border },
   porterStatusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   porterStatusBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm },
   porterStatusText: { fontSize: 12, fontFamily: fontFamily.semiBold, color: colors.text.primary },
@@ -817,21 +815,22 @@ const styles = StyleSheet.create({
   porterActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
   address: { color: colors.text.primary, lineHeight: 20 },
   pincode: { color: colors.text.secondary, marginTop: spacing.xs },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemInfo: { flex: 1 },
   itemName: { fontFamily: fontFamily.regular, color: colors.text.primary },
   itemWeight: { color: colors.text.secondary },
   itemQty: { color: colors.text.secondary, marginHorizontal: spacing.lg },
   itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
+  totalDivider: { height: 1, backgroundColor: colors.border, marginTop: spacing.sm, marginBottom: spacing.md },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalPrice: { color: colors.brand, fontFamily: fontFamily.bold },
   notes: { color: colors.text.secondary, fontStyle: 'italic' },
   adminNotesInput: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontFamily: fontFamily.regular, color: colors.text.primary, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
   charCounter: { color: colors.text.secondary, textAlign: 'right', marginTop: spacing.xs },
   editIcon: { marginLeft: spacing.sm },
   deleteIcon: { marginLeft: spacing.sm },
-  addItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: spacing.sm },
+  addItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
   addItemText: { color: colors.brand, fontFamily: fontFamily.semiBold },
-  editActionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.md },
+  editActionsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   editActionBtn: { flex: 1 },
 });

@@ -50,7 +50,7 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
         <Text variant="bodyMedium" style={styles.subtitle}>{subtitle}</Text>
       )}
       {actionLabel && onAction && (
-        <AppButton variant="primary" size="md" onPress={onAction}>
+        <AppButton variant="primary" size="lg" onPress={onAction}>
           {actionLabel}
         </AppButton>
       )}

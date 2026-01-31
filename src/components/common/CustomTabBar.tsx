@@ -1,14 +1,17 @@
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, spacing, elevation, fontFamily } from '../../constants/theme';
+
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
 
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+    <View style={[styles.bar, { height: TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm), paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
@@ -18,6 +21,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         if ((options as any).href === null || !options.tabBarIcon) return null;
 
         const onPress = () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           const event = navigation.emit({
             type: 'tabPress',
             target: route.key,
@@ -33,7 +37,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             key={route.key}
             isFocused={isFocused}
             options={options}
-            onPress={onPress}
+          onPress={onPress}
           />
         );
       })}
@@ -51,6 +55,7 @@ function TabBarItem({
   onPress: () => void;
 }) {
   const iconColor = isFocused ? colors.brand : colors.neutral;
+  const badge = options.tabBarBadge;
 
   return (
     <Pressable
@@ -59,6 +64,13 @@ function TabBarItem({
     >
       <View style={styles.tabIconWrapper}>
         {options.tabBarIcon?.({ color: iconColor, size: 24, focused: isFocused })}
+        {badge != null && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {typeof badge === 'number' && badge > 9 ? '9+' : badge}
+            </Text>
+          </View>
+        )}
       </View>
       <Text
         variant="labelSmall"
@@ -90,6 +102,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 26,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.badgeRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.text.inverse,
+    fontSize: 10,
+    fontFamily: fontFamily.semiBold,
+    lineHeight: 14,
   },
   tabLabel: {
     marginTop: spacing.xs,

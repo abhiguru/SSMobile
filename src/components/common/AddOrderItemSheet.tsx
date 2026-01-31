@@ -1,26 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Dimensions, FlatList, TextInput } from 'react-native';
-import { Portal, Text, IconButton, useTheme } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  Easing,
-  runOnJS,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FioriBottomSheet } from './FioriBottomSheet';
 import { AppButton } from './AppButton';
+import { StepperControl } from './StepperControl';
 import { PriceText } from './PriceText';
 import { formatPrice, getPerKgPaise } from '../../constants';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../constants/theme';
+import { colors, spacing, borderRadius, fontFamily } from '../../constants/theme';
 import { hapticLight } from '../../utils/haptics';
 import { useGetProductsQuery } from '../../store/apiSlice';
 import type { Product } from '../../types';
-import type { AppTheme } from '../../theme';
-
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 const WEIGHT_INCREMENTS = [
@@ -55,8 +46,6 @@ interface AddOrderItemSheetProps {
 
 export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemSheetProps) {
   const { t, i18n } = useTranslation();
-  const theme = useTheme<AppTheme>();
-  const insets = useSafeAreaInsets();
   const isGujarati = i18n.language === 'gu';
 
   const { data: products = [] } = useGetProductsQuery({ includeUnavailable: false });
@@ -67,8 +56,6 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
   const [weightGrams, setWeightGrams] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
-  const translateY = useSharedValue(SCREEN_HEIGHT);
-
   useEffect(() => {
     if (visible) {
       setStep('pick');
@@ -76,15 +63,8 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
       setSearchQuery('');
       setWeightGrams(0);
       setQuantity(1);
-      translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
     }
-  }, [visible, translateY]);
-
-  const handleDismiss = useCallback(() => {
-    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250, easing: Easing.in(Easing.cubic) }, () => {
-      runOnJS(onDismiss)();
-    });
-  }, [translateY, onDismiss]);
+  }, [visible]);
 
   const handleSelectProduct = useCallback((product: Product) => {
     setSelectedProduct(product);
@@ -110,10 +90,8 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
       quantity,
       unit_price_paise: unitPrice,
     });
-    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250, easing: Easing.in(Easing.cubic) }, () => {
-      runOnJS(onDismiss)();
-    });
-  }, [translateY, onAdd, onDismiss, selectedProduct, weightGrams, quantity]);
+    onDismiss();
+  }, [onAdd, onDismiss, selectedProduct, weightGrams, quantity]);
 
   const handleAddWeight = useCallback((grams: number) => {
     hapticLight();
@@ -125,17 +103,13 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
     setWeightGrams(0);
   }, []);
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  if (!visible) return null;
-
   const filteredProducts = products.filter((p) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return p.name.toLowerCase().includes(q) || p.name_gu.includes(searchQuery);
   });
+
+  const sheetTitle = step === 'pick' ? t('admin.addItem') : t('product.selectWeight');
 
   const renderProductPicker = () => (
     <>
@@ -223,23 +197,12 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
           <Text variant="titleSmall" style={styles.sectionTitle}>
             {t('product.quantity')}
           </Text>
-          <View style={styles.quantityControl}>
-            <IconButton
-              icon="minus"
-              mode="contained-tonal"
-              size={20}
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-            />
-            <View style={styles.quantityBadge}>
-              <Text variant="titleLarge" style={styles.quantityValue}>{quantity}</Text>
-            </View>
-            <IconButton
-              icon="plus"
-              mode="contained-tonal"
-              size={20}
-              onPress={() => setQuantity(quantity + 1)}
-            />
-          </View>
+          <StepperControl
+            value={quantity}
+            onValueChange={setQuantity}
+            min={1}
+            max={99}
+          />
         </View>
 
         <View style={styles.footer}>
@@ -261,54 +224,13 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
   };
 
   return (
-    <Portal>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={handleDismiss} />
-        <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }, sheetStyle]}>
-          <View style={styles.handle} />
-
-          <Text variant="titleMedium" style={styles.sheetTitle}>
-            {step === 'pick' ? t('admin.addItem') : t('product.selectWeight')}
-          </Text>
-
-          {step === 'pick' ? renderProductPicker() : renderConfigure()}
-        </Animated.View>
-      </View>
-    </Portal>
+    <FioriBottomSheet visible={visible} onDismiss={onDismiss} title={sheetTitle}>
+      {step === 'pick' ? renderProductPicker() : renderConfigure()}
+    </FioriBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    zIndex: 1000,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: spacing.lg,
-    maxHeight: SCREEN_HEIGHT * 0.8,
-    ...elevation.level4,
-  },
-  handle: {
-    width: 36,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.fieldBorder,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
-  },
-  sheetTitle: {
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: spacing.md,
-  },
   searchInput: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -385,22 +307,6 @@ const styles = StyleSheet.create({
   },
   quantitySection: {
     marginBottom: spacing.lg,
-  },
-  quantityControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quantityBadge: {
-    backgroundColor: colors.informativeLight,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    minWidth: 48,
-    alignItems: 'center',
-  },
-  quantityValue: {
-    fontWeight: '600',
-    color: colors.text.primary,
   },
   footer: {
     flexDirection: 'row',

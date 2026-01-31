@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Animated as RNAnimated } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native-paper';
@@ -8,8 +8,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 
-import { useGetProductsQuery, useToggleProductAvailabilityMutation } from '../../../src/store/apiSlice';
+import { useGetProductsQuery, useToggleProductAvailabilityMutation, useDeactivateProductMutation } from '../../../src/store/apiSlice';
 import { Product } from '../../../src/types';
 import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
@@ -17,6 +18,8 @@ import { resolveImageSource } from '../../../src/constants';
 import { getStoredTokens } from '../../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../../src/constants/theme';
 import { FioriChip } from '../../../src/components/common/FioriChip';
+import { FioriDialog } from '../../../src/components/common/FioriDialog';
+import { useToast } from '../../../src/components/common/Toast';
 import { hapticSelection } from '../../../src/utils/haptics';
 
 type SortKey = 'az' | 'za' | 'available' | 'unavailable' | 'priceLow' | 'priceHigh';
@@ -80,9 +83,25 @@ export default function AdminProductsScreen() {
   const isGujarati = i18n.language === 'gu';
   const { data: products = [], isLoading, isFetching, refetch } = useGetProductsQuery({ includeUnavailable: true });
   const [toggleAvailability] = useToggleProductAvailabilityMutation();
+  const [deactivateProduct] = useDeactivateProductMutation();
+  const { showToast } = useToast();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('az');
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const openSwipeableRef = useRef<Swipeable | null>(null);
   useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
+    try {
+      await deactivateProduct(id).unwrap();
+      showToast({ message: t('admin.productDeleted'), type: 'success' });
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  };
 
   const sortedProducts = useMemo(
     () => sortProducts(products, sortKey, isGujarati),
@@ -94,43 +113,75 @@ export default function AdminProductsScreen() {
     toggleAvailability({ productId, isAvailable: currentValue });
   };
 
+  const renderRightActions = (item: Product) => (
+    _progress: RNAnimated.AnimatedInterpolation<number>,
+    dragX: RNAnimated.AnimatedInterpolation<number>,
+  ) => {
+    const scale = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [1, 0.5],
+      extrapolate: 'clamp',
+    });
+    return (
+      <Pressable
+        style={styles.swipeDeleteAction}
+        onPress={() => {
+          openSwipeableRef.current?.close();
+          setDeleteTarget(item);
+        }}
+      >
+        <RNAnimated.View style={{ transform: [{ scale }] }}>
+          <MaterialCommunityIcons name="delete-outline" size={24} color={colors.text.inverse} />
+          <Text variant="labelSmall" style={styles.swipeDeleteLabel}>{t('admin.deleteProduct')}</Text>
+        </RNAnimated.View>
+      </Pressable>
+    );
+  };
+
   const renderProduct = ({ item }: { item: Product }) => {
     const imgSource = resolveImageSource(item.image_url, accessToken);
 
     return (
-      <AnimatedPressable
-        style={styles.productCard}
-        onPress={() => router.push({ pathname: '/(admin)/products/edit', params: { productId: item.id } })}
+      <Swipeable
+        ref={(ref) => { if (ref) openSwipeableRef.current = ref; }}
+        renderRightActions={renderRightActions(item)}
+        overshootRight={false}
+        friction={2}
       >
-        <View style={styles.productCardContent}>
-          <View style={styles.productImage}>
-            {imgSource ? (
-              <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
-            ) : (
-              <LinearGradient
-                colors={gradients.brand as unknown as [string, string]}
-                style={styles.thumbnail}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <MaterialCommunityIcons name="leaf" size={24} color={colors.text.inverse} />
-              </LinearGradient>
-            )}
+        <AnimatedPressable
+          style={styles.productCard}
+          onPress={() => router.push({ pathname: '/(admin)/products/edit', params: { productId: item.id } })}
+        >
+          <View style={styles.productCardContent}>
+            <View style={styles.productImage}>
+              {imgSource ? (
+                <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
+              ) : (
+                <LinearGradient
+                  colors={gradients.brand as unknown as [string, string]}
+                  style={styles.thumbnail}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <MaterialCommunityIcons name="leaf" size={24} color={colors.text.inverse} />
+                </LinearGradient>
+              )}
+            </View>
+            <View style={styles.productInfo}>
+              <Text variant="titleSmall" style={styles.productName}>{isGujarati ? item.name_gu : item.name}</Text>
+              {item.weight_options.length > 0 && (
+                <Text variant="bodySmall" style={styles.productOptions}>{t('admin.weightOptions', { count: item.weight_options.length })}</Text>
+              )}
+            </View>
+            <View style={styles.toggleContainer}>
+              <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
+                {item.is_available ? t('admin.available') : t('admin.unavailable')}
+              </Text>
+              <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} ios_backgroundColor={colors.border} />
+            </View>
           </View>
-          <View style={styles.productInfo}>
-            <Text variant="titleSmall" style={styles.productName}>{isGujarati ? item.name_gu : item.name}</Text>
-            {item.weight_options.length > 0 && (
-              <Text variant="bodySmall" style={styles.productOptions}>{t('admin.weightOptions', { count: item.weight_options.length })}</Text>
-            )}
-          </View>
-          <View style={styles.toggleContainer}>
-            <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
-              {item.is_available ? t('admin.available') : t('admin.unavailable')}
-            </Text>
-            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} ios_backgroundColor={colors.border} />
-          </View>
-        </View>
-      </AnimatedPressable>
+        </AnimatedPressable>
+      </Swipeable>
     );
   };
 
@@ -169,6 +220,19 @@ export default function AdminProductsScreen() {
       >
         <MaterialCommunityIcons name="plus" size={28} color={colors.text.inverse} />
       </Pressable>
+      <FioriDialog
+        visible={!!deleteTarget}
+        onDismiss={() => setDeleteTarget(null)}
+        title={t('admin.deleteProductConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setDeleteTarget(null), variant: 'text' },
+          { label: t('admin.deleteProduct'), onPress: handleDeleteConfirm, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium" style={{ color: colors.text.secondary }}>
+          {t('admin.deleteProductConfirm')}
+        </Text>
+      </FioriDialog>
     </View>
   );
 }
@@ -187,6 +251,8 @@ const styles = StyleSheet.create({
   productOptions: { color: colors.text.secondary },
   toggleContainer: { alignItems: 'center' },
   toggleLabel: { color: colors.neutral, marginBottom: spacing.xs },
+  swipeDeleteAction: { backgroundColor: colors.negative, borderRadius: borderRadius.lg, marginBottom: spacing.md, justifyContent: 'center', alignItems: 'center', width: 80 },
+  swipeDeleteLabel: { color: colors.text.inverse, marginTop: spacing.xs, fontSize: 10 },
   skeletonCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
   fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
 });

@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PaperProvider } from 'react-native-paper';
 import { I18nextProvider } from 'react-i18next';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -76,7 +77,7 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutReady}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutReady}>
       <ErrorBoundary>
         <Provider store={store}>
           <PaperProvider theme={paperTheme}>
@@ -97,6 +98,6 @@ export default function RootLayout() {
           </PaperProvider>
         </Provider>
       </ErrorBoundary>
-    </View>
+    </GestureHandlerRootView>
   );
 }

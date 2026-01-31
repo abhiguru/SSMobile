@@ -101,7 +101,7 @@ export default function UsersScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: users = [], isLoading, isError, refetch } = useGetUsersQuery(
+  const { data: users = [], isLoading, isFetching, isError, refetch } = useGetUsersQuery(
     debouncedSearch || undefined,
   );
   const { data: deletionRequests = [] } = useGetDeletionRequestsQuery();
@@ -481,6 +481,8 @@ export default function UsersScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          refreshing={isFetching}
+          onRefresh={refetch}
         />
       )}
 

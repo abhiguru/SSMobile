@@ -1,5 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { View } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
@@ -107,7 +106,7 @@ export default function RootLayout() {
     '72-Bold': require('../assets/fonts/72-Bold.ttf'),
   });
 
-  const onLayoutReady = useCallback(() => {
+  useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
@@ -118,7 +117,7 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutReady}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <Provider store={store}>
           <PaperProvider theme={paperTheme}>

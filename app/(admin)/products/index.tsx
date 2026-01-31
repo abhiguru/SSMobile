@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { Text, Switch } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { Switch } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { AnimatedPressable } from '../../../src/components/common/AnimatedPressa
 import { resolveImageSource } from '../../../src/constants';
 import { getStoredTokens } from '../../../src/services/supabase';
 import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../../src/constants/theme';
+import { FioriChip } from '../../../src/components/common/FioriChip';
 import { hapticSelection } from '../../../src/utils/haptics';
 
 type SortKey = 'az' | 'za' | 'available' | 'unavailable' | 'priceLow' | 'priceHigh';
@@ -111,7 +113,7 @@ export default function AdminProductsScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <MaterialCommunityIcons name="leaf" size={24} color="rgba(255,255,255,0.8)" />
+                <MaterialCommunityIcons name="leaf" size={24} color={colors.text.inverse} />
               </LinearGradient>
             )}
           </View>
@@ -125,7 +127,7 @@ export default function AdminProductsScreen() {
             <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
               {item.is_available ? t('admin.available') : t('admin.unavailable')}
             </Text>
-            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} color={colors.positive} />
+            <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} />
           </View>
         </View>
       </AnimatedPressable>
@@ -143,8 +145,10 @@ export default function AdminProductsScreen() {
             const active = sortKey === key || isToggled;
             const displayLabel = isToggled ? t('admin.sortUnavailable') : t(labelKey);
             return (
-              <Pressable
+              <FioriChip
                 key={key}
+                label={displayLabel}
+                selected={active}
                 onPress={() => {
                   hapticSelection();
                   if (active && toggleKey) {
@@ -153,12 +157,7 @@ export default function AdminProductsScreen() {
                     setSortKey(key);
                   }
                 }}
-                style={[styles.sortChip, active && styles.sortChipActive]}
-              >
-                <Text style={[styles.sortChipText, active && styles.sortChipTextActive]}>
-                  {displayLabel}
-                </Text>
-              </Pressable>
+              />
             );
           })}
         </ScrollView>
@@ -172,10 +171,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.shell },
   sortBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   sortBarContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
-  sortChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.lg, backgroundColor: colors.shell, borderWidth: 1, borderColor: colors.border },
-  sortChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  sortChipText: { fontSize: 13, fontFamily: fontFamily.regular, color: colors.text.secondary },
-  sortChipTextActive: { color: colors.text.inverse, fontFamily: fontFamily.semiBold },
   listContent: { padding: spacing.lg },
   productCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
   productCardContent: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },

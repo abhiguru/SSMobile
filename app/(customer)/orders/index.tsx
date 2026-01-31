@@ -2,7 +2,8 @@ import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersQuery } from '../../../src/store/apiSlice';
@@ -13,8 +14,6 @@ import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { EmptyState } from '../../../src/components/common/EmptyState';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
-import type { AppTheme } from '../../../src/theme';
-
 function OrdersSkeleton() {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -32,7 +31,6 @@ function OrdersSkeleton() {
 export default function OrdersScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
 
   const getOrderDisplayNumber = (order: Order) => {
@@ -67,6 +65,7 @@ export default function OrdersScreen() {
               </View>
             )}
           </View>
+          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.neutral} style={{ alignSelf: 'center', marginRight: spacing.sm }} />
         </AnimatedPressable>
       </Animated.View>
     );

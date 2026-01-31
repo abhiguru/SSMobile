@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Modal, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, Switch, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, TextInput, ActivityIndicator } from 'react-native-paper';
+import { Switch } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
@@ -11,18 +12,22 @@ import {
 } from '../../src/store/apiSlice';
 import { DeliveryStaff } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
-import type { AppTheme } from '../../src/theme';
+import { FioriBottomSheet } from '../../src/components/common/FioriBottomSheet';
+import { FioriDialog } from '../../src/components/common/FioriDialog';
+import { useToast } from '../../src/components/common/Toast';
 
 export default function StaffScreen() {
   const { t } = useTranslation();
-  const theme = useTheme<AppTheme>();
   const { data: staffList = [], isLoading, isError, refetch } = useGetAllDeliveryStaffQuery();
   const [updateStaff, { isLoading: isUpdating }] = useUpdateDeliveryStaffMutation();
 
+  const { showToast } = useToast();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingStaff, setEditingStaff] = useState<DeliveryStaff | null>(null);
   const [formName, setFormName] = useState('');
   const [formError, setFormError] = useState('');
+  const [toggleDialogVisible, setToggleDialogVisible] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState<DeliveryStaff | null>(null);
 
   const sortedStaff = useMemo(() => {
     return [...staffList].sort((a, b) => {
@@ -69,39 +74,29 @@ export default function StaffScreen() {
     const willDeactivate = staff.is_active !== false;
 
     if (willDeactivate && staff.current_order_id) {
-      Alert.alert(
-        t('common.error'),
-        t('admin.staffCannotDeactivate'),
-      );
+      showToast({ message: t('admin.staffCannotDeactivate'), type: 'error' });
       return;
     }
 
-    const titleKey = willDeactivate ? 'admin.deactivateConfirmTitle' : 'admin.reactivateConfirmTitle';
-    const messageKey = willDeactivate ? 'admin.deactivateConfirmMessage' : 'admin.reactivateConfirmMessage';
+    setToggleTarget(staff);
+    setToggleDialogVisible(true);
+  }, [showToast, t]);
 
-    Alert.alert(
-      t(titleKey),
-      t(messageKey),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.confirm'),
-          style: willDeactivate ? 'destructive' : 'default',
-          onPress: async () => {
-            try {
-              await updateStaff({
-                staff_id: staff.id,
-                is_active: !willDeactivate,
-              }).unwrap();
-            } catch (err: unknown) {
-              const errorData = (err as { data?: string })?.data || '';
-              Alert.alert(t('common.error'), mapErrorCode(errorData, t));
-            }
-          },
-        },
-      ],
-    );
-  }, [updateStaff, t]);
+  const confirmToggleActive = useCallback(async () => {
+    if (!toggleTarget) return;
+    const willDeactivate = toggleTarget.is_active !== false;
+    setToggleDialogVisible(false);
+    try {
+      await updateStaff({
+        staff_id: toggleTarget.id,
+        is_active: !willDeactivate,
+      }).unwrap();
+    } catch (err: unknown) {
+      const errorData = (err as { data?: string })?.data || '';
+      showToast({ message: mapErrorCode(errorData, t), type: 'error' });
+    }
+    setToggleTarget(null);
+  }, [toggleTarget, updateStaff, showToast, t]);
 
   const renderStaffCard = useCallback(({ item }: { item: DeliveryStaff }) => {
     const isActive = item.is_active !== false;
@@ -136,7 +131,8 @@ export default function StaffScreen() {
           <Switch
             value={isActive}
             onValueChange={() => handleToggleActive(item)}
-            color={theme.colors.primary}
+            trackColor={{ false: colors.border, true: colors.brand }}
+            thumbColor={colors.surface}
           />
         </View>
 
@@ -173,12 +169,12 @@ export default function StaffScreen() {
         </View>
       </Pressable>
     );
-  }, [openEditSheet, handleToggleActive, t, theme.colors.primary]);
+  }, [openEditSheet, handleToggleActive, t]);
 
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
   }
@@ -215,75 +211,71 @@ export default function StaffScreen() {
         />
       )}
 
-      {/* Edit Bottom Sheet */}
-      <Modal
-        visible={sheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeSheet}
+      <FioriDialog
+        visible={toggleDialogVisible}
+        onDismiss={() => { setToggleDialogVisible(false); setToggleTarget(null); }}
+        title={toggleTarget && toggleTarget.is_active !== false ? t('admin.deactivateConfirmTitle') : t('admin.reactivateConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => { setToggleDialogVisible(false); setToggleTarget(null); }, variant: 'text' },
+          { label: t('common.confirm'), onPress: confirmToggleActive, variant: toggleTarget && toggleTarget.is_active !== false ? 'danger' : 'primary' },
+        ]}
       >
-        <KeyboardAvoidingView
-          style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Pressable style={styles.backdrop} onPress={closeSheet} />
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <Text variant="titleMedium" style={styles.sheetTitle}>
-              {t('admin.editStaff')}
-            </Text>
+        <Text variant="bodyMedium">
+          {toggleTarget && toggleTarget.is_active !== false ? t('admin.deactivateConfirmMessage') : t('admin.reactivateConfirmMessage')}
+        </Text>
+      </FioriDialog>
 
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <TextInput
-                label={t('admin.staffName')}
-                placeholder={t('admin.staffNamePlaceholder')}
-                value={formName}
-                onChangeText={(v) => { setFormName(v); setFormError(''); }}
-                mode="outlined"
-                style={styles.input}
-                autoCapitalize="words"
-                outlineColor={colors.fieldBorder}
-                activeOutlineColor={theme.colors.primary}
-              />
+      {/* Edit Bottom Sheet */}
+      <FioriBottomSheet visible={sheetVisible} onDismiss={closeSheet} title={t('admin.editStaff')}>
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <TextInput
+            label={t('admin.staffName')}
+            placeholder={t('admin.staffNamePlaceholder')}
+            value={formName}
+            onChangeText={(v) => { setFormName(v); setFormError(''); }}
+            mode="outlined"
+            style={styles.input}
+            autoCapitalize="words"
+            outlineColor={colors.fieldBorder}
+            activeOutlineColor={colors.brand}
+          />
 
-              {editingStaff && (
-                <TextInput
-                  label={t('admin.staffPhone')}
-                  value={editingStaff.phone}
-                  mode="outlined"
-                  style={styles.input}
-                  disabled
-                  outlineColor={colors.fieldBorder}
-                />
-              )}
+          {editingStaff && (
+            <TextInput
+              label={t('admin.staffPhone')}
+              value={editingStaff.phone}
+              mode="outlined"
+              style={styles.input}
+              disabled
+              outlineColor={colors.fieldBorder}
+            />
+          )}
 
-              {formError ? (
-                <Text variant="bodySmall" style={styles.formError}>{formError}</Text>
-              ) : null}
-            </ScrollView>
+          {formError ? (
+            <Text variant="bodySmall" style={styles.formError}>{formError}</Text>
+          ) : null}
+        </ScrollView>
 
-            <View style={styles.sheetFooter}>
-              <View style={styles.footerButton}>
-                <AppButton variant="secondary" size="md" onPress={closeSheet} fullWidth>
-                  {t('common.cancel')}
-                </AppButton>
-              </View>
-              <View style={styles.footerButton}>
-                <AppButton
-                  variant="primary"
-                  size="md"
-                  onPress={handleSubmit}
-                  loading={isUpdating}
-                  disabled={isUpdating}
-                  fullWidth
-                >
-                  {t('common.save')}
-                </AppButton>
-              </View>
-            </View>
+        <View style={styles.sheetFooter}>
+          <View style={styles.footerButton}>
+            <AppButton variant="secondary" size="md" onPress={closeSheet} fullWidth>
+              {t('common.cancel')}
+            </AppButton>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          <View style={styles.footerButton}>
+            <AppButton
+              variant="primary"
+              size="md"
+              onPress={handleSubmit}
+              loading={isUpdating}
+              disabled={isUpdating}
+              fullWidth
+            >
+              {t('common.save')}
+            </AppButton>
+          </View>
+        </View>
+      </FioriBottomSheet>
     </View>
   );
 }
@@ -426,36 +418,6 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: spacing.xs,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  sheetTitle: {
-    fontFamily: fontFamily.bold,
-    color: colors.text.primary,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
   },
   input: {
     marginBottom: spacing.md,

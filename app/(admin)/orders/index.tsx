@@ -3,7 +3,8 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersQuery } from '../../../src/store/apiSlice';
@@ -13,7 +14,6 @@ import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
-import type { AppTheme } from '../../../src/theme';
 
 const STATUS_FILTERS = [
   'all', 'placed', 'confirmed', 'out_for_delivery',
@@ -57,7 +57,6 @@ function OrdersSkeleton() {
 export default function AdminOrdersScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
@@ -93,9 +92,10 @@ export default function AdminOrdersScreen() {
             <Text variant="bodyMedium" numberOfLines={1} style={styles.orderAddress}>{item.delivery_address}</Text>
             <View style={styles.orderFooter}>
               <Text variant="bodySmall" style={styles.itemCount}>{item.items?.length ?? 0} items</Text>
-              <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
+              <Text variant="titleMedium" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
             </View>
           </View>
+          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.neutral} style={{ alignSelf: 'center', marginRight: spacing.sm }} />
         </AnimatedPressable>
       </Animated.View>
     );
@@ -131,7 +131,7 @@ export default function AdminOrdersScreen() {
                     { backgroundColor: isActive ? pillColor.text : colors.neutralLight },
                   ]}
                 >
-                  <Text style={[styles.pillCountText, { color: isActive ? '#fff' : colors.text.secondary }]}>
+                  <Text style={[styles.pillCountText, { color: isActive ? colors.text.inverse : colors.text.secondary }]}>
                     {count}
                   </Text>
                 </View>

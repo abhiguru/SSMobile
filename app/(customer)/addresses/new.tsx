@@ -1,25 +1,27 @@
-import { View, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Button, Switch, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
 import { useAddAddressMutation, useGetAppSettingsQuery } from '../../../src/store/apiSlice';
 import { DEFAULT_APP_SETTINGS, isPincodeServiceable } from '../../../src/constants';
-import { colors, spacing, borderRadius, fontSize } from '../../../src/constants/theme';
+import { colors, spacing } from '../../../src/constants/theme';
 import { addressSchema, AddressFormData } from '../../../src/validation/schemas';
 import { FormTextInput } from '../../../src/components/common/FormTextInput';
-import type { AppTheme } from '../../../src/theme';
+import { AppButton } from '../../../src/components/common/AppButton';
+import { FioriSwitch } from '../../../src/components/common/FioriSwitch';
+import { useToast } from '../../../src/components/common/Toast';
 
 export default function NewAddressScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
   const headerHeight = useHeaderHeight();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [addAddress, { isLoading }] = useAddAddressMutation();
+  const { showToast } = useToast();
 
   const { control, handleSubmit, setError } = useForm<AddressFormData>({
     resolver: yupResolver(addressSchema),
@@ -32,7 +34,7 @@ export default function NewAddressScreen() {
     try {
       await addAddress({ label: data.label?.trim() || undefined, full_name: data.full_name.trim(), phone: `+91${phoneNumber}`, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default }).unwrap();
       router.back();
-    } catch { Alert.alert(t('common.error'), t('addresses.errors.saveFailed')); }
+    } catch { showToast({ message: t('addresses.errors.saveFailed'), type: 'error' }); }
   };
 
   return (
@@ -49,12 +51,11 @@ export default function NewAddressScreen() {
             <View style={styles.halfField}><FormTextInput control={control} name="state" mode="outlined" label={t('addresses.state')} placeholder={t('addresses.statePlaceholder')} style={styles.input} /></View>
           </View>
           <FormTextInput control={control} name="pincode" mode="outlined" label={`${t('checkout.pincode')} *`} placeholder={t('addresses.pincodePlaceholder')} keyboardType="number-pad" maxLength={6} style={styles.input} />
-          <View style={styles.switchRow}>
-            <Text variant="bodyLarge">{t('addresses.setAsDefault')}</Text>
-            <Controller control={control} name="is_default" render={({ field: { onChange, value } }) => <Switch value={value} onValueChange={onChange} color={theme.colors.primary} />} />
-          </View>
+          <Controller control={control} name="is_default" render={({ field: { onChange, value } }) => <FioriSwitch label={t('addresses.setAsDefault')} value={value} onValueChange={onChange} />} />
         </View>
-        <Button mode="contained" onPress={handleSubmit(onSubmit)} loading={isLoading} disabled={isLoading} style={styles.saveButton} contentStyle={styles.saveButtonContent} labelStyle={styles.saveButtonLabel}>{t('common.save')}</Button>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.xl }}>
+          <AppButton variant="primary" size="lg" fullWidth onPress={handleSubmit(onSubmit)} loading={isLoading} disabled={isLoading}>{t('common.save')}</AppButton>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -67,8 +68,4 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface, marginBottom: spacing.xs },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  saveButton: { marginHorizontal: spacing.md, marginBottom: spacing.xl, borderRadius: borderRadius.md },
-  saveButtonContent: { paddingVertical: spacing.sm },
-  saveButtonLabel: { fontSize: fontSize.xl, fontWeight: '600' },
 });

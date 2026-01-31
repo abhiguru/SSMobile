@@ -9,7 +9,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { useRouter, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Chip, Text, Button, Searchbar, Badge, useTheme } from 'react-native-paper';
+import { Text, Badge } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,9 +29,11 @@ import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from 
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
+import { FioriSearchBar } from '../../src/components/common/FioriSearchBar';
+import { FioriChip } from '../../src/components/common/FioriChip';
 import { useToast } from '../../src/components/common/Toast';
+import { AppButton } from '../../src/components/common/AppButton';
 import { hapticLight } from '../../src/utils/haptics';
-import type { AppTheme } from '../../src/theme';
 
 type ListItem =
   | { type: 'header'; letter: string }
@@ -88,7 +90,6 @@ function SkeletonProductGrid() {
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -306,17 +307,14 @@ export default function HomeScreen() {
   const renderCategory = ({ item }: { item: typeof categories[0] }) => {
     const isSelected = selectedCategory === item.id;
     return (
-      <AnimatedPressable
-        onPress={() => setSelectedCategory(isSelected ? null : item.id)}
-      >
-        <Chip
-          mode={isSelected ? 'flat' : 'outlined'}
-          style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-          textStyle={[styles.categoryText, isSelected && styles.categoryTextSelected]}
-        >
-          {isGujarati ? item.name_gu : item.name}
-        </Chip>
-      </AnimatedPressable>
+      <View style={styles.categoryChipWrapper}>
+        <FioriChip
+          label={isGujarati ? item.name_gu : item.name}
+          selected={isSelected}
+          onPress={() => setSelectedCategory(isSelected ? null : item.id)}
+          showCheckmark
+        />
+      </View>
     );
   };
 
@@ -354,7 +352,7 @@ export default function HomeScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <MaterialCommunityIcons name="leaf" size={28} color="rgba(255,255,255,0.8)" />
+                <MaterialCommunityIcons name="leaf" size={28} color={colors.text.inverse} />
               </LinearGradient>
             )}
             <AnimatedPressable
@@ -410,15 +408,16 @@ export default function HomeScreen() {
         <Text variant="bodyLarge" style={{ color: colors.negative, textAlign: 'center', marginBottom: spacing.md }}>
           {error}
         </Text>
-        <Button
-          mode="contained"
+        <AppButton
+          variant="primary"
+          size="md"
           onPress={() => {
             refetchProducts();
             refetchCategories();
           }}
         >
           {t('common.retry')}
-        </Button>
+        </AppButton>
       </View>
     );
   }
@@ -431,12 +430,10 @@ export default function HomeScreen() {
           exiting={FadeOutUp.duration(150)}
           style={styles.searchBarContainer}
         >
-          <Searchbar
+          <FioriSearchBar
             placeholder={t('home.searchProducts')}
             onChangeText={setSearchQuery}
             value={searchQuery}
-            style={styles.searchBar}
-            inputStyle={styles.searchInput}
             autoFocus
           />
         </Animated.View>
@@ -549,17 +546,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: spacing.sm,
   },
-  categoryChip: {
+  categoryChipWrapper: {
     marginHorizontal: spacing.xs,
-  },
-  categoryChipSelected: {
-    backgroundColor: colors.brand,
-  },
-  categoryText: {
-    fontSize: 14,
-  },
-  categoryTextSelected: {
-    color: colors.text.inverse,
   },
   listArea: {
     flex: 1,

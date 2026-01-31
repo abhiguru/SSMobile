@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../../../src/constants/theme';
+import { colors, fontFamily } from '../../../src/constants/theme';
 
 export default function AddressesLayout() {
   const { t } = useTranslation();
@@ -13,7 +13,8 @@ export default function AddressesLayout() {
         },
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontFamily: fontFamily.semiBold,
+          fontSize: 17,
         },
       }}
     >

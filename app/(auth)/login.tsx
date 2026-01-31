@@ -10,8 +10,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, TextInput, HelperText } from 'react-native-paper';
+import { Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useSendOtpMutation } from '../../src/store/apiSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
@@ -62,7 +62,7 @@ export default function LoginScreen() {
             style={styles.heroGradient}
           >
             <View style={styles.logoContainer}>
-              <MaterialCommunityIcons name="store" size={48} color={colors.brand} />
+              <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
             </View>
             <Text variant="headlineLarge" style={styles.heroTitle}>
               {t('home.title')}
@@ -129,14 +129,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 120,
+    height: 120,
+    borderRadius: 24,
+    overflow: 'hidden',
     marginBottom: spacing.xl,
     ...elevation.level3,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   heroTitle: {
     fontFamily: fontFamily.bold,

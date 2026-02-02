@@ -8,7 +8,8 @@ import { AppButton } from './AppButton';
 import { StepperControl } from './StepperControl';
 import { PriceText } from './PriceText';
 import { formatPrice, getPerKgPaise } from '../../constants';
-import { colors, spacing } from '../../constants/theme';
+import { spacing } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { hapticLight } from '../../utils/haptics';
 import type { OrderItem, Product } from '../../types';
 const WEIGHT_INCREMENTS = [
@@ -34,6 +35,7 @@ interface EditOrderItemSheetProps {
 
 export function EditOrderItemSheet({ item, onDismiss, onUpdate }: EditOrderItemSheetProps) {
   const { t, i18n } = useTranslation();
+  const { appColors } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
 
   const [weightGrams, setWeightGrams] = useState(0);
@@ -70,11 +72,11 @@ export function EditOrderItemSheet({ item, onDismiss, onUpdate }: EditOrderItemS
 
   return (
     <FioriBottomSheet visible={!!item} onDismiss={onDismiss} title={productName}>
-      <Text variant="bodySmall" style={styles.perKgLabel}>
+      <Text variant="bodySmall" style={[styles.perKgLabel, { color: appColors.text.secondary }]}>
         {formatPrice(perKgPaise)}{t('product.perKg')}
       </Text>
 
-      <Text variant="titleSmall" style={styles.sectionTitle}>
+      <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.primary }]}>
         {t('product.selectWeight')}
       </Text>
       <View style={styles.weightRow}>
@@ -96,13 +98,13 @@ export function EditOrderItemSheet({ item, onDismiss, onUpdate }: EditOrderItemS
       </View>
 
       <View style={styles.weightDisplay}>
-        <Text variant="headlineMedium" style={styles.weightValue}>
+        <Text variant="headlineMedium" style={[styles.weightValue, { color: appColors.text.primary }]}>
           {weightGrams > 0 ? formatWeight(weightGrams) : '0g'}
         </Text>
       </View>
 
       <View style={styles.quantitySection}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.primary }]}>
           {t('product.quantity')}
         </Text>
         <StepperControl
@@ -133,12 +135,10 @@ export function EditOrderItemSheet({ item, onDismiss, onUpdate }: EditOrderItemS
 
 const styles = StyleSheet.create({
   perKgLabel: {
-    color: colors.text.secondary,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontWeight: '600',
-    color: colors.text.primary,
     marginBottom: spacing.sm,
   },
   weightRow: {
@@ -155,7 +155,6 @@ const styles = StyleSheet.create({
   },
   weightValue: {
     fontWeight: 'bold',
-    color: colors.text.primary,
   },
   quantitySection: {
     marginBottom: spacing.lg,

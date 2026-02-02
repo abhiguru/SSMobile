@@ -8,7 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { borderRadius as br, colors } from '../../constants/theme';
+import { borderRadius as br } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface SkeletonBoxProps {
   width: number | string;
@@ -18,6 +19,7 @@ interface SkeletonBoxProps {
 }
 
 export function SkeletonBox({ width, height, borderRadius = br.md, style }: SkeletonBoxProps) {
+  const { appColors } = useAppTheme();
   const translateX = useSharedValue(-1);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function SkeletonBox({ width, height, borderRadius = br.md, style }: Skel
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: colors.border,
+          backgroundColor: appColors.border,
           overflow: 'hidden',
         },
         style,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, List, Divider } from 'react-native-paper';
@@ -9,13 +9,17 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useAppSelector } from '../../src/store';
 import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
-import { colors, spacing, elevation, gradients, fontFamily } from '../../src/constants/theme';
+import { spacing, elevation, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { AppButton } from '../../src/components/common/AppButton';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
 import { SegmentedControl } from '../../src/components/common/SegmentedControl';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
 import { useToast } from '../../src/components/common/Toast';
+import { useAppTheme } from '../../src/theme/useAppTheme';
+import { useThemeMode } from '../../src/theme';
+import type { ThemeMode } from '../../src/theme';
+
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -26,6 +30,8 @@ export default function ProfileScreen() {
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const { appColors, appGradients } = useAppTheme();
+  const { mode, setMode } = useThemeMode();
 
   const handleLogout = () => {
     setLogoutDialogVisible(true);
@@ -52,29 +58,29 @@ export default function ProfileScreen() {
   };
 
   const menuItems = [
-    { icon: 'map-marker' as const, bg: colors.informativeLight, iconColor: colors.informative, title: t('profile.savedAddresses'), onPress: () => router.push('/(customer)/addresses') },
-    { icon: 'bell-outline' as const, bg: colors.criticalLight, iconColor: colors.critical, title: t('profile.notifications'), onPress: () => {} },
-    { icon: 'information' as const, bg: colors.positiveLight, iconColor: colors.positive, title: t('profile.aboutUs'), onPress: () => {} },
-    { icon: 'help-circle' as const, bg: colors.brandLight + '33', iconColor: colors.brand, title: t('profile.help'), onPress: () => {} },
-    { icon: 'delete-outline' as const, bg: colors.negativeLight, iconColor: colors.negative, title: t('profile.deleteAccount'), onPress: handleDeleteAccount },
+    { icon: 'map-marker' as const, bg: appColors.informativeLight, iconColor: appColors.informative, title: t('profile.savedAddresses'), onPress: () => router.push('/(customer)/addresses') },
+    { icon: 'bell-outline' as const, bg: appColors.criticalLight, iconColor: appColors.critical, title: t('profile.notifications'), onPress: () => {} },
+    { icon: 'information' as const, bg: appColors.positiveLight, iconColor: appColors.positive, title: t('profile.aboutUs'), onPress: () => {} },
+    { icon: 'help-circle' as const, bg: appColors.brandLight + '33', iconColor: appColors.brand, title: t('profile.help'), onPress: () => {} },
+    { icon: 'delete-outline' as const, bg: appColors.negativeLight, iconColor: appColors.negative, title: t('profile.deleteAccount'), onPress: handleDeleteAccount },
   ];
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} contentContainerStyle={styles.contentContainer}>
       <LinearGradient
-        colors={gradients.brand as unknown as [string, string]}
+        colors={appGradients.brand as unknown as [string, string]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={styles.avatarContainer}>
-          <MaterialCommunityIcons name="account" size={48} color={colors.brand} />
+        <View style={[styles.avatarContainer, { backgroundColor: appColors.surface, borderColor: appColors.surface }]}>
+          <MaterialCommunityIcons name="account" size={48} color={appColors.brand} />
         </View>
-        <Text variant="titleMedium" style={styles.name}>{user?.name || t('profile.guest')}</Text>
+        <Text variant="titleMedium" style={[styles.name, { color: appColors.text.inverse }]}>{user?.name || t('profile.guest')}</Text>
         <Text variant="bodyMedium" style={styles.phone}>{user?.phone || ''}</Text>
       </LinearGradient>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <SectionHeader title={t('profile.language')} />
         <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm }}>
           <SegmentedControl
@@ -88,7 +94,22 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+        <SectionHeader title={t('profile.theme')} />
+        <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+          <SegmentedControl
+            options={[
+              { key: 'system', label: t('profile.themeSystem') },
+              { key: 'light', label: t('profile.themeLight') },
+              { key: 'dark', label: t('profile.themeDark') },
+            ]}
+            selectedKey={mode}
+            onSelect={(key) => setMode(key as ThemeMode)}
+          />
+        </View>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         {menuItems.map((item, index) => (
           <View key={item.title}>
             <AnimatedPressable onPress={item.onPress}>
@@ -136,17 +157,18 @@ export default function ProfileScreen() {
       >
         <Text variant="bodyMedium">{t('profile.deleteAccountConfirmMessage')}</Text>
       </FioriDialog>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
+  contentContainer: { paddingBottom: spacing.xxl },
   header: { paddingTop: spacing.xxl, paddingBottom: spacing.xl, alignItems: 'center' },
-  avatarContainer: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: colors.surface, marginBottom: spacing.sm, ...elevation.level3 },
-  name: { fontFamily: fontFamily.semiBold, color: colors.text.inverse, marginBottom: spacing.xs },
+  avatarContainer: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 3, marginBottom: spacing.sm, ...elevation.level3 },
+  name: { fontFamily: fontFamily.semiBold, marginBottom: spacing.xs },
   phone: { color: 'rgba(255,255,255,0.85)' },
-  section: { backgroundColor: colors.surface, marginBottom: spacing.md, paddingVertical: spacing.sm },
+  section: { marginBottom: spacing.md, paddingVertical: spacing.sm },
   menuIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.sm },
   logoutContainer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });

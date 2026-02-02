@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "415544331797",
+    "project_id": "ssmasala-3aa75",
+    "storage_bucket": "ssmasala-3aa75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:415544331797:android:dffa08668d37b6fd2c481c",
+        "android_client_info": {
+          "package_name": "com.masalaspiceshop.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCR7Vw5WX769RzgeGt23C7yzX6MytMbcFQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

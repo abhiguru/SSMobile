@@ -7,7 +7,8 @@ import Animated, { FadeInLeft } from 'react-native-reanimated';
 
 import { useGetOrderByIdQuery, useReorderMutation } from '../../../src/store/apiSlice';
 import { formatPrice } from '../../../src/constants';
-import { colors, spacing, borderRadius, fontFamily } from '../../../src/constants/theme';
+import { spacing, borderRadius, fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme';
 import { Order, PorterDelivery } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { SectionHeader } from '../../../src/components/common/SectionHeader';
@@ -25,6 +26,7 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
+  const { appColors } = useAppTheme();
   const { data: order, isLoading, isFetching, refetch } = useGetOrderByIdQuery(id!, {
     skip: !id,
     pollingInterval: 15_000,
@@ -61,7 +63,7 @@ export default function OrderDetailScreen() {
   };
 
   if (isLoading || !order) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>;
+    return <View style={[styles.centered, { backgroundColor: appColors.shell }]}><ActivityIndicator size="large" color={appColors.brand} /></View>;
   }
 
   const statusSteps = ['placed', 'confirmed', 'out_for_delivery', 'delivered'];
@@ -75,19 +77,19 @@ export default function OrderDetailScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.brand} colors={[colors.brand]} />}
+      style={[styles.container, { backgroundColor: appColors.shell }]}
+      refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={appColors.brand} colors={[appColors.brand]} />}
     >
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.headerRow}>
-          <Text variant="titleMedium" style={styles.orderId}>{t('orders.orderNumber', { id: getOrderDisplayNumber(order) })}</Text>
+          <Text variant="titleMedium" style={[styles.orderId, { color: appColors.text.primary }]}>{t('orders.orderNumber', { id: getOrderDisplayNumber(order) })}</Text>
           <StatusBadge status={order.status} />
         </View>
-        <Text variant="bodySmall" style={styles.date}>{new Date(order.created_at).toLocaleString()}</Text>
+        <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{new Date(order.created_at).toLocaleString()}</Text>
       </View>
 
       {order.status !== 'cancelled' && order.status !== 'delivery_failed' && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('orders.trackOrder')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.timeline}>
             {statusSteps.map((step, index) => {
@@ -99,17 +101,17 @@ export default function OrderDetailScreen() {
                   entering={FadeInLeft.delay(index * 150).duration(400)}
                   style={styles.timelineStep}
                 >
-                  <View style={[styles.timelineDot, isActive && styles.timelineDotActive]}>
+                  <View style={[styles.timelineDot, { backgroundColor: appColors.border }, isActive && { backgroundColor: appColors.positive }]}>
                     <MaterialCommunityIcons
                       name={iconName}
                       size={16}
-                      color={isActive ? colors.text.inverse : colors.neutral}
+                      color={isActive ? appColors.text.inverse : appColors.neutral}
                     />
                   </View>
                   {index < statusSteps.length - 1 && (
-                    <View style={[styles.timelineLine, index < currentStepIndex && styles.timelineLineActive]} />
+                    <View style={[styles.timelineLine, { backgroundColor: appColors.border }, index < currentStepIndex && { backgroundColor: appColors.positive }]} />
                   )}
-                  <Text variant="labelSmall" style={[styles.timelineLabel, isActive && styles.timelineLabelActive]}>
+                  <Text variant="labelSmall" style={[styles.timelineLabel, { color: appColors.neutral }, isActive && { color: appColors.text.primary, fontFamily: fontFamily.semiBold }]}>
                     {t(`status.${step}`)}
                   </Text>
                 </Animated.View>
@@ -130,70 +132,70 @@ export default function OrderDetailScreen() {
 
       {/* In-house Delivery OTP */}
       {order.status === 'out_for_delivery' && !isPorterDelivery && order.delivery_otp && (
-        <View style={styles.otpSection}>
-          <Text variant="bodyMedium" style={styles.otpLabel}>{t('orders.deliveryOtp')}</Text>
+        <View style={[styles.otpSection, { backgroundColor: appColors.positiveLight }]}>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary, marginBottom: spacing.sm }}>{t('orders.deliveryOtp')}</Text>
           <View style={styles.otpDigits}>
             {order.delivery_otp.split('').map((digit, i) => (
               <Animated.View
                 key={i}
                 entering={FadeInLeft.delay(i * 100).duration(300)}
-                style={styles.otpDigitBox}
+                style={[styles.otpDigitBox, { borderColor: appColors.positive, backgroundColor: appColors.surface }]}
               >
-                <Text variant="headlineMedium" style={styles.otpDigitText}>{digit}</Text>
+                <Text variant="headlineMedium" style={{ fontFamily: fontFamily.bold, color: appColors.positive }}>{digit}</Text>
               </Animated.View>
             ))}
           </View>
-          <Text variant="bodySmall" style={styles.otpHint}>{t('orders.shareOtpHint')}</Text>
+          <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{t('orders.shareOtpHint')}</Text>
         </View>
       )}
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <SectionHeader title={t('orders.itemsTitle')} style={{ paddingHorizontal: 0 }} />
         {(order.items ?? []).map((item) => (
-          <View key={item.id} style={styles.orderItem}>
+          <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }]}>
             <View style={styles.itemInfo}>
-              <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-              <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_label || `${item.weight_grams}g`}</Text>
+              <Text variant="bodyMedium" style={{ fontWeight: '500', color: appColors.text.primary }}>{item.product_name}</Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.weight_label || `${item.weight_grams}g`}</Text>
             </View>
-            <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
-            <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
+            <Text variant="bodyMedium" style={{ color: appColors.text.secondary, marginHorizontal: spacing.md }}>x{item.quantity}</Text>
+            <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
           </View>
         ))}
         {hasShippingBreakdown && (
           <>
             <KeyValueRow label={t('checkout.subtotal')} value={formatPrice(subtotal)} />
             <View style={styles.breakdownRow}>
-              <Text variant="bodyMedium" style={styles.breakdownLabel}>{t('checkout.shipping')}</Text>
-              {shipping === 0 ? <Text variant="bodyMedium" style={{ color: colors.positive, fontFamily: fontFamily.semiBold }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
+              <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('checkout.shipping')}</Text>
+              {shipping === 0 ? <Text variant="bodyMedium" style={{ color: appColors.positive, fontFamily: fontFamily.semiBold }}>{t('checkout.free')}</Text> : <Text variant="bodyMedium">{formatPrice(shipping)}</Text>}
             </View>
           </>
         )}
         <Divider style={styles.totalDivider} />
         <View style={styles.totalRow}>
           <Text variant="titleSmall">{t('cart.total')}</Text>
-          <Text variant="titleMedium" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
+          <Text variant="titleMedium" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <SectionHeader title={t('checkout.deliveryAddress')} style={{ paddingHorizontal: 0 }} />
-        {order.shipping_full_name && <Text variant="bodyMedium" style={styles.addressName}>{order.shipping_full_name}</Text>}
-        <Text variant="bodyMedium" style={styles.address}>{getDeliveryAddress(order)}</Text>
-        <Text variant="bodySmall" style={styles.pincode}>{t('common.pincode')}: {getDeliveryPincode(order)}</Text>
-        {order.shipping_phone && <Text variant="bodySmall" style={styles.phone}>{order.shipping_phone}</Text>}
+        {order.shipping_full_name && <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary, marginBottom: spacing.xs }}>{order.shipping_full_name}</Text>}
+        <Text variant="bodyMedium" style={{ color: appColors.text.primary, lineHeight: 20 }}>{getDeliveryAddress(order)}</Text>
+        <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: spacing.xs }}>{t('common.pincode')}: {getDeliveryPincode(order)}</Text>
+        {order.shipping_phone && <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: spacing.xs }}>{order.shipping_phone}</Text>}
       </View>
 
       {order.notes && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
-          <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary, fontStyle: 'italic' }}>{order.notes}</Text>
         </View>
       )}
 
       {order.admin_notes ? (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('admin.adminNotes')} style={{ paddingHorizontal: 0 }} />
-          <Text variant="bodyMedium" style={styles.notes}>{order.admin_notes}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary, fontStyle: 'italic' }}>{order.admin_notes}</Text>
         </View>
       ) : null}
 
@@ -227,33 +229,34 @@ function PorterTrackingCard({
   onCallDriver: (phone: string) => void;
 }) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
 
   return (
-    <View style={styles.porterCard}>
+    <View style={[styles.porterCard, { backgroundColor: appColors.surface }]}>
       <View style={styles.porterHeader}>
-        <MaterialCommunityIcons name="motorbike" size={24} color={colors.brand} />
-        <Text variant="titleSmall" style={styles.porterTitle}>
+        <MaterialCommunityIcons name="motorbike" size={24} color={appColors.brand} />
+        <Text variant="titleSmall" style={{ flex: 1, fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>
           {t('orders.porterDelivery', { defaultValue: 'Porter Delivery' })}
         </Text>
-        <View style={[styles.porterStatusBadge, { backgroundColor: getPorterStatusColor(porterDelivery.porter_status) }]}>
-          <Text style={styles.porterStatusText}>{formatPorterStatus(porterDelivery.porter_status)}</Text>
+        <View style={[styles.porterStatusBadge, { backgroundColor: getPorterStatusColor(porterDelivery.porter_status, appColors) }]}>
+          <Text style={{ fontSize: 11, fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{formatPorterStatus(porterDelivery.porter_status)}</Text>
         </View>
       </View>
 
       {porterDelivery.driver_name && (
-        <Pressable onPress={() => porterDelivery.driver_phone && onCallDriver(porterDelivery.driver_phone)} style={styles.driverCard}>
-          <View style={styles.driverAvatar}>
-            <MaterialCommunityIcons name="account" size={28} color={colors.brand} />
+        <Pressable onPress={() => porterDelivery.driver_phone && onCallDriver(porterDelivery.driver_phone)} style={[styles.driverCard, { backgroundColor: appColors.shell }]}>
+          <View style={[styles.driverAvatar, { backgroundColor: appColors.brandLight }]}>
+            <MaterialCommunityIcons name="account" size={28} color={appColors.brand} />
           </View>
           <View style={styles.driverInfo}>
-            <Text variant="bodyMedium" style={styles.driverName}>{porterDelivery.driver_name}</Text>
+            <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{porterDelivery.driver_name}</Text>
             {porterDelivery.vehicle_number && (
-              <Text variant="bodySmall" style={styles.vehicleNumber}>{porterDelivery.vehicle_number}</Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>{porterDelivery.vehicle_number}</Text>
             )}
           </View>
           {porterDelivery.driver_phone && (
-            <View style={styles.callButton}>
-              <MaterialCommunityIcons name="phone" size={20} color={colors.positive} />
+            <View style={[styles.callButton, { backgroundColor: appColors.positiveLight }]}>
+              <MaterialCommunityIcons name="phone" size={20} color={appColors.positive} />
             </View>
           )}
         </Pressable>
@@ -261,8 +264,8 @@ function PorterTrackingCard({
 
       {porterDelivery.estimated_delivery_time && (
         <View style={styles.etaRow}>
-          <MaterialCommunityIcons name="clock-outline" size={18} color={colors.text.secondary} />
-          <Text variant="bodySmall" style={styles.etaText}>
+          <MaterialCommunityIcons name="clock-outline" size={18} color={appColors.text.secondary} />
+          <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>
             {t('orders.estimatedDelivery', { defaultValue: 'Estimated delivery' })}: {formatTime(porterDelivery.estimated_delivery_time)}
           </Text>
         </View>
@@ -284,20 +287,20 @@ function PorterTrackingCard({
   );
 }
 
-function getPorterStatusColor(status?: string): string {
+function getPorterStatusColor(status: string | undefined, appColors: ReturnType<typeof useAppTheme>['appColors']): string {
   switch (status) {
     case 'allocated':
     case 'reached_for_pickup':
-      return colors.brandLight;
+      return appColors.brandLight;
     case 'picked_up':
     case 'reached_for_drop':
-      return colors.positiveLight;
+      return appColors.positiveLight;
     case 'ended':
-      return colors.positive;
+      return appColors.positive;
     case 'cancelled':
-      return colors.criticalLight;
+      return appColors.criticalLight;
     default:
-      return colors.neutralLight;
+      return appColors.neutralLight;
   }
 }
 
@@ -333,57 +336,34 @@ function formatTime(isoString: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
+  section: { padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
-  date: { color: colors.text.secondary },
+  orderId: { fontFamily: fontFamily.bold },
   timeline: { flexDirection: 'row', justifyContent: 'space-between' },
   timelineStep: { alignItems: 'center', flex: 1 },
-  timelineDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
-  timelineDotActive: { backgroundColor: colors.positive },
-  timelineLine: { position: 'absolute', left: '50%', top: 16, width: '100%', height: 2, backgroundColor: colors.border, zIndex: -1 },
-  timelineLineActive: { backgroundColor: colors.positive },
-  timelineLabel: { color: colors.neutral, marginTop: spacing.sm, textAlign: 'center', fontSize: 10 },
-  timelineLabelActive: { color: colors.text.primary, fontFamily: fontFamily.semiBold },
+  timelineDot: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  timelineLine: { position: 'absolute', left: '50%', top: 16, width: '100%', height: 2, zIndex: -1 },
+  timelineLabel: { marginTop: spacing.sm, textAlign: 'center', fontSize: 10 },
   // OTP Section (in-house delivery)
-  otpSection: { backgroundColor: colors.positiveLight, padding: 20, marginBottom: spacing.sm, alignItems: 'center' },
-  otpLabel: { color: colors.text.secondary, marginBottom: spacing.sm },
+  otpSection: { padding: 20, marginBottom: spacing.sm, alignItems: 'center' },
   otpDigits: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  otpDigitBox: { width: 48, height: 56, borderRadius: borderRadius.md, borderWidth: 2, borderColor: colors.positive, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
-  otpDigitText: { fontFamily: fontFamily.bold, color: colors.positive },
-  otpHint: { color: colors.text.secondary },
+  otpDigitBox: { width: 48, height: 56, borderRadius: borderRadius.md, borderWidth: 2, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
   // Porter Tracking Card
-  porterCard: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
+  porterCard: { padding: spacing.lg, marginBottom: spacing.sm },
   porterHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: spacing.sm },
-  porterTitle: { flex: 1, fontFamily: fontFamily.semiBold, color: colors.text.primary },
   porterStatusBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm },
-  porterStatusText: { fontSize: 11, fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
-  driverAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandLight, justifyContent: 'center', alignItems: 'center' },
+  driverCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
+  driverAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   driverInfo: { flex: 1 },
-  driverName: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  vehicleNumber: { color: colors.text.secondary, marginTop: 2 },
-  callButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.positiveLight, justifyContent: 'center', alignItems: 'center' },
+  callButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   etaRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.xs },
-  etaText: { color: colors.text.secondary },
   // Order Items
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
-  itemName: { fontWeight: '500', color: colors.text.primary },
-  itemWeight: { color: colors.text.secondary },
-  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.md },
-  itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
-  breakdownLabel: { color: colors.text.secondary },
   totalDivider: { marginTop: spacing.sm, marginBottom: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  // Address
-  addressName: { fontFamily: fontFamily.semiBold, color: colors.text.primary, marginBottom: spacing.xs },
-  address: { color: colors.text.primary, lineHeight: 20 },
-  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
-  phone: { color: colors.text.secondary, marginTop: spacing.xs },
-  notes: { color: colors.text.secondary, fontStyle: 'italic' },
   reorderContainer: { padding: spacing.lg, marginBottom: spacing.xl },
 });

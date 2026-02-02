@@ -1,24 +1,26 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fontFamily } from '../../src/constants/theme';
+import { fontFamily } from '../../src/constants/theme';
 import { CustomTabBar } from '../../src/components/common/CustomTabBar';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 export default function DeliveryLayout() {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
 
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: colors.brand,
-        tabBarInactiveTintColor: colors.neutral,
+        tabBarActiveTintColor: appColors.brand,
+        tabBarInactiveTintColor: appColors.neutral,
         headerStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: appColors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: appColors.border,
         },
-        headerTintColor: colors.text.primary,
+        headerTintColor: appColors.text.primary,
         headerTitleStyle: {
           fontFamily: fontFamily.semiBold,
           fontSize: 17,

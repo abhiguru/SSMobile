@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, ActivityIndicator, SegmentedButtons } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -16,8 +16,9 @@ import {
   useCancelPorterDeliveryMutation,
   useDispatchOrderMutation,
 } from '../../../src/store/apiSlice';
-import { formatPrice, getPerKgPaise, ORDER_STATUS_COLORS } from '../../../src/constants';
-import { colors, spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
+import { formatPrice, getPerKgPaise, getOrderStatusColor } from '../../../src/constants';
+import { spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { OrderStatus, DeliveryType, PorterQuoteResponse, DeliveryStaff, OrderItem, Product } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { SectionHeader } from '../../../src/components/common/SectionHeader';
@@ -49,8 +50,10 @@ const STATUS_ACTIONS: Record<string, OrderStatus[]> = {
 
 export default function AdminOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const { appColors } = useAppTheme();
   const { data: order, isLoading, refetch } = useGetOrderByIdQuery(id!, {
     skip: !id,
     pollingInterval: 15_000,
@@ -343,12 +346,29 @@ export default function AdminOrderDetailScreen() {
     }
   };
 
+  const getPorterStatusColor = (status?: string): string => {
+    switch (status) {
+      case 'allocated':
+      case 'reached_for_pickup':
+        return appColors.brandLight;
+      case 'picked_up':
+      case 'reached_for_drop':
+        return appColors.positiveLight;
+      case 'ended':
+        return appColors.positive;
+      case 'cancelled':
+        return appColors.criticalLight;
+      default:
+        return appColors.neutralLight;
+    }
+  };
+
   if (isLoading || !order) {
-    return (<View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>);
+    return (<View style={styles.centered}><ActivityIndicator size="large" color={appColors.brand} /></View>);
   }
 
   const availableActions = STATUS_ACTIONS[order.status] || [];
-  const stripeColor = ORDER_STATUS_COLORS[order.status] || colors.critical;
+  const stripeColor = getOrderStatusColor(order.status, appColors);
   const isConfirmed = order.status === 'confirmed';
   const isOutForDelivery = order.status === 'out_for_delivery';
   const isPorterDelivery = order.delivery_type === 'porter';
@@ -356,33 +376,70 @@ export default function AdminOrderDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.section}>
+    <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled">
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={[styles.headerStripe, { backgroundColor: stripeColor }]} />
-            <Text variant="titleMedium" style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
+            <Text variant="titleMedium" style={[styles.orderId, { color: appColors.text.primary }]}>#{order.id.slice(0, 8)}</Text>
           </View>
           <StatusBadge status={order.status} />
         </View>
-        <Text variant="bodySmall" style={styles.date}>{new Date(order.created_at).toLocaleString()}</Text>
+        <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{new Date(order.created_at).toLocaleString()}</Text>
         {order.delivery_type && (
           <View style={styles.deliveryTypeBadge}>
             <MaterialCommunityIcons
               name={order.delivery_type === 'porter' ? 'motorbike' : 'account'}
               size={14}
-              color={colors.text.secondary}
+              color={appColors.text.secondary}
             />
-            <Text variant="labelSmall" style={styles.deliveryTypeText}>
+            <Text variant="labelSmall" style={{ color: appColors.text.secondary }}>
               {order.delivery_type === 'porter' ? 'Porter Delivery' : 'In-House Delivery'}
             </Text>
           </View>
         )}
       </View>
 
+      {/* Customer info */}
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+        <SectionHeader
+          title={t('admin.customer')}
+          style={{ paddingHorizontal: 0 }}
+          actionLabel={order.customer ? t('admin.viewHistory') : undefined}
+          onAction={order.customer ? () => router.push({
+            pathname: '/(admin)/orders/user-history',
+            params: { userId: order.customer!.id, userName: order.customer!.name || '' },
+          }) : undefined}
+        />
+        {order.customer ? (
+          <Pressable
+            onPress={() => order.customer?.phone && Linking.openURL(`tel:${order.customer.phone}`)}
+            disabled={!order.customer.phone}
+            style={[styles.customerCard, { backgroundColor: appColors.shell }]}
+          >
+            <MaterialCommunityIcons name="account" size={24} color={appColors.brand} />
+            <View style={styles.customerInfo}>
+              <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>
+                {order.customer.name || t('admin.noCustomerInfo')}
+              </Text>
+              {order.customer.phone && (
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{order.customer.phone}</Text>
+              )}
+            </View>
+            {order.customer.phone && (
+              <MaterialCommunityIcons name="phone" size={24} color={appColors.positive} />
+            )}
+          </Pressable>
+        ) : (
+          <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>
+            {t('admin.noCustomerInfo')}
+          </Text>
+        )}
+      </View>
+
       {/* Standard status actions for placed orders */}
       {order.status === 'placed' && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('admin.updateStatus')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.actionsRow}>
             {availableActions.map((status) => {
@@ -406,7 +463,7 @@ export default function AdminOrderDetailScreen() {
 
       {/* Delivery type selector for confirmed orders */}
       {isConfirmed && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title="Dispatch Order" style={{ paddingHorizontal: 0 }} />
 
           <SegmentedButtons
@@ -437,10 +494,10 @@ export default function AdminOrderDetailScreen() {
                   Get Porter Quote
                 </AppButton>
               ) : (
-                <View style={styles.quoteCard}>
+                <View style={[styles.quoteCard, { backgroundColor: appColors.shell, borderColor: appColors.border }]}>
                   <View style={styles.quoteRow}>
-                    <Text variant="bodyMedium" style={styles.quoteLabel}>Estimated Fare</Text>
-                    <Text variant="titleMedium" style={styles.quoteValue}>{porterQuote.fare_display}</Text>
+                    <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>Estimated Fare</Text>
+                    <Text variant="titleMedium" style={[styles.quoteValue, { color: appColors.brand }]}>{porterQuote.fare_display}</Text>
                   </View>
                   <KeyValueRow label="Delivery Time" value={porterQuote.estimated_time_display} />
                   <KeyValueRow label="Distance" value={`${porterQuote.distance_km} km`} />
@@ -491,30 +548,30 @@ export default function AdminOrderDetailScreen() {
 
       {/* Porter tracking section for out_for_delivery */}
       {isOutForDelivery && isPorterDelivery && porterDelivery && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title="Porter Delivery" style={{ paddingHorizontal: 0 }} />
 
-          <View style={styles.porterStatusCard}>
+          <View style={[styles.porterStatusCard, { backgroundColor: appColors.shell, borderColor: appColors.border }]}>
             <View style={styles.porterStatusRow}>
-              <Text variant="bodyMedium" style={styles.quoteLabel}>Status</Text>
+              <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>Status</Text>
               <View style={[styles.porterStatusBadge, { backgroundColor: getPorterStatusColor(porterDelivery.porter_status) }]}>
-                <Text style={styles.porterStatusText}>{formatPorterStatus(porterDelivery.porter_status)}</Text>
+                <Text style={[styles.porterStatusText, { color: appColors.text.primary }]}>{formatPorterStatus(porterDelivery.porter_status)}</Text>
               </View>
             </View>
 
             {porterDelivery.driver_name && (
-              <Pressable onPress={callDriver} style={styles.driverCard}>
-                <MaterialCommunityIcons name="account" size={24} color={colors.brand} />
+              <Pressable onPress={callDriver} style={[styles.driverCard, { backgroundColor: appColors.surface }]}>
+                <MaterialCommunityIcons name="account" size={24} color={appColors.brand} />
                 <View style={styles.driverInfo}>
-                  <Text variant="bodyMedium" style={styles.driverName}>{porterDelivery.driver_name}</Text>
+                  <Text variant="bodyMedium" style={[styles.driverName, { color: appColors.text.primary }]}>{porterDelivery.driver_name}</Text>
                   {porterDelivery.driver_phone && (
-                    <Text variant="bodySmall" style={styles.driverPhone}>{porterDelivery.driver_phone}</Text>
+                    <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{porterDelivery.driver_phone}</Text>
                   )}
                   {porterDelivery.vehicle_number && (
-                    <Text variant="bodySmall" style={styles.vehicleNumber}>{porterDelivery.vehicle_number}</Text>
+                    <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{porterDelivery.vehicle_number}</Text>
                   )}
                 </View>
-                <MaterialCommunityIcons name="phone" size={24} color={colors.positive} />
+                <MaterialCommunityIcons name="phone" size={24} color={appColors.positive} />
               </Pressable>
             )}
 
@@ -555,7 +612,7 @@ export default function AdminOrderDetailScreen() {
 
       {/* Standard actions for out_for_delivery (in-house) */}
       {isOutForDelivery && !isPorterDelivery && availableActions.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('admin.updateStatus')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.actionsRow}>
             {availableActions.map((status) => {
@@ -577,26 +634,26 @@ export default function AdminOrderDetailScreen() {
         </View>
       )}
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <SectionHeader title={t('checkout.deliveryAddress')} style={{ paddingHorizontal: 0 }} />
-        <Text variant="bodyMedium" style={styles.address}>
+        <Text variant="bodyMedium" style={{ color: appColors.text.primary, lineHeight: 20 }}>
           {order.shipping_address_line1 || order.delivery_address}
         </Text>
         {order.shipping_address_line2 && (
-          <Text variant="bodyMedium" style={styles.address}>{order.shipping_address_line2}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.primary, lineHeight: 20 }}>{order.shipping_address_line2}</Text>
         )}
-        <Text variant="bodySmall" style={styles.pincode}>
+        <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: spacing.xs }}>
           {order.shipping_city && `${order.shipping_city}, `}
           {t('common.pincode')}: {order.shipping_pincode || order.delivery_pincode}
         </Text>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.sectionHeaderRow}>
-          <Text variant="titleSmall" style={[styles.sectionTitle, { marginBottom: 0 }]}>{t('admin.orderItems')}</Text>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary, marginBottom: 0 }]}>{t('admin.orderItems')}</Text>
           {canEditItems && !editing && (
-            <Pressable onPress={handleEnterEditMode} style={styles.editPencilBtn} hitSlop={8}>
-              <MaterialCommunityIcons name="pencil" size={18} color={colors.brand} />
+            <Pressable onPress={handleEnterEditMode} style={[styles.editPencilBtn, { backgroundColor: appColors.brandLight }]} hitSlop={8}>
+              <MaterialCommunityIcons name="pencil" size={18} color={appColors.brand} />
             </Pressable>
           )}
         </View>
@@ -604,49 +661,49 @@ export default function AdminOrderDetailScreen() {
         {!editing ? (
           <>
             {(order.items ?? []).map((item) => (
-              <View key={item.id} style={styles.orderItem}>
+              <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }]}>
                 <View style={styles.itemInfo}>
-                  <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-                  <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
+                  <Text variant="bodyMedium" style={{ fontFamily: fontFamily.regular, color: appColors.text.primary }}>{item.product_name}</Text>
+                  <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.weight_grams}g</Text>
                 </View>
-                <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
-                <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
+                <Text variant="bodyMedium" style={{ color: appColors.text.secondary, marginHorizontal: spacing.lg }}>x{item.quantity}</Text>
+                <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{formatPrice(item.total_paise || item.unit_price_paise * item.quantity)}</Text>
               </View>
             ))}
-            <View style={styles.totalDivider} />
+            <View style={[styles.totalDivider, { backgroundColor: appColors.border }]} />
             <View style={styles.totalRow}>
               <Text variant="titleSmall">{t('cart.total')}</Text>
-              <Text variant="titleMedium" style={styles.totalPrice}>{formatPrice(order.total_paise)}</Text>
+              <Text variant="titleMedium" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
             </View>
           </>
         ) : (
           <>
             {editedItems.map((item, idx) => (
-              <View key={`${item.product_id}-${idx}`} style={styles.orderItem}>
+              <View key={`${item.product_id}-${idx}`} style={[styles.orderItem, { borderBottomColor: appColors.border }]}>
                 <View style={styles.itemInfo}>
-                  <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-                  <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
+                  <Text variant="bodyMedium" style={{ fontFamily: fontFamily.regular, color: appColors.text.primary }}>{item.product_name}</Text>
+                  <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.weight_grams}g</Text>
                 </View>
-                <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
-                <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(item.unit_price_paise * item.quantity)}</Text>
+                <Text variant="bodyMedium" style={{ color: appColors.text.secondary, marginHorizontal: spacing.lg }}>x{item.quantity}</Text>
+                <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{formatPrice(item.unit_price_paise * item.quantity)}</Text>
                 <Pressable onPress={() => handleEditItem(item)} hitSlop={8} style={styles.editIcon}>
-                  <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.brand} />
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={appColors.brand} />
                 </Pressable>
                 <Pressable onPress={() => handleRemoveEditedItem(item.product_id)} hitSlop={8} style={styles.deleteIcon}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.negative} />
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={appColors.negative} />
                 </Pressable>
               </View>
             ))}
 
             <Pressable style={styles.addItemRow} onPress={() => setAddingItem(true)}>
-              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.brand} />
-              <Text variant="bodyMedium" style={styles.addItemText}>{t('admin.addItem')}</Text>
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={appColors.brand} />
+              <Text variant="bodyMedium" style={{ color: appColors.brand, fontFamily: fontFamily.semiBold }}>{t('admin.addItem')}</Text>
             </Pressable>
 
-            <View style={styles.totalDivider} />
+            <View style={[styles.totalDivider, { backgroundColor: appColors.border }]} />
             <View style={styles.totalRow}>
               <Text variant="titleSmall">{t('cart.total')}</Text>
-              <Text variant="titleMedium" style={styles.totalPrice}>{formatPrice(editedTotal)}</Text>
+              <Text variant="titleMedium" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(editedTotal)}</Text>
             </View>
 
             <View style={styles.editActionsRow}>
@@ -673,24 +730,24 @@ export default function AdminOrderDetailScreen() {
       </View>
 
       {order.notes && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
-          <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary, fontStyle: 'italic' }}>{order.notes}</Text>
         </View>
       )}
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <SectionHeader title={t('admin.adminNotes')} style={{ paddingHorizontal: 0 }} />
         <TextInput
-          style={styles.adminNotesInput}
+          style={[styles.adminNotesInput, { borderColor: appColors.border, color: appColors.text.primary }]}
           value={adminNotes}
           onChangeText={(text) => setAdminNotes(text.slice(0, 300))}
           placeholder={t('admin.adminNotesPlaceholder')}
-          placeholderTextColor={colors.text.secondary}
+          placeholderTextColor={appColors.text.secondary}
           multiline
           maxLength={300}
         />
-        <Text variant="bodySmall" style={styles.charCounter}>{adminNotes.length}/300</Text>
+        <Text variant="bodySmall" style={{ color: appColors.text.secondary, textAlign: 'right', marginTop: spacing.xs }}>{adminNotes.length}/300</Text>
         {adminNotes !== savedNotes && (
           <View style={{ marginTop: spacing.sm }}>
             <AppButton
@@ -742,23 +799,6 @@ export default function AdminOrderDetailScreen() {
   );
 }
 
-function getPorterStatusColor(status?: string): string {
-  switch (status) {
-    case 'allocated':
-    case 'reached_for_pickup':
-      return colors.brandLight;
-    case 'picked_up':
-    case 'reached_for_drop':
-      return colors.positiveLight;
-    case 'ended':
-      return colors.positive;
-    case 'cancelled':
-      return colors.criticalLight;
-    default:
-      return colors.neutralLight;
-  }
-}
-
 function formatPorterStatus(status?: string): string {
   switch (status) {
     case 'live':
@@ -783,57 +823,44 @@ function formatPorterStatus(status?: string): string {
 
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
+  section: { padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerStripe: { width: 4, height: 24, borderRadius: 2, marginRight: spacing.sm },
-  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
-  date: { color: colors.text.secondary },
+  orderId: { fontFamily: fontFamily.bold },
   deliveryTypeBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs },
-  deliveryTypeText: { color: colors.text.secondary },
-  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.md },
+  customerCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
+  customerInfo: { flex: 1 },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.md },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  editPencilBtn: { padding: spacing.sm, borderRadius: borderRadius.sm, backgroundColor: colors.brandLight },
+  editPencilBtn: { padding: spacing.sm, borderRadius: borderRadius.sm },
   actionsRow: { flexDirection: 'row', gap: spacing.md },
   actionButtonWrapper: { flex: 1 },
   segmentedButtons: { marginBottom: spacing.lg },
   porterSection: { marginTop: spacing.sm },
-  quoteCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border },
+  quoteCard: { padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
   quoteRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
-  quoteLabel: { color: colors.text.secondary },
-  quoteValue: { color: colors.brand, fontFamily: fontFamily.bold },
+  quoteValue: { fontFamily: fontFamily.bold },
   inHouseSection: { marginTop: spacing.sm },
   cancelOption: { marginTop: spacing.md, alignItems: 'center' },
-  porterStatusCard: { backgroundColor: colors.shell, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border },
+  porterStatusCard: { padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
   porterStatusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   porterStatusBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm },
-  porterStatusText: { fontSize: 12, fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
+  porterStatusText: { fontSize: 12, fontFamily: fontFamily.semiBold },
+  driverCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
   driverInfo: { flex: 1 },
-  driverName: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  driverPhone: { color: colors.text.secondary },
-  vehicleNumber: { color: colors.text.secondary },
+  driverName: { fontFamily: fontFamily.semiBold },
   porterActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
-  address: { color: colors.text.primary, lineHeight: 20 },
-  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
-  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary },
-  itemWeight: { color: colors.text.secondary },
-  itemQty: { color: colors.text.secondary, marginHorizontal: spacing.lg },
-  itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  totalDivider: { height: 1, backgroundColor: colors.border, marginTop: spacing.sm, marginBottom: spacing.md },
+  totalDivider: { height: 1, marginTop: spacing.sm, marginBottom: spacing.md },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalPrice: { color: colors.brand, fontFamily: fontFamily.bold },
-  notes: { color: colors.text.secondary, fontStyle: 'italic' },
-  adminNotesInput: { borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.md, fontFamily: fontFamily.regular, color: colors.text.primary, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
-  charCounter: { color: colors.text.secondary, textAlign: 'right', marginTop: spacing.xs },
+  adminNotesInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontFamily: fontFamily.regular, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
   editIcon: { marginLeft: spacing.sm },
   deleteIcon: { marginLeft: spacing.sm },
   addItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
-  addItemText: { color: colors.brand, fontFamily: fontFamily.semiBold },
   editActionsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   editActionBtn: { flex: 1 },
 });

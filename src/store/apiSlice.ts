@@ -404,7 +404,7 @@ export const apiSlice = createApi({
 
     getOrderById: builder.query<Order | null, string>({
       query: (orderId) => ({
-        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*),porter_delivery:porter_deliveries(*)`,
+        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*),porter_delivery:porter_deliveries(*),customer:users!user_id(id,name,phone)`,
       }),
       transformResponse: (response: unknown) => {
         const arr = Array.isArray(response) ? response : [];
@@ -416,6 +416,15 @@ export const apiSlice = createApi({
         return order;
       },
       providesTags: (_result, _error, id) => [{ type: 'Order', id }],
+    }),
+
+    getOrdersByUser: builder.query<Order[], string>({
+      query: (userId) => ({
+        url: `/rest/v1/orders?user_id=eq.${userId}&select=*,items:order_items(*)&order=created_at.desc`,
+      }),
+      transformResponse: (response: unknown) =>
+        Array.isArray(response) ? response : [],
+      providesTags: ['Orders'],
     }),
 
     createOrder: builder.mutation<
@@ -1118,6 +1127,7 @@ export const {
   useGetFavoritesQuery,
   useGetOrdersQuery,
   useGetOrderByIdQuery,
+  useGetOrdersByUserQuery,
   useCreateOrderMutation,
   useReorderMutation,
   useUpdateOrderStatusMutation,

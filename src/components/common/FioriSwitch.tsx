@@ -1,7 +1,8 @@
 import { View, Switch, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, fontFamily, fontSize } from '../../constants/theme';
+import { spacing, fontFamily, fontSize } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface FioriSwitchProps {
   label: string;
@@ -16,6 +17,8 @@ export function FioriSwitch({
   onValueChange,
   disabled = false,
 }: FioriSwitchProps) {
+  const { appColors } = useAppTheme();
+
   const handleChange = (newValue: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onValueChange(newValue);
@@ -23,13 +26,13 @@ export function FioriSwitch({
 
   return (
     <View style={styles.cell}>
-      <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
+      <Text style={[styles.label, { color: appColors.text.primary }, disabled && { color: appColors.text.disabled }]}>{label}</Text>
       <Switch
         value={value}
         onValueChange={handleChange}
         disabled={disabled}
-        trackColor={{ false: colors.border, true: colors.brand }}
-        thumbColor={colors.surface}
+        trackColor={{ false: appColors.border, true: appColors.brand }}
+        thumbColor={appColors.surface}
       />
     </View>
   );
@@ -48,10 +51,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.body,
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
     marginRight: spacing.md,
-  },
-  labelDisabled: {
-    color: colors.text.disabled,
   },
 });

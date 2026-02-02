@@ -11,7 +11,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -35,13 +36,6 @@ const ToastContext = createContext<ToastContextType>({ showToast: () => {} });
 
 export const useToast = () => useContext(ToastContext);
 
-const TOAST_BG: Record<ToastType, { bg: string }> = {
-  success: { bg: colors.positive },
-  error: { bg: colors.negative },
-  info: { bg: colors.toastDefault },
-  warning: { bg: colors.critical },
-};
-
 const screenWidth = Dimensions.get('window').width;
 
 function getAutoHideDuration(config: ToastConfig): number {
@@ -52,6 +46,15 @@ function getAutoHideDuration(config: ToastConfig): number {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { appColors } = useAppTheme();
+
+  const TOAST_BG: Record<ToastType, { bg: string }> = {
+    success: { bg: appColors.positive },
+    error: { bg: appColors.negative },
+    info: { bg: appColors.toastDefault },
+    warning: { bg: appColors.critical },
+  };
+
   const [toast, setToast] = useState<ToastConfig | null>(null);
   const queueRef = useRef<ToastConfig[]>([]);
   const isShowingRef = useRef(false);
@@ -118,7 +121,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           ]}
         >
           <Pressable style={styles.content} onPress={hideToast}>
-            <Text variant="bodyMedium" style={styles.message}>
+            <Text variant="bodyMedium" style={[styles.message, { color: appColors.text.inverse }]}>
               {toast.message}
             </Text>
             {toast.action && (
@@ -129,7 +132,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 }}
                 style={styles.actionButton}
               >
-                <Text style={styles.actionLabel}>{toast.action.label}</Text>
+                <Text style={[styles.actionLabel, { color: appColors.text.inverse }]}>{toast.action.label}</Text>
               </Pressable>
             )}
           </Pressable>
@@ -159,7 +162,6 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    color: colors.text.inverse,
     fontFamily: fontFamily.regular,
     fontSize: 14,
   },
@@ -168,7 +170,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   actionLabel: {
-    color: colors.text.inverse,
     fontFamily: fontFamily.semiBold,
     fontSize: 14,
     textDecorationLine: 'underline',

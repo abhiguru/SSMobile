@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Linking, TextInput as RNTextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, Card, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Text, TextInput, Card, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, {
@@ -14,17 +14,18 @@ import Animated, {
 
 import { useGetOrderByIdQuery, useVerifyDeliveryOtpMutation } from '../../src/store/apiSlice';
 import { formatPrice, DELIVERY_OTP_LENGTH } from '../../src/constants';
-import { colors, spacing, borderRadius, fontFamily, elevation, gradients } from '../../src/constants/theme';
+import { spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
 import { useToast } from '../../src/components/common/Toast';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
-import type { AppTheme } from '../../src/theme';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 export default function DeliveryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
+  const theme = useAppTheme();
+  const { appColors } = theme;
   const { showToast } = useToast();
   const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
   const [verifyDeliveryOtp, { isLoading: verifying }] = useVerifyDeliveryOtpMutation();
@@ -104,18 +105,18 @@ export default function DeliveryDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
+    <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]}>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.headerRow}>
-          <Text variant="titleMedium" style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
+          <Text variant="titleMedium" style={[styles.orderId, { color: appColors.text.primary }]}>#{order.id.slice(0, 8)}</Text>
           <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
-        <Text variant="bodyMedium" style={styles.address}>{order.delivery_address}</Text>
-        <Text variant="bodySmall" style={styles.pincode}>{t('common.pincode')}: {order.delivery_pincode}</Text>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('checkout.deliveryAddress')}</Text>
+        <Text variant="bodyMedium" style={[styles.address, { color: appColors.text.primary }]}>{order.delivery_address}</Text>
+        <Text variant="bodySmall" style={[styles.pincode, { color: appColors.text.secondary }]}>{t('common.pincode')}: {order.delivery_pincode}</Text>
         <View style={styles.actionsRow}>
           <View style={{ flex: 1 }}>
             <AppButton variant="secondary" size="md" icon="map-marker" onPress={handleOpenMaps}>
@@ -132,36 +133,36 @@ export default function DeliveryDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>{t('delivery.itemsToDeliver')}</Text>
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('delivery.itemsToDeliver')}</Text>
         {order.items.map((item) => (
-          <View key={item.id} style={styles.orderItem}>
+          <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }]}>
             <View style={styles.itemInfo}>
-              <Text variant="bodyMedium" style={styles.itemName}>{item.product_name}</Text>
-              <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams}g</Text>
+              <Text variant="bodyMedium" style={[styles.itemName, { color: appColors.text.primary }]}>{item.product_name}</Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.weight_grams}g</Text>
             </View>
-            <Text variant="bodyMedium" style={styles.itemQty}>x{item.quantity}</Text>
+            <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>x{item.quantity}</Text>
           </View>
         ))}
       </View>
 
       {order.notes && (
-        <View style={styles.section}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('checkout.orderNotes')}</Text>
-          <Text variant="bodyMedium" style={styles.notes}>{order.notes}</Text>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('checkout.orderNotes')}</Text>
+          <Text variant="bodyMedium" style={[styles.notes, { color: appColors.text.secondary }]}>{order.notes}</Text>
         </View>
       )}
 
       <Card mode="elevated" style={styles.otpCard}>
         <LinearGradient
-          colors={[colors.positive, 'rgba(24,137,24,0.87)']}
+          colors={[appColors.positive, appColors.positive + 'CC']}
           style={styles.otpCardHeader}
         >
-          <MaterialCommunityIcons name="shield-check" size={20} color={colors.text.inverse} />
-          <Text variant="titleSmall" style={styles.otpHeaderText}>{t('delivery.verifyDelivery')}</Text>
+          <MaterialCommunityIcons name="shield-check" size={20} color={appColors.text.inverse} />
+          <Text variant="titleSmall" style={[styles.otpHeaderText, { color: appColors.text.inverse }]}>{t('delivery.verifyDelivery')}</Text>
         </LinearGradient>
         <Card.Content style={styles.otpCardContent}>
-          <Text variant="bodySmall" style={styles.otpHint}>{t('delivery.askCustomerForOtp')}</Text>
+          <Text variant="bodySmall" style={[styles.otpHint, { color: appColors.text.secondary }]}>{t('delivery.askCustomerForOtp')}</Text>
 
           <View style={styles.otpBoxes}>
             {otp.map((digit, index) => (
@@ -175,9 +176,9 @@ export default function DeliveryDetailScreen() {
                 onChangeText={(value) => handleOtpChange(value, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 disabled={verifying}
-                style={styles.otpBox}
+                style={[styles.otpBox, { backgroundColor: appColors.surface }]}
                 contentStyle={styles.otpBoxContent}
-                outlineStyle={digit ? { borderColor: colors.positive, borderWidth: 2 } : undefined}
+                outlineStyle={digit ? { borderColor: appColors.positive, borderWidth: 2 } : undefined}
               />
             ))}
           </View>
@@ -204,27 +205,25 @@ export default function DeliveryDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.surface, padding: spacing.lg, marginBottom: spacing.sm },
+  section: { padding: spacing.lg, marginBottom: spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderId: { fontFamily: fontFamily.bold, color: colors.text.primary },
-  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
-  address: { color: colors.text.primary, lineHeight: 20 },
-  pincode: { color: colors.text.secondary, marginTop: spacing.xs },
+  orderId: { fontFamily: fontFamily.bold },
+  sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 },
+  address: { lineHeight: 20 },
+  pincode: { marginTop: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.lg },
-  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
-  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary },
-  itemWeight: { color: colors.text.secondary },
-  itemQty: { color: colors.text.secondary },
-  notes: { color: colors.text.secondary, fontStyle: 'italic' },
+  itemName: { fontFamily: fontFamily.regular },
+  notes: { fontStyle: 'italic' },
   otpCard: { margin: spacing.lg, marginBottom: spacing.xl, overflow: 'hidden' },
   otpCardHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.sm },
-  otpHeaderText: { color: colors.text.inverse, fontFamily: fontFamily.semiBold },
+  otpHeaderText: { fontFamily: fontFamily.semiBold },
   otpCardContent: { padding: spacing.lg },
-  otpHint: { color: colors.text.secondary, marginBottom: spacing.lg, textAlign: 'center' },
+  otpHint: { marginBottom: spacing.lg, textAlign: 'center' },
   otpBoxes: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
-  otpBox: { width: 56, height: 64, backgroundColor: colors.surface, borderRadius: borderRadius.md, textAlign: 'center' },
+  otpBox: { width: 56, height: 64, borderRadius: borderRadius.md, textAlign: 'center' },
   otpBoxContent: { fontSize: 28, fontFamily: fontFamily.bold, textAlign: 'center' },
 });

@@ -11,7 +11,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
-import { colors, spacing, fontFamily } from '../../constants/theme';
+import { spacing, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { AppButton } from './AppButton';
 
 interface EmptyStateProps {
@@ -23,6 +24,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: EmptyStateProps) {
+  const { appColors } = useAppTheme();
   const bobY = useSharedValue(0);
 
   useEffect(() => {
@@ -42,12 +44,12 @@ export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Emp
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
-      <Animated.View style={[styles.iconContainer, bobStyle]}>
-        <MaterialCommunityIcons name={icon} size={64} color={colors.neutral} />
+      <Animated.View style={[styles.iconContainer, { backgroundColor: appColors.shell }, bobStyle]}>
+        <MaterialCommunityIcons name={icon} size={64} color={appColors.neutral} />
       </Animated.View>
-      <Text variant="titleMedium" style={styles.title}>{title}</Text>
+      <Text variant="titleMedium" style={[styles.title, { color: appColors.text.primary }]}>{title}</Text>
       {subtitle && (
-        <Text variant="bodyMedium" style={styles.subtitle}>{subtitle}</Text>
+        <Text variant="bodyMedium" style={[styles.subtitle, { color: appColors.text.secondary }]}>{subtitle}</Text>
       )}
       {actionLabel && onAction && (
         <AppButton variant="primary" size="lg" onPress={onAction}>
@@ -69,7 +71,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.shell,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xl,
@@ -78,11 +79,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     fontSize: 20,
     lineHeight: 28,
-    color: colors.text.primary,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    color: colors.text.secondary,
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 20,

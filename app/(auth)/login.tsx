@@ -15,13 +15,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useSendOtpMutation } from '../../src/store/apiSlice';
 import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
-import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const [sendOtp, { isLoading, error, reset }] = useSendOtpMutation();
+  const { appColors, appGradients } = useAppTheme();
 
   const [phone, setPhone] = useState('9876543210');
   const [validationError, setValidationError] = useState('');
@@ -50,13 +52,13 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: appColors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.wrapper}>
           <LinearGradient
-            colors={gradients.brand as unknown as [string, string]}
+            colors={appGradients.brand as unknown as [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
@@ -64,7 +66,7 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
               <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
             </View>
-            <Text variant="headlineLarge" style={styles.heroTitle}>
+            <Text variant="headlineLarge" style={[styles.heroTitle, { color: appColors.text.inverse }]}>
               {t('home.title')}
             </Text>
             <Text variant="bodyLarge" style={styles.heroTagline}>
@@ -72,8 +74,8 @@ export default function LoginScreen() {
             </Text>
           </LinearGradient>
 
-          <View style={styles.formCard}>
-            <Text variant="titleLarge" style={styles.formTitle}>
+          <View style={[styles.formCard, { backgroundColor: appColors.surface }]}>
+            <Text variant="titleLarge" style={[styles.formTitle, { color: appColors.text.primary }]}>
               {t('auth.enterPhone')}
             </Text>
 
@@ -90,7 +92,7 @@ export default function LoginScreen() {
               onSubmitEditing={handleSendOtp}
               left={<TextInput.Affix text={PHONE_PREFIX} />}
               error={hasError}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
               outlineStyle={styles.inputOutline}
             />
             <HelperText type="error" visible={hasError}>
@@ -117,7 +119,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
   },
   wrapper: {
     flex: 1,
@@ -143,7 +144,6 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: fontFamily.bold,
-    color: colors.text.inverse,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
   },
   formCard: {
     flex: 1,
-    backgroundColor: colors.surface,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     marginTop: -24,
@@ -163,12 +162,9 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
     marginBottom: spacing.xl,
   },
-  input: {
-    backgroundColor: colors.surface,
-  },
+  input: {},
   inputOutline: {
     borderRadius: borderRadius.md,
   },

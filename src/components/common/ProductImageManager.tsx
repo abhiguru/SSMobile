@@ -16,7 +16,8 @@ import {
   useDeleteProductImageMutation,
 } from '../../store/apiSlice';
 import { getProductImageUrl } from '../../constants';
-import { colors, spacing, borderRadius } from '../../constants/theme';
+import { spacing, borderRadius } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { useToast } from './Toast';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -33,6 +34,7 @@ interface ProductImageManagerProps {
 
 export function ProductImageManager({ productId, disabled, onUploadingChange }: ProductImageManagerProps) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
   const { showToast } = useToast();
   const { data: images = [] } = useGetProductImagesQuery(productId);
   const [uploadImage, { isLoading: uploading }] = useUploadProductImageMutation();
@@ -169,7 +171,7 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
 
   return (
     <View style={styles.container}>
-      <Text variant="labelMedium" style={styles.label}>
+      <Text variant="labelMedium" style={[styles.label, { color: appColors.text.secondary }]}>
         {t('admin.productImages')}
       </Text>
       <View style={styles.grid}>
@@ -185,7 +187,7 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
                 <Image source={source} style={styles.thumbImage} contentFit="cover" transition={200} />
               </Pressable>
               {index === 0 && (
-                <View style={styles.primaryBadge}>
+                <View style={[styles.primaryBadge, { backgroundColor: appColors.brand }]}>
                   <Text style={styles.primaryText}>{t('admin.primaryImage')}</Text>
                 </View>
               )}
@@ -202,14 +204,14 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
         })}
 
         {uploading && (
-          <View style={[styles.thumb, styles.addSlot]}>
-            <ActivityIndicator size="small" color={colors.brand} />
+          <View style={[styles.thumb, styles.addSlot, { borderColor: appColors.fieldBorder }]}>
+            <ActivityIndicator size="small" color={appColors.brand} />
           </View>
         )}
 
         {canAdd && !uploading && (
-          <AnimatedPressable style={[styles.thumb, styles.addSlot]} onPress={pickImage}>
-            <MaterialCommunityIcons name="plus" size={28} color={colors.fieldBorder} />
+          <AnimatedPressable style={[styles.thumb, styles.addSlot, { borderColor: appColors.fieldBorder }]} onPress={pickImage}>
+            <MaterialCommunityIcons name="plus" size={28} color={appColors.fieldBorder} />
           </AnimatedPressable>
         )}
       </View>
@@ -239,7 +241,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   label: {
-    color: colors.text.secondary,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -262,7 +263,6 @@ const styles = StyleSheet.create({
   addSlot: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: colors.fieldBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -281,7 +281,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     left: 2,
-    backgroundColor: colors.brand,
     borderRadius: 4,
     paddingHorizontal: 4,
     paddingVertical: 1,

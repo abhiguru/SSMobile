@@ -120,6 +120,10 @@
     "aboutUs": "About Us",
     "help": "Help & Support",
     "savedAddresses": "Saved Addresses",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
     "guest": "Guest",
     "deleteAccount": "Delete Account",
     "deleteAccountConfirmTitle": "Delete Account",
@@ -346,7 +350,11 @@
     "rejectDeletionConfirmMessage": "Reject the account deletion request from {{name}}? They can submit a new request later.",
     "deletionApproved": "Deletion request approved",
     "deletionRejected": "Deletion request rejected",
-    "deletionProcessFailed": "Failed to process deletion request"
+    "deletionProcessFailed": "Failed to process deletion request",
+    "customer": "Customer",
+    "viewHistory": "History",
+    "userOrderHistory": "{{name}}'s Orders",
+    "noCustomerInfo": "Customer info unavailable"
   },
   "delivery": {
     "deliveries": "Deliveries",

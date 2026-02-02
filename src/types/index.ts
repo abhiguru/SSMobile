@@ -183,6 +183,7 @@ export interface Order {
   created_at: string;
   updated_at: string;
   items: OrderItem[];
+  customer?: { id: string; name?: string; phone?: string };
 }
 
 // App Settings type

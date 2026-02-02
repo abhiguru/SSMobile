@@ -13,13 +13,15 @@ import Animated, {
 
 import { useAppSelector } from '../../src/store';
 import { selectCartItemCount } from '../../src/store/slices/cartSlice';
-import { colors, fontFamily } from '../../src/constants/theme';
+import { fontFamily } from '../../src/constants/theme';
 import { CustomTabBar } from '../../src/components/common/CustomTabBar';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 const CartBadge = () => {
   const count = useAppSelector(selectCartItemCount);
   const prevCount = useRef(count);
   const scale = useSharedValue(1);
+  const { appColors } = useAppTheme();
 
   useEffect(() => {
     if (count > prevCount.current) {
@@ -40,7 +42,7 @@ const CartBadge = () => {
     <Animated.View style={[{ position: 'absolute', top: -4, right: -8 }, animatedStyle]}>
       <Badge
         size={18}
-        style={{ backgroundColor: colors.brand, color: colors.text.inverse }}
+        style={{ backgroundColor: appColors.brand, color: appColors.text.inverse }}
       >
         {count > 9 ? '9+' : count}
       </Badge>
@@ -53,6 +55,7 @@ const HeaderCartButton = () => {
   const prevCount = useRef(count);
   const scale = useSharedValue(1);
   const router = useRouter();
+  const { appColors } = useAppTheme();
 
   useEffect(() => {
     if (count > prevCount.current) {
@@ -71,7 +74,7 @@ const HeaderCartButton = () => {
   return (
     <Pressable onPress={() => router.push('/(customer)/cart')} style={{ marginRight: 16 }}>
       <Animated.View style={animatedStyle}>
-        <MaterialCommunityIcons name="cart-outline" size={24} color={colors.text.primary} />
+        <MaterialCommunityIcons name="cart-outline" size={24} color={appColors.text.primary} />
         {count > 0 && (
           <Badge
             size={16}
@@ -79,8 +82,8 @@ const HeaderCartButton = () => {
               position: 'absolute',
               top: -6,
               right: -10,
-              backgroundColor: colors.negative,
-              color: colors.text.inverse,
+              backgroundColor: appColors.negative,
+              color: appColors.text.inverse,
             }}
           >
             {count > 9 ? '9+' : count}
@@ -93,19 +96,20 @@ const HeaderCartButton = () => {
 
 export default function CustomerLayout() {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
 
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: colors.brand,
-        tabBarInactiveTintColor: colors.neutral,
+        tabBarActiveTintColor: appColors.brand,
+        tabBarInactiveTintColor: appColors.neutral,
         headerStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: appColors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: appColors.border,
         },
-        headerTintColor: colors.text.primary,
+        headerTintColor: appColors.text.primary,
         headerTitleStyle: {
           fontFamily: fontFamily.semiBold,
           fontSize: 17,

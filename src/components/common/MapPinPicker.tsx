@@ -4,7 +4,8 @@ import { Text, ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { colors, spacing, borderRadius, fontFamily } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { DEFAULT_MAP_CENTER } from '../../constants';
 import { AppButton } from './AppButton';
 
@@ -17,6 +18,7 @@ interface MapPinPickerProps {
 
 export function MapPinPicker({ latitude, longitude, onLocationChange, addressText }: MapPinPickerProps) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
   const mapRef = useRef<MapView>(null);
   const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(
     latitude != null && longitude != null ? { latitude, longitude } : null,
@@ -131,7 +133,7 @@ export function MapPinPicker({ latitude, longitude, onLocationChange, addressTex
         </AppButton>
       </View>
 
-      <View style={styles.mapWrapper}>
+      <View style={[styles.mapWrapper, { borderColor: appColors.border }]}>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -153,23 +155,23 @@ export function MapPinPicker({ latitude, longitude, onLocationChange, addressTex
 
         {isGeocoding && (
           <View style={styles.overlay}>
-            <ActivityIndicator size="large" color={colors.brand} />
+            <ActivityIndicator size="large" color={appColors.brand} />
           </View>
         )}
       </View>
 
-      <Text variant="bodySmall" style={styles.hint}>
+      <Text variant="bodySmall" style={[styles.hint, { color: appColors.text.secondary }]}>
         {pinCoords ? t('admin.mapPinHint') : t('admin.mapTapHint')}
       </Text>
 
       {geocodeError && (
-        <Text variant="bodySmall" style={styles.error}>
+        <Text variant="bodySmall" style={[styles.error, { color: appColors.critical }]}>
           {geocodeError}
         </Text>
       )}
 
       {resolvedAddress && !geocodeError && (
-        <Text variant="bodySmall" style={styles.resolved}>
+        <Text variant="bodySmall" style={[styles.resolved, { color: appColors.text.secondary }]}>
           {t('admin.resolvedAddress', { address: resolvedAddress })}
         </Text>
       )}
@@ -190,7 +192,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
   },
   map: {
     flex: 1,
@@ -202,17 +203,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hint: {
-    color: colors.text.secondary,
     marginTop: spacing.xs,
     fontSize: 12,
   },
   error: {
-    color: colors.critical,
     marginTop: spacing.xs,
     fontSize: 12,
   },
   resolved: {
-    color: colors.text.secondary,
     fontStyle: 'italic',
     marginTop: spacing.xs,
     fontSize: 12,

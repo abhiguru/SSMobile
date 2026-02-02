@@ -3,7 +3,8 @@ import { StyleSheet, ActivityIndicator, View, ViewStyle, StyleProp } from 'react
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { AnimatedPressable } from './AnimatedPressable';
-import { colors, spacing, borderRadius, elevation, fontFamily, fontSize } from '../../constants/theme';
+import { spacing, borderRadius, elevation, fontFamily, fontSize } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -22,23 +23,10 @@ interface AppButtonProps {
   children: React.ReactNode;
 }
 
-const VARIANT_STYLES: Record<ButtonVariant, { bg: string; text: string; border?: string; pressedBg?: string }> = {
-  primary: { bg: colors.brand, text: colors.text.inverse, pressedBg: colors.brandDark },
-  secondary: { bg: colors.surface, text: colors.brand, border: colors.brand, pressedBg: colors.pressedSurface },
-  outline: { bg: 'transparent', text: colors.brand, border: colors.brand, pressedBg: colors.pressedSurface },
-  text: { bg: 'transparent', text: colors.brand, pressedBg: colors.pressedSurface },
-  danger: { bg: colors.negative, text: colors.text.inverse, pressedBg: '#B81B2A' },
-};
-
 const SIZE_STYLES: Record<ButtonSize, { paddingVertical: number; paddingHorizontal: number; iconSize: number; minHeight: number }> = {
   sm: { paddingVertical: 6, paddingHorizontal: 12, iconSize: 16, minHeight: 32 },
   md: { paddingVertical: 10, paddingHorizontal: 20, iconSize: 20, minHeight: 38 },
   lg: { paddingVertical: 14, paddingHorizontal: 24, iconSize: 24, minHeight: 44 },
-};
-
-const STATUS_ICON: Record<'success' | 'fail', { name: React.ComponentProps<typeof MaterialCommunityIcons>['name']; color: string }> = {
-  success: { name: 'check', color: colors.text.inverse },
-  fail: { name: 'close', color: colors.text.inverse },
 };
 
 export function AppButton({
@@ -53,6 +41,21 @@ export function AppButton({
   status = 'idle',
   children,
 }: AppButtonProps) {
+  const { appColors } = useAppTheme();
+
+  const VARIANT_STYLES: Record<ButtonVariant, { bg: string; text: string; border?: string; pressedBg?: string }> = {
+    primary: { bg: appColors.brand, text: appColors.text.inverse, pressedBg: appColors.brandDark },
+    secondary: { bg: appColors.surface, text: appColors.brand, border: appColors.brand, pressedBg: appColors.pressedSurface },
+    outline: { bg: 'transparent', text: appColors.brand, border: appColors.brand, pressedBg: appColors.pressedSurface },
+    text: { bg: 'transparent', text: appColors.brand, pressedBg: appColors.pressedSurface },
+    danger: { bg: appColors.negative, text: appColors.text.inverse, pressedBg: appColors.negative + 'CC' },
+  };
+
+  const STATUS_ICON: Record<'success' | 'fail', { name: React.ComponentProps<typeof MaterialCommunityIcons>['name']; color: string }> = {
+    success: { name: 'check', color: appColors.text.inverse },
+    fail: { name: 'close', color: appColors.text.inverse },
+  };
+
   const variantStyle = VARIANT_STYLES[variant];
   const sizeStyle = SIZE_STYLES[size];
   const [pressed, setPressed] = useState(false);
@@ -73,9 +76,9 @@ export function AppButton({
   const isDisabled = disabled || isLoading || feedbackStatus !== null;
 
   const bgColor = feedbackStatus === 'success'
-    ? colors.positive
+    ? appColors.positive
     : feedbackStatus === 'fail'
-    ? colors.negative
+    ? appColors.negative
     : pressed
     ? (variantStyle.pressedBg || variantStyle.bg)
     : variantStyle.bg;

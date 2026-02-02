@@ -8,7 +8,8 @@ import { AppButton } from './AppButton';
 import { StepperControl } from './StepperControl';
 import { PriceText } from './PriceText';
 import { formatPrice, getPerKgPaise } from '../../constants';
-import { colors, spacing, borderRadius, fontFamily } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { hapticLight } from '../../utils/haptics';
 import { useGetProductsQuery } from '../../store/apiSlice';
 import type { Product } from '../../types';
@@ -46,6 +47,7 @@ interface AddOrderItemSheetProps {
 
 export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemSheetProps) {
   const { t, i18n } = useTranslation();
+  const { appColors } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
 
   const { data: products = [] } = useGetProductsQuery({ includeUnavailable: false });
@@ -114,11 +116,11 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
   const renderProductPicker = () => (
     <>
       <TextInput
-        style={styles.searchInput}
+        style={[styles.searchInput, { borderColor: appColors.border, color: appColors.text.primary }]}
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder={t('common.search')}
-        placeholderTextColor={colors.text.secondary}
+        placeholderTextColor={appColors.text.secondary}
       />
       <FlatList
         data={filteredProducts}
@@ -127,21 +129,21 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
         renderItem={({ item: product }) => {
           const perKg = getPerKgPaise(product);
           return (
-            <Pressable style={styles.productRow} onPress={() => handleSelectProduct(product)}>
+            <Pressable style={[styles.productRow, { borderBottomColor: appColors.border }]} onPress={() => handleSelectProduct(product)}>
               <View style={styles.productInfo}>
-                <Text variant="bodyMedium" style={styles.productRowName}>
+                <Text variant="bodyMedium" style={[styles.productRowName, { color: appColors.text.primary }]}>
                   {isGujarati ? product.name_gu : product.name}
                 </Text>
-                <Text variant="bodySmall" style={styles.productRowPrice}>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>
                   {formatPrice(perKg)}{t('product.perKg')}
                 </Text>
               </View>
-              <IconButton icon="chevron-right" size={20} iconColor={colors.text.secondary} />
+              <IconButton icon="chevron-right" size={20} iconColor={appColors.text.secondary} />
             </Pressable>
           );
         }}
         ListEmptyComponent={
-          <Text variant="bodyMedium" style={styles.emptyText}>{t('common.noResults')}</Text>
+          <Text variant="bodyMedium" style={[styles.emptyText, { color: appColors.text.secondary }]}>{t('common.noResults')}</Text>
         }
       />
     </>
@@ -155,18 +157,18 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
     return (
       <>
         <Pressable style={styles.backRow} onPress={handleBack}>
-          <IconButton icon="arrow-left" size={20} iconColor={colors.text.secondary} />
-          <Text variant="bodySmall" style={styles.backText}>{t('common.back')}</Text>
+          <IconButton icon="arrow-left" size={20} iconColor={appColors.text.secondary} />
+          <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{t('common.back')}</Text>
         </Pressable>
 
-        <Text variant="titleMedium" style={styles.productName}>
+        <Text variant="titleMedium" style={[styles.productName, { color: appColors.text.primary }]}>
           {isGujarati ? selectedProduct.name_gu : selectedProduct.name}
         </Text>
-        <Text variant="bodySmall" style={styles.perKgLabel}>
+        <Text variant="bodySmall" style={[styles.perKgLabel, { color: appColors.text.secondary }]}>
           {formatPrice(perKgPaise)}{t('product.perKg')}
         </Text>
 
-        <Text variant="titleSmall" style={styles.sectionTitle}>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.primary }]}>
           {t('product.selectWeight')}
         </Text>
         <View style={styles.weightRow}>
@@ -188,13 +190,13 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
         </View>
 
         <View style={styles.weightDisplay}>
-          <Text variant="headlineMedium" style={styles.weightValue}>
+          <Text variant="headlineMedium" style={[styles.weightValue, { color: appColors.text.primary }]}>
             {weightGrams > 0 ? formatWeight(weightGrams) : '0g'}
           </Text>
         </View>
 
         <View style={styles.quantitySection}>
-          <Text variant="titleSmall" style={styles.sectionTitle}>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.primary }]}>
             {t('product.quantity')}
           </Text>
           <StepperControl
@@ -233,11 +235,9 @@ export function AddOrderItemSheet({ visible, onDismiss, onAdd }: AddOrderItemShe
 const styles = StyleSheet.create({
   searchInput: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
     fontSize: 14,
     marginBottom: spacing.md,
   },
@@ -249,20 +249,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   productInfo: {
     flex: 1,
   },
   productRowName: {
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
-  },
-  productRowPrice: {
-    color: colors.text.secondary,
   },
   emptyText: {
-    color: colors.text.secondary,
     textAlign: 'center',
     paddingVertical: spacing.xl,
   },
@@ -272,21 +266,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginLeft: -spacing.sm,
   },
-  backText: {
-    color: colors.text.secondary,
-  },
   productName: {
     fontWeight: 'bold',
-    color: colors.text.primary,
     marginBottom: spacing.xs,
   },
   perKgLabel: {
-    color: colors.text.secondary,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontWeight: '600',
-    color: colors.text.primary,
     marginBottom: spacing.sm,
   },
   weightRow: {
@@ -303,7 +291,6 @@ const styles = StyleSheet.create({
   },
   weightValue: {
     fontWeight: 'bold',
-    color: colors.text.primary,
   },
   quantitySection: {
     marginBottom: spacing.lg,

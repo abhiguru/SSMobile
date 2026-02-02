@@ -16,7 +16,8 @@ import { SkeletonBox, SkeletonText } from '../../../src/components/common/Skelet
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
 import { resolveImageSource } from '../../../src/constants';
 import { getStoredTokens } from '../../../src/services/supabase';
-import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { FioriChip } from '../../../src/components/common/FioriChip';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
 import { useToast } from '../../../src/components/common/Toast';
@@ -28,7 +29,7 @@ function ProductsSkeleton() {
   return (
     <View style={{ padding: spacing.lg }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <View key={i} style={styles.skeletonCard}>
+        <View key={i} style={styles.skeletonCardLayout}>
           <SkeletonBox width={44} height={44} borderRadius={borderRadius.md} />
           <View style={{ flex: 1, marginLeft: spacing.md }}>
             <SkeletonText lines={1} width="60%" />
@@ -80,6 +81,7 @@ function sortProducts(products: Product[], sortKey: SortKey, isGujarati: boolean
 export default function AdminProductsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { appColors, appGradients } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
   const { data: products = [], isLoading, isFetching, refetch } = useGetProductsQuery({ includeUnavailable: true });
   const [toggleAvailability] = useToggleProductAvailabilityMutation();
@@ -128,7 +130,7 @@ export default function AdminProductsScreen() {
     });
     return (
       <Pressable
-        style={styles.swipeDeleteAction}
+        style={[styles.swipeDeleteAction, { backgroundColor: appColors.negative }]}
         onPress={() => {
           hapticSelection();
           openSwipeableRef.current?.close();
@@ -136,8 +138,8 @@ export default function AdminProductsScreen() {
         }}
       >
         <RNAnimated.View style={[styles.swipeDeleteContent, { opacity, transform: [{ scale }] }]}>
-          <MaterialCommunityIcons name="delete-outline" size={22} color={colors.text.inverse} />
-          <Text style={styles.swipeDeleteLabel}>{t('common.delete')}</Text>
+          <MaterialCommunityIcons name="delete-outline" size={22} color={appColors.text.inverse} />
+          <Text style={[styles.swipeDeleteLabel, { color: appColors.text.inverse }]}>{t('common.delete')}</Text>
         </RNAnimated.View>
       </Pressable>
     );
@@ -154,7 +156,7 @@ export default function AdminProductsScreen() {
         friction={2}
       >
         <AnimatedPressable
-          style={styles.productCard}
+          style={[styles.productCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}
           onPress={() => router.push({ pathname: '/(admin)/products/edit', params: { productId: item.id } })}
         >
           <View style={styles.productCardContent}>
@@ -163,26 +165,26 @@ export default function AdminProductsScreen() {
                 <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
               ) : (
                 <LinearGradient
-                  colors={gradients.brand as unknown as [string, string]}
+                  colors={appGradients.brand as unknown as [string, string]}
                   style={styles.thumbnail}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <MaterialCommunityIcons name="leaf" size={24} color={colors.text.inverse} />
+                  <MaterialCommunityIcons name="leaf" size={24} color={appColors.text.inverse} />
                 </LinearGradient>
               )}
             </View>
             <View style={styles.productInfo}>
-              <Text variant="titleSmall" style={styles.productName}>{isGujarati ? item.name_gu : item.name}</Text>
+              <Text variant="titleSmall" style={[styles.productName, { color: appColors.text.primary }]}>{isGujarati ? item.name_gu : item.name}</Text>
               {item.weight_options.length > 0 && (
-                <Text variant="bodySmall" style={styles.productOptions}>{t('admin.weightOptions', { count: item.weight_options.length })}</Text>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{t('admin.weightOptions', { count: item.weight_options.length })}</Text>
               )}
             </View>
             <View style={styles.toggleContainer}>
-              <Text variant="labelSmall" style={[styles.toggleLabel, item.is_available && { color: colors.positive }]}>
+              <Text variant="labelSmall" style={[styles.toggleLabel, { color: item.is_available ? appColors.positive : appColors.neutral }]}>
                 {item.is_available ? t('admin.available') : t('admin.unavailable')}
               </Text>
-              <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: colors.border, true: colors.brand }} thumbColor={colors.surface} ios_backgroundColor={colors.border} />
+              <Switch value={item.is_available} onValueChange={() => handleToggleAvailability(item.id, item.is_available)} trackColor={{ false: appColors.border, true: appColors.brand }} thumbColor={appColors.surface} ios_backgroundColor={appColors.border} />
             </View>
           </View>
         </AnimatedPressable>
@@ -193,8 +195,8 @@ export default function AdminProductsScreen() {
   if (isLoading && products.length === 0) return <ProductsSkeleton />;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sortBar}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+      <View style={[styles.sortBar, { backgroundColor: appColors.surface, borderBottomColor: appColors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortBarContent}>
           {SORT_OPTIONS.map(({ key, labelKey, toggleKey }) => {
             const isToggled = toggleKey != null && sortKey === toggleKey;
@@ -220,10 +222,10 @@ export default function AdminProductsScreen() {
       </View>
       <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
       <Pressable
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: appColors.brand }]}
         onPress={() => router.push('/(admin)/products/edit')}
       >
-        <MaterialCommunityIcons name="plus" size={28} color={colors.text.inverse} />
+        <MaterialCommunityIcons name="plus" size={28} color={appColors.text.inverse} />
       </Pressable>
       <FioriDialog
         visible={!!deleteTarget}
@@ -234,7 +236,7 @@ export default function AdminProductsScreen() {
           { label: t('admin.deleteProduct'), onPress: handleDeleteConfirm, variant: 'danger' },
         ]}
       >
-        <Text variant="bodyMedium" style={{ color: colors.text.secondary }}>
+        <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>
           {t('admin.deleteProductConfirm')}
         </Text>
       </FioriDialog>
@@ -243,22 +245,21 @@ export default function AdminProductsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
-  sortBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  container: { flex: 1 },
+  sortBar: { borderBottomWidth: 1 },
   sortBarContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
   listContent: { padding: spacing.lg },
-  productCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
+  productCard: { borderRadius: borderRadius.lg, marginBottom: spacing.md, borderWidth: 1, ...elevation.level1 },
   productCardContent: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },
   productImage: {},
   thumbnail: { width: 44, height: 44, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
   productInfo: { flex: 1, marginLeft: spacing.md },
-  productName: { fontFamily: fontFamily.regular, color: colors.text.primary, marginBottom: spacing.xs },
-  productOptions: { color: colors.text.secondary },
+  productName: { fontFamily: fontFamily.regular, marginBottom: spacing.xs },
   toggleContainer: { alignItems: 'center' },
-  toggleLabel: { color: colors.neutral, marginBottom: spacing.xs },
-  swipeDeleteAction: { backgroundColor: colors.negative, borderTopRightRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.lg, marginBottom: spacing.md, justifyContent: 'center', alignItems: 'center', width: 88, marginLeft: -borderRadius.lg },
+  toggleLabel: { marginBottom: spacing.xs },
+  swipeDeleteAction: { borderTopRightRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.lg, marginBottom: spacing.md, justifyContent: 'center', alignItems: 'center', width: 88, marginLeft: -borderRadius.lg },
   swipeDeleteContent: { alignItems: 'center', paddingLeft: borderRadius.lg },
-  swipeDeleteLabel: { color: colors.text.inverse, fontFamily: fontFamily.semiBold, marginTop: 2, fontSize: 11, letterSpacing: 0.3 },
-  skeletonCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
-  fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
+  swipeDeleteLabel: { fontFamily: fontFamily.semiBold, marginTop: 2, fontSize: 11, letterSpacing: 0.3 },
+  skeletonCardLayout: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
+  fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
 });

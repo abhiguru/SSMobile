@@ -1,7 +1,8 @@
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface SectionCardProps {
   title?: string;
@@ -11,14 +12,16 @@ interface SectionCardProps {
 }
 
 export function SectionCard({ title, icon, accent, children }: SectionCardProps) {
+  const { appColors } = useAppTheme();
+
   return (
-    <View style={[styles.container, accent && styles.accent]}>
+    <View style={[styles.container, { backgroundColor: appColors.surface, borderColor: appColors.border }, accent && { borderLeftWidth: 3, borderLeftColor: appColors.brand }]}>
       {title && (
         <View style={styles.titleRow}>
           {icon && (
-            <MaterialCommunityIcons name={icon} size={20} color={colors.brand} style={styles.icon} />
+            <MaterialCommunityIcons name={icon} size={20} color={appColors.brand} style={styles.icon} />
           )}
-          <Text variant="titleMedium" style={styles.title}>{title}</Text>
+          <Text variant="titleMedium" style={[styles.title, { color: appColors.text.primary }]}>{title}</Text>
         </View>
       )}
       {children}
@@ -28,17 +31,11 @@ export function SectionCard({ title, icon, accent, children }: SectionCardProps)
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
     padding: spacing.lg,
     marginBottom: 12,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     ...elevation.level2,
-  },
-  accent: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.brand,
   },
   titleRow: {
     flexDirection: 'row',
@@ -50,6 +47,5 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
   },
 });

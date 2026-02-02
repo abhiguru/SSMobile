@@ -6,7 +6,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, spacing, borderRadius, fontFamily, elevation } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily, elevation } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface SegmentOption {
   key: string;
@@ -24,6 +25,7 @@ export function SegmentedControl({
   selectedKey,
   onSelect,
 }: SegmentedControlProps) {
+  const { appColors } = useAppTheme();
   const segmentWidths = useRef<number[]>([]);
   const indicatorLeft = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
@@ -59,8 +61,8 @@ export function SegmentedControl({
   }));
 
   return (
-    <View style={styles.container}>
-      <Animated.View style={[styles.indicator, indicatorStyle]} />
+    <View style={[styles.container, { backgroundColor: appColors.fieldBackground, borderColor: appColors.border }]}>
+      <Animated.View style={[styles.indicator, { backgroundColor: appColors.surface }, indicatorStyle]} />
       {options.map((option, index) => {
         const isSelected = option.key === selectedKey;
         return (
@@ -70,13 +72,13 @@ export function SegmentedControl({
             onLayout={handleLayout(index)}
             style={({ pressed }) => [
               styles.segment,
-              pressed && !isSelected && styles.segmentPressed,
+              pressed && !isSelected && { backgroundColor: appColors.neutralLight },
             ]}
           >
             <Text
               style={[
                 styles.label,
-                isSelected ? styles.labelSelected : styles.labelUnselected,
+                { color: isSelected ? appColors.brand : appColors.text.primary },
               ]}
             >
               {option.label}
@@ -92,10 +94,8 @@ const styles = StyleSheet.create({
   // Fiori segmented control: container #F2F2F7, 1px border #E5E5E5
   container: {
     flexDirection: 'row',
-    backgroundColor: colors.fieldBackground,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -104,7 +104,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 1,
     bottom: 1,
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.md - 1,
     zIndex: 0,
     ...elevation.level1,
@@ -118,18 +117,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     zIndex: 1,
   },
-  segmentPressed: {
-    backgroundColor: colors.neutralLight,
-  },
   label: {
     fontSize: 14,
     fontFamily: fontFamily.semiBold,
-  },
-  // Fiori: selected text = brand/tint color
-  labelSelected: {
-    color: colors.brand,
-  },
-  labelUnselected: {
-    color: colors.text.primary,
   },
 });

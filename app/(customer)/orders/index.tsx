@@ -7,18 +7,21 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersQuery } from '../../../src/store/apiSlice';
-import { formatPrice, ORDER_STATUS_COLORS } from '../../../src/constants';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { formatPrice, getOrderStatusColor } from '../../../src/constants';
+import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { EmptyState } from '../../../src/components/common/EmptyState';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
+
 function OrdersSkeleton() {
+  const { appColors } = useAppTheme();
   return (
-    <View style={{ padding: spacing.lg }}>
+    <View style={{ flex: 1, padding: spacing.lg, backgroundColor: appColors.shell }}>
       {Array.from({ length: 3 }).map((_, i) => (
-        <View key={i} style={styles.skeletonCard}>
+        <View key={i} style={[styles.skeletonCard, { backgroundColor: appColors.surface }]}>
           <SkeletonText lines={1} width="50%" />
           <SkeletonBox width={80} height={24} borderRadius={borderRadius.lg} style={{ marginTop: spacing.sm }} />
           <SkeletonText lines={1} width="30%" style={{ marginTop: spacing.sm }} />
@@ -31,6 +34,7 @@ function OrdersSkeleton() {
 export default function OrdersScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { appColors } = useAppTheme();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
 
   const getOrderDisplayNumber = (order: Order) => {
@@ -39,13 +43,13 @@ export default function OrdersScreen() {
   };
 
   const renderOrder = ({ item, index }: { item: Order; index: number }) => {
-    const stripeColor = ORDER_STATUS_COLORS[item.status] || colors.critical;
+    const stripeColor = getOrderStatusColor(item.status, appColors);
 
     return (
       <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
         <AnimatedPressable
           onPress={() => router.push(`/(customer)/orders/${item.id}`)}
-          style={styles.orderCard}
+          style={[styles.orderCard, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level2]}
         >
           <View style={[styles.statusStripe, { backgroundColor: stripeColor }]} />
           <View style={styles.orderContent}>
@@ -53,29 +57,29 @@ export default function OrdersScreen() {
               <Text variant="titleSmall" style={styles.orderId}>{t('orders.orderNumber', { id: getOrderDisplayNumber(item) })}</Text>
               <StatusBadge status={item.status} />
             </View>
-            <Text variant="bodySmall" style={styles.orderDate}>{t('orders.placedOn')}: {new Date(item.created_at).toLocaleDateString()}</Text>
+            <Text variant="bodySmall" style={[styles.orderDate, { color: appColors.text.secondary }]}>{t('orders.placedOn')}: {new Date(item.created_at).toLocaleDateString()}</Text>
             <View style={styles.orderFooter}>
-              <Text variant="bodySmall" style={styles.itemCount}>{t('orders.items', { count: item.items?.length ?? 0 })}</Text>
-              <Text variant="titleMedium" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{t('orders.items', { count: item.items?.length ?? 0 })}</Text>
+              <Text variant="titleMedium" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
             </View>
             {item.status === 'out_for_delivery' && item.delivery_otp && (
-              <View style={styles.otpContainer}>
-                <Text variant="bodySmall" style={styles.otpLabel}>{t('orders.deliveryOtp')}:</Text>
-                <Text variant="titleLarge" style={styles.otpCode}>{item.delivery_otp}</Text>
+              <View style={[styles.otpContainer, { borderTopColor: appColors.border }]}>
+                <Text variant="bodySmall" style={[styles.otpLabel, { color: appColors.text.secondary }]}>{t('orders.deliveryOtp')}:</Text>
+                <Text variant="titleLarge" style={[styles.otpCode, { color: appColors.positive }]}>{item.delivery_otp}</Text>
               </View>
             )}
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.neutral} style={{ alignSelf: 'center', marginRight: spacing.sm }} />
+          <MaterialCommunityIcons name="chevron-right" size={16} color={appColors.neutral} style={{ alignSelf: 'center', marginRight: spacing.sm }} />
         </AnimatedPressable>
       </Animated.View>
     );
   };
 
   if (isLoading && orders.length === 0) return <OrdersSkeleton />;
-  if (orders.length === 0) return <EmptyState icon="package-variant" title={t('orders.empty')} />;
+  if (orders.length === 0) return <View style={{ flex: 1, backgroundColor: appColors.shell }}><EmptyState icon="package-variant" title={t('orders.empty')} /></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       <FlashList
         data={orders}
         renderItem={renderOrder}
@@ -89,18 +93,17 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   listContent: { padding: spacing.lg },
-  orderCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...elevation.level2 },
+  orderCard: { flexDirection: 'row', borderRadius: borderRadius.lg, marginBottom: 12, overflow: 'hidden', borderWidth: 1 },
   statusStripe: { width: 4 },
   orderContent: { flex: 1, padding: spacing.lg },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   orderId: { fontFamily: fontFamily.semiBold },
-  orderDate: { color: colors.text.secondary, marginBottom: 12 },
+  orderDate: { marginBottom: 12 },
   orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemCount: { color: colors.text.secondary },
-  otpContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
-  otpLabel: { color: colors.text.secondary, marginRight: spacing.sm },
-  otpCode: { fontFamily: fontFamily.bold, color: colors.positive, letterSpacing: 2 },
-  skeletonCard: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: 12 },
+  otpContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1 },
+  otpLabel: { marginRight: spacing.sm },
+  otpCode: { fontFamily: fontFamily.bold, letterSpacing: 2 },
+  skeletonCard: { borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: 12 },
 });

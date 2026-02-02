@@ -23,28 +23,33 @@ if (!isExpoGo) {
 }
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  console.log('[Push] registerForPushNotificationsAsync called');
+  console.log('[Push] isExpoGo:', isExpoGo, 'Notifications loaded:', !!Notifications);
+
   if (!Notifications) {
-    console.log('Push notifications not available in Expo Go');
+    console.log('[Push] ABORT — Notifications module not loaded (Expo Go)');
     return null;
   }
 
   let token: string | null = null;
 
   if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
+    console.log('[Push] ABORT — not a physical device');
     return null;
   }
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
+  console.log('[Push] existing permission status:', existingStatus);
 
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
+    console.log('[Push] requested permission, new status:', finalStatus);
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission not granted');
+    console.log('[Push] ABORT — permission not granted:', finalStatus);
     return null;
   }
 
@@ -52,13 +57,15 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const projectId = Constants.expoConfig?.extra?.eas?.projectId
       ?? Constants.easConfig?.projectId
       ?? 'your-project-id';
+    console.log('[Push] using projectId:', projectId);
 
     const pushToken = await Notifications.getExpoPushTokenAsync({
       projectId,
     });
     token = pushToken.data;
+    console.log('[Push] obtained token:', token);
   } catch (error) {
-    console.error('Error getting push token:', error);
+    console.error('[Push] ERROR getting push token:', error);
   }
 
   if (Platform.OS === 'android') {

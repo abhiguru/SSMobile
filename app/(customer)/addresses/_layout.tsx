@@ -1,17 +1,19 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { colors, fontFamily } from '../../../src/constants/theme';
+import { fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme/useAppTheme';
 
 export default function AddressesLayout() {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
 
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: appColors.surface,
         },
-        headerTintColor: colors.text.primary,
+        headerTintColor: appColors.text.primary,
         headerTitleStyle: {
           fontFamily: fontFamily.semiBold,
           fontSize: 17,

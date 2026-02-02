@@ -1,7 +1,8 @@
 import { View, StyleSheet, Pressable, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
-import { colors, spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 import { AppButton } from './AppButton';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
@@ -27,12 +28,14 @@ export function FioriDialog({
   children,
   actions = [],
 }: FioriDialogProps) {
+  const { appColors } = useAppTheme();
+
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-        <Animated.View entering={SlideInDown.duration(250)} style={styles.dialog}>
-          <Text style={styles.title}>{title}</Text>
+        <Animated.View entering={SlideInDown.duration(250)} style={[styles.dialog, { backgroundColor: appColors.surface }]}>
+          <Text style={[styles.title, { color: appColors.text.primary }]}>{title}</Text>
           {children && <View style={styles.content}>{children}</View>}
           {actions.length > 0 && (
             <View style={styles.actions}>
@@ -64,7 +67,6 @@ const styles = StyleSheet.create({
   dialog: {
     maxWidth: 320,
     width: '85%',
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     ...elevation.level4,
@@ -72,7 +74,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
     marginBottom: spacing.md,
   },
   content: {

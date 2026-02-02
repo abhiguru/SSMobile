@@ -25,13 +25,14 @@ import type { Product } from '../../src/types';
 import { selectCartItemCount, addToCart } from '../../src/store/slices/cartSlice';
 import { getPerKgPaise, resolveImageSource } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
-import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
 import { FioriSearchBar } from '../../src/components/common/FioriSearchBar';
 import { FioriChip } from '../../src/components/common/FioriChip';
-import { useToast } from '../../src/components/common/Toast';
+
 import { AppButton } from '../../src/components/common/AppButton';
 import { hapticLight } from '../../src/utils/haptics';
 
@@ -54,6 +55,7 @@ const FisheyeLetter = memo(({
   activeIdx: SharedValue<number>;
   hasProducts: boolean;
 }) => {
+  const { appColors } = useAppTheme();
   const animStyle = useAnimatedStyle(() => {
     if (activeIdx.value < 0) {
       return { transform: [{ scale: withTiming(1, { duration: 150 }) }] };
@@ -66,7 +68,11 @@ const FisheyeLetter = memo(({
   return (
     <Animated.View style={[styles.alphabetLetterBtn, animStyle]} pointerEvents="none">
       <Animated.Text
-        style={[styles.alphabetLetter, !hasProducts && styles.alphabetLetterMuted]}
+        style={[
+          styles.alphabetLetter,
+          { color: appColors.brand },
+          !hasProducts && { color: appColors.neutralLight },
+        ]}
       >
         {letter}
       </Animated.Text>
@@ -75,10 +81,11 @@ const FisheyeLetter = memo(({
 });
 
 function SkeletonProductGrid() {
+  const { appColors } = useAppTheme();
   return (
     <View style={styles.skeletonGrid}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <View key={i} style={styles.skeletonCard}>
+        <View key={i} style={[styles.skeletonCard, { backgroundColor: appColors.surface }, elevation.level1]}>
           <SkeletonBox width="100%" height={100} borderRadius={borderRadius.md} />
           <SkeletonText lines={2} style={{ marginTop: spacing.sm }} />
         </View>
@@ -90,6 +97,7 @@ function SkeletonProductGrid() {
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { appColors, appGradients } = useAppTheme();
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -114,7 +122,7 @@ export default function HomeScreen() {
   const dispatch = useAppDispatch();
   const cartCount = useAppSelector(selectCartItemCount);
   const navigation = useNavigation();
-  const { showToast } = useToast();
+
 
   const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -122,8 +130,7 @@ export default function HomeScreen() {
 
   const handleQuickAdd = useCallback((product: Product, weightGrams: number, quantity: number) => {
     dispatch(addToCart({ product, weightGrams, quantity }));
-    showToast({ message: t('product.addedToCart'), type: 'success' });
-  }, [dispatch, showToast, t]);
+  }, [dispatch]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -146,15 +153,15 @@ export default function HomeScreen() {
             <MaterialCommunityIcons
               name={searchOpen ? 'close' : 'magnify'}
               size={24}
-              color={colors.text.primary}
+              color={appColors.text.primary}
             />
           </Pressable>
           <Pressable onPress={() => router.push('/(customer)/cart')} hitSlop={8} style={styles.headerBtn}>
-            <MaterialCommunityIcons name="cart-outline" size={24} color={colors.text.primary} />
+            <MaterialCommunityIcons name="cart-outline" size={24} color={appColors.text.primary} />
             {cartCount > 0 && (
               <Badge
                 size={16}
-                style={styles.cartBadge}
+                style={[styles.cartBadge, { backgroundColor: appColors.negative, color: appColors.text.inverse }]}
               >
                 {cartCount > 9 ? '9+' : cartCount}
               </Badge>
@@ -163,7 +170,7 @@ export default function HomeScreen() {
         </View>
       ),
     });
-  }, [navigation, searchOpen, cartCount, router, toggleSearch]);
+  }, [navigation, searchOpen, cartCount, router, toggleSearch, appColors]);
 
   const flatListRef = useRef<FlatList<ListItem>>(null);
 
@@ -321,8 +328,8 @@ export default function HomeScreen() {
   const renderListItem = useCallback(({ item, index }: { item: ListItem; index: number }) => {
     if (item.type === 'header') {
       return (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderText}>{item.letter}</Text>
+        <View style={[styles.sectionHeader, { backgroundColor: appColors.shell }]}>
+          <Text style={[styles.sectionHeaderText, { color: appColors.text.secondary }]}>{item.letter}</Text>
         </View>
       );
     }
@@ -335,7 +342,7 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInUp.delay(Math.min(index, 10) * 50).duration(400)}>
         <AnimatedPressable
           onPress={() => router.push(`/(customer)/product/${product.id}`)}
-          style={styles.productCard}
+          style={[styles.productCard, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level2]}
         >
           <View style={styles.productImageWrapper}>
             {imgSource ? (
@@ -347,12 +354,12 @@ export default function HomeScreen() {
               />
             ) : (
               <LinearGradient
-                colors={gradients.brand as unknown as [string, string]}
+                colors={appGradients.brand as unknown as [string, string]}
                 style={styles.productImage}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <MaterialCommunityIcons name="leaf" size={28} color={colors.text.inverse} />
+                <MaterialCommunityIcons name="leaf" size={28} color={appColors.text.inverse} />
               </LinearGradient>
             )}
             <AnimatedPressable
@@ -362,16 +369,16 @@ export default function HomeScreen() {
               <MaterialCommunityIcons
                 name={isFav ? 'heart' : 'heart-outline'}
                 size={16}
-                color={isFav ? colors.negative : colors.text.inverse}
+                color={isFav ? appColors.negative : appColors.text.inverse}
               />
             </AnimatedPressable>
           </View>
           <View style={styles.productInfo}>
-            <Text variant="titleSmall" numberOfLines={2} style={styles.productName}>
+            <Text variant="titleSmall" numberOfLines={2} style={[styles.productName, { color: appColors.text.primary }]}>
               {isGujarati ? product.name_gu : product.name}
             </Text>
             {getPerKgPaise(product) > 0 && (
-              <Text variant="labelMedium" style={styles.productPrice}>
+              <Text variant="labelMedium" style={[styles.productPrice, { color: appColors.brand }]}>
                 ₹{(getPerKgPaise(product) / 100).toFixed(0)}/kg
               </Text>
             )}
@@ -383,12 +390,12 @@ export default function HomeScreen() {
             }}
             style={styles.quickAddBtn}
           >
-            <MaterialCommunityIcons name="cart-plus" size={22} color={colors.brand} />
+            <MaterialCommunityIcons name="cart-plus" size={22} color={appColors.brand} />
           </AnimatedPressable>
         </AnimatedPressable>
       </Animated.View>
     );
-  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken]);
+  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken, appColors, appGradients]);
 
   const getListItemKey = useCallback((item: ListItem) => {
     return item.type === 'header' ? `header-${item.letter}` : item.product.id;
@@ -396,7 +403,7 @@ export default function HomeScreen() {
 
   if (isLoading && products.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: appColors.shell }]}>
         <SkeletonProductGrid />
       </View>
     );
@@ -405,7 +412,7 @@ export default function HomeScreen() {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text variant="bodyLarge" style={{ color: colors.negative, textAlign: 'center', marginBottom: spacing.md }}>
+        <Text variant="bodyLarge" style={{ color: appColors.negative, textAlign: 'center', marginBottom: spacing.md }}>
           {error}
         </Text>
         <AppButton
@@ -423,12 +430,12 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       {searchOpen && (
         <Animated.View
           entering={FadeInDown.duration(200)}
           exiting={FadeOutUp.duration(150)}
-          style={styles.searchBarContainer}
+          style={[styles.searchBarContainer, { backgroundColor: appColors.surface, borderBottomColor: appColors.border }]}
         >
           <FioriSearchBar
             placeholder={t('home.searchProducts')}
@@ -451,8 +458,8 @@ export default function HomeScreen() {
 
           {searchQuery.trim() && filteredProducts.length === 0 ? (
             <View style={styles.noResults}>
-              <MaterialCommunityIcons name="magnify-close" size={48} color={colors.neutral} />
-              <Text variant="bodyLarge" style={styles.noResultsText}>{t('common.noResults')}</Text>
+              <MaterialCommunityIcons name="magnify-close" size={48} color={appColors.neutral} />
+              <Text variant="bodyLarge" style={[styles.noResultsText, { color: appColors.neutral }]}>{t('common.noResults')}</Text>
             </View>
           ) : (
             <FlatList
@@ -468,7 +475,7 @@ export default function HomeScreen() {
           )}
         </View>
         <View
-          style={styles.alphabetBar}
+          style={[styles.alphabetBar, { backgroundColor: appColors.shell }]}
           onLayout={onRailLayout}
           {...railPanResponder.panHandlers}
         >
@@ -495,7 +502,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.shell,
   },
   headerActions: {
     flexDirection: 'row',
@@ -509,15 +515,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 0,
-    backgroundColor: colors.negative,
-    color: colors.text.inverse,
   },
   searchBarContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   searchBar: {
     borderRadius: borderRadius.md,
@@ -533,7 +535,6 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   noResultsText: {
-    color: colors.neutral,
     marginTop: 12,
   },
   centered: {
@@ -561,7 +562,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing.xs,
-    backgroundColor: colors.shell,
   },
   alphabetLetterBtn: {
     paddingVertical: 2,
@@ -570,38 +570,29 @@ const styles = StyleSheet.create({
   alphabetLetter: {
     fontSize: 13,
     fontFamily: fontFamily.semiBold,
-    color: colors.brand,
     textAlign: 'center',
     lineHeight: 18,
   },
-  alphabetLetterMuted: {
-    color: colors.neutralLight,
-  },
   sectionHeader: {
-    backgroundColor: colors.shell,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
   sectionHeaderText: {
     fontSize: 13,
     fontFamily: fontFamily.bold,
-    color: colors.text.secondary,
     letterSpacing: 0.5,
   },
   productsList: {
     paddingBottom: spacing.md,
   },
   productCard: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    ...elevation.level2,
   },
   productImageWrapper: {
     position: 'relative',
@@ -632,11 +623,9 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
     marginBottom: 2,
   },
   productPrice: {
-    color: colors.brand,
     fontFamily: fontFamily.bold,
   },
   quickAddBtn: {
@@ -655,9 +644,7 @@ const styles = StyleSheet.create({
   skeletonCard: {
     width: '46%',
     margin: '2%',
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.sm,
-    ...elevation.level1,
   },
 });

@@ -9,7 +9,8 @@ import { yupResolver } from '@hookform/resolvers/yup';
 
 import { useGetAddressesQuery, useUpdateAddressMutation, useGetAppSettingsQuery } from '../../../src/store/apiSlice';
 import { DEFAULT_APP_SETTINGS, isPincodeServiceable } from '../../../src/constants';
-import { colors, spacing } from '../../../src/constants/theme';
+import { spacing } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme';
 import { addressSchema, AddressFormData } from '../../../src/validation/schemas';
 import { FormTextInput } from '../../../src/components/common/FormTextInput';
 import { AppButton } from '../../../src/components/common/AppButton';
@@ -21,6 +22,7 @@ export default function EditAddressScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const headerHeight = useHeaderHeight();
+  const { appColors } = useAppTheme();
   const { data: addresses = [] } = useGetAddressesQuery();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [updateAddress, { isLoading }] = useUpdateAddressMutation();
@@ -48,22 +50,22 @@ export default function EditAddressScreen() {
     } catch { showToast({ message: t('addresses.errors.saveFailed'), type: 'error' }); }
   };
 
-  if (!address) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>;
+  if (!address) return <View style={styles.centered}><ActivityIndicator size="large" color={appColors.brand} /></View>;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={headerHeight}>
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section}>
-          <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={styles.input} />
-          <FormTextInput control={control} name="full_name" mode="outlined" label={`${t('addresses.fullName')} *`} placeholder={t('addresses.fullNamePlaceholder')} style={styles.input} />
-          <FormTextInput control={control} name="phone" mode="outlined" label={`${t('addresses.phone')} *`} placeholder={t('addresses.phonePlaceholder')} keyboardType="phone-pad" maxLength={14} style={styles.input} />
-          <FormTextInput control={control} name="address_line1" mode="outlined" label={`${t('checkout.addressLine1')} *`} placeholder={t('addresses.addressLine1Placeholder')} style={styles.input} />
-          <FormTextInput control={control} name="address_line2" mode="outlined" label={t('checkout.addressLine2')} placeholder={t('addresses.addressLine2Placeholder')} style={styles.input} />
+      <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+          <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <FormTextInput control={control} name="full_name" mode="outlined" label={`${t('addresses.fullName')} *`} placeholder={t('addresses.fullNamePlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <FormTextInput control={control} name="phone" mode="outlined" label={`${t('addresses.phone')} *`} placeholder={t('addresses.phonePlaceholder')} keyboardType="phone-pad" maxLength={14} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <FormTextInput control={control} name="address_line1" mode="outlined" label={`${t('checkout.addressLine1')} *`} placeholder={t('addresses.addressLine1Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <FormTextInput control={control} name="address_line2" mode="outlined" label={t('checkout.addressLine2')} placeholder={t('addresses.addressLine2Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <View style={styles.row}>
-            <View style={styles.halfField}><FormTextInput control={control} name="city" mode="outlined" label={`${t('checkout.city')} *`} placeholder={t('addresses.cityPlaceholder')} style={styles.input} /></View>
-            <View style={styles.halfField}><FormTextInput control={control} name="state" mode="outlined" label={t('addresses.state')} placeholder={t('addresses.statePlaceholder')} style={styles.input} /></View>
+            <View style={styles.halfField}><FormTextInput control={control} name="city" mode="outlined" label={`${t('checkout.city')} *`} placeholder={t('addresses.cityPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} /></View>
+            <View style={styles.halfField}><FormTextInput control={control} name="state" mode="outlined" label={t('addresses.state')} placeholder={t('addresses.statePlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} /></View>
           </View>
-          <FormTextInput control={control} name="pincode" mode="outlined" label={`${t('checkout.pincode')} *`} placeholder={t('addresses.pincodePlaceholder')} keyboardType="number-pad" maxLength={6} style={styles.input} />
+          <FormTextInput control={control} name="pincode" mode="outlined" label={`${t('checkout.pincode')} *`} placeholder={t('addresses.pincodePlaceholder')} keyboardType="number-pad" maxLength={6} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <Controller control={control} name="is_default" render={({ field: { onChange, value } }) => <FioriSwitch label={t('addresses.setAsDefault')} value={value} onValueChange={onChange} />} />
         </View>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.xl }}>
@@ -75,11 +77,11 @@ export default function EditAddressScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section: { backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.md },
-  input: { backgroundColor: colors.surface, marginBottom: spacing.xs },
+  section: { padding: spacing.md, marginBottom: spacing.md },
+  input: { marginBottom: spacing.xs },
   row: { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },
 });

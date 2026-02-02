@@ -1,7 +1,7 @@
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { formatPrice } from '../../constants';
 import { fontFamily } from '../../constants/theme';
-import type { AppTheme } from '../../theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface PriceTextProps {
   paise: number;
@@ -9,9 +9,9 @@ interface PriceTextProps {
 }
 
 export function PriceText({ paise, variant = 'titleMedium' }: PriceTextProps) {
-  const theme = useTheme<AppTheme>();
+  const { colors: themeColors } = useAppTheme();
   return (
-    <Text variant={variant} style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>
+    <Text variant={variant} style={{ color: themeColors.primary, fontFamily: fontFamily.bold }}>
       {formatPrice(paise)}
     </Text>
   );

@@ -8,7 +8,8 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { colors, borderRadius } from '../../constants/theme';
+import { borderRadius } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface LinearProgressProps {
   progress?: number; // 0-1 for determinate
@@ -20,9 +21,12 @@ interface LinearProgressProps {
 export function LinearProgress({
   progress = 0,
   indeterminate = false,
-  color = colors.brand,
-  trackColor = colors.border,
+  color,
+  trackColor,
 }: LinearProgressProps) {
+  const { appColors } = useAppTheme();
+  const resolvedColor = color ?? appColors.brand;
+  const resolvedTrackColor = trackColor ?? appColors.border;
   const animatedWidth = useSharedValue(0);
   const translateX = useSharedValue(-1);
 
@@ -51,11 +55,11 @@ export function LinearProgress({
   }));
 
   return (
-    <View style={[styles.track, { backgroundColor: trackColor }]}>
+    <View style={[styles.track, { backgroundColor: resolvedTrackColor }]}>
       <Animated.View
         style={[
           styles.fill,
-          { backgroundColor: color },
+          { backgroundColor: resolvedColor },
           indeterminate ? indeterminateStyle : determinateStyle,
         ]}
       />

@@ -5,7 +5,8 @@ import { Text, TextInput, ActivityIndicator } from 'react-native-paper';
 import { Switch } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
+import { spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 import {
   useGetAllDeliveryStaffQuery,
   useUpdateDeliveryStaffMutation,
@@ -18,6 +19,7 @@ import { useToast } from '../../src/components/common/Toast';
 
 export default function StaffScreen() {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
   const { data: staffList = [], isLoading, isError, refetch } = useGetAllDeliveryStaffQuery();
   const [updateStaff, { isLoading: isUpdating }] = useUpdateDeliveryStaffMutation();
 
@@ -104,26 +106,26 @@ export default function StaffScreen() {
 
     return (
       <Pressable
-        style={[styles.card, !isActive && styles.cardInactive]}
+        style={[styles.card, { backgroundColor: appColors.surface }, !isActive && styles.cardInactive]}
         onPress={() => openEditSheet(item)}
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardIdentity}>
-            <View style={[styles.avatar, !isActive && styles.avatarInactive]}>
+            <View style={[styles.avatar, { backgroundColor: isActive ? appColors.brandTint : appColors.neutralLight }]}>
               <MaterialCommunityIcons
                 name="account"
                 size={24}
-                color={isActive ? colors.brand : colors.neutral}
+                color={isActive ? appColors.brand : appColors.neutral}
               />
             </View>
             <View style={styles.cardInfo}>
               <Text
                 variant="bodyLarge"
-                style={[styles.staffName, !isActive && styles.textInactive]}
+                style={[styles.staffName, { color: appColors.text.primary }, !isActive && { color: appColors.text.secondary }]}
               >
                 {item.name}
               </Text>
-              <Text variant="bodySmall" style={styles.staffPhone}>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
                 {item.phone}
               </Text>
             </View>
@@ -131,32 +133,32 @@ export default function StaffScreen() {
           <Switch
             value={isActive}
             onValueChange={() => handleToggleActive(item)}
-            trackColor={{ false: colors.border, true: colors.brand }}
-            thumbColor={colors.surface}
+            trackColor={{ false: appColors.border, true: appColors.brand }}
+            thumbColor={appColors.surface}
           />
         </View>
 
-        <View style={styles.cardFooter}>
+        <View style={[styles.cardFooter, { borderTopColor: appColors.border }]}>
           {isActive ? (
             isDelivering ? (
-              <View style={styles.deliveringBadge}>
-                <MaterialCommunityIcons name="truck-delivery" size={14} color={colors.critical} />
-                <Text style={styles.deliveringText}>
+              <View style={[styles.deliveringBadge, { backgroundColor: appColors.criticalLight }]}>
+                <MaterialCommunityIcons name="truck-delivery" size={14} color={appColors.critical} />
+                <Text style={[styles.deliveringText, { color: appColors.critical }]}>
                   {t('admin.staffDeliveringOrder', {
                     orderId: (item.current_order_id || '').slice(-6).toUpperCase(),
                   })}
                 </Text>
               </View>
             ) : (
-              <View style={styles.freeBadge}>
-                <MaterialCommunityIcons name="check-circle" size={14} color={colors.positive} />
-                <Text style={styles.freeText}>{t('admin.staffFree')}</Text>
+              <View style={[styles.freeBadge, { backgroundColor: appColors.positiveLight }]}>
+                <MaterialCommunityIcons name="check-circle" size={14} color={appColors.positive} />
+                <Text style={[styles.freeText, { color: appColors.positive }]}>{t('admin.staffFree')}</Text>
               </View>
             )
           ) : (
-            <View style={styles.inactiveBadge}>
-              <MaterialCommunityIcons name="account-off" size={14} color={colors.neutral} />
-              <Text style={styles.inactiveText}>{t('admin.staffInactive')}</Text>
+            <View style={[styles.inactiveBadge, { backgroundColor: appColors.neutralLight }]}>
+              <MaterialCommunityIcons name="account-off" size={14} color={appColors.neutral} />
+              <Text style={[styles.inactiveText, { color: appColors.neutral }]}>{t('admin.staffInactive')}</Text>
             </View>
           )}
           <Pressable
@@ -164,26 +166,26 @@ export default function StaffScreen() {
             onPress={() => openEditSheet(item)}
             hitSlop={8}
           >
-            <MaterialCommunityIcons name="pencil" size={18} color={colors.text.secondary} />
+            <MaterialCommunityIcons name="pencil" size={18} color={appColors.text.secondary} />
           </Pressable>
         </View>
       </Pressable>
     );
-  }, [openEditSheet, handleToggleActive, t]);
+  }, [openEditSheet, handleToggleActive, t, appColors]);
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.brand} />
+      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+        <ActivityIndicator size="large" color={appColors.brand} />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.critical} />
-        <Text variant="bodyMedium" style={styles.errorText}>{t('common.error')}</Text>
+      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={appColors.critical} />
+        <Text variant="bodyMedium" style={{ color: appColors.critical, marginTop: spacing.md }}>{t('common.error')}</Text>
         <View style={{ marginTop: spacing.md }}>
           <AppButton variant="secondary" size="sm" onPress={refetch}>
             {t('common.retry')}
@@ -194,12 +196,12 @@ export default function StaffScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       {sortedStaff.length === 0 ? (
-        <View style={styles.centered}>
-          <MaterialCommunityIcons name="account-group" size={64} color={colors.neutral} />
-          <Text variant="headlineSmall" style={styles.emptyTitle}>{t('admin.noStaff')}</Text>
-          <Text variant="bodyMedium" style={styles.emptySubtitle}>{t('admin.noStaffSub')}</Text>
+        <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+          <MaterialCommunityIcons name="account-group" size={64} color={appColors.neutral} />
+          <Text variant="headlineSmall" style={[styles.emptyTitle, { color: appColors.text.primary }]}>{t('admin.noStaff')}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('admin.noStaffSub')}</Text>
         </View>
       ) : (
         <FlashList
@@ -234,10 +236,10 @@ export default function StaffScreen() {
             value={formName}
             onChangeText={(v) => { setFormName(v); setFormError(''); }}
             mode="outlined"
-            style={styles.input}
+            style={[styles.input, { backgroundColor: appColors.surface }]}
             autoCapitalize="words"
-            outlineColor={colors.fieldBorder}
-            activeOutlineColor={colors.brand}
+            outlineColor={appColors.fieldBorder}
+            activeOutlineColor={appColors.brand}
           />
 
           {editingStaff && (
@@ -245,18 +247,18 @@ export default function StaffScreen() {
               label={t('admin.staffPhone')}
               value={editingStaff.phone}
               mode="outlined"
-              style={styles.input}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
               disabled
-              outlineColor={colors.fieldBorder}
+              outlineColor={appColors.fieldBorder}
             />
           )}
 
           {formError ? (
-            <Text variant="bodySmall" style={styles.formError}>{formError}</Text>
+            <Text variant="bodySmall" style={{ color: appColors.critical, marginBottom: spacing.md }}>{formError}</Text>
           ) : null}
         </ScrollView>
 
-        <View style={styles.sheetFooter}>
+        <View style={[styles.sheetFooter, { borderTopColor: appColors.border }]}>
           <View style={styles.footerButton}>
             <AppButton variant="secondary" size="md" onPress={closeSheet} fullWidth>
               {t('common.cancel')}
@@ -295,33 +297,22 @@ function mapErrorCode(code: string, t: (key: string) => string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.shell,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.shell,
     padding: spacing.lg,
-  },
-  errorText: {
-    color: colors.critical,
-    marginTop: spacing.md,
   },
   emptyTitle: {
     fontFamily: fontFamily.bold,
-    color: colors.text.primary,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
-  },
-  emptySubtitle: {
-    color: colors.text.secondary,
   },
   listContent: {
     padding: spacing.lg,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     ...elevation.level1,
@@ -343,12 +334,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.brandTint,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarInactive: {
-    backgroundColor: colors.neutralLight,
   },
   cardInfo: {
     marginLeft: spacing.md,
@@ -356,14 +343,6 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
-  },
-  textInactive: {
-    color: colors.text.secondary,
-  },
-  staffPhone: {
-    color: colors.text.secondary,
-    marginTop: 2,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -372,12 +351,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   freeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.positiveLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -386,12 +363,10 @@ const styles = StyleSheet.create({
   freeText: {
     fontSize: 12,
     fontFamily: fontFamily.semiBold,
-    color: colors.positive,
   },
   deliveringBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.criticalLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -400,12 +375,10 @@ const styles = StyleSheet.create({
   deliveringText: {
     fontSize: 12,
     fontFamily: fontFamily.semiBold,
-    color: colors.critical,
   },
   inactiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutralLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -414,17 +387,11 @@ const styles = StyleSheet.create({
   inactiveText: {
     fontSize: 12,
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral,
   },
   editButton: {
     padding: spacing.xs,
   },
   input: {
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  formError: {
-    color: colors.critical,
     marginBottom: spacing.md,
   },
   sheetFooter: {
@@ -433,7 +400,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   footerButton: {
     flex: 1,

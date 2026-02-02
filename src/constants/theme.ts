@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 // ─── SAP Fiori Horizon (Morning) Color System ───────────────────────────────
 // Brand color: #f69000 (Fiori-compliant orange)
 
-export const colors = {
+export const lightColors = {
   // Brand
   brand: '#f69000',
   brandLight: '#FFF0D9',
@@ -55,6 +55,91 @@ export const colors = {
     emphasizedText: '#FFFFFF',
   },
 } as const;
+
+export const darkColors = {
+  // Brand
+  brand: '#f69000',
+  brandLight: '#3D2800',
+  brandDark: '#FFB347',
+
+  // Surfaces
+  shell: '#121212',
+  surface: '#1E1E1E',
+  pressedSurface: '#2C2C2C',
+  fieldBackground: '#2C2C2C',
+
+  // Text
+  text: {
+    primary: '#E8EAED',
+    secondary: '#9AA0A6',
+    disabled: '#5F6368',
+    inverse: '#1D2D3E',
+  },
+
+  // Semantic (muted for dark backgrounds)
+  negative: '#F28B82',
+  negativeLight: '#3D1518',
+  critical: '#FBBC04',
+  criticalLight: '#3D3012',
+  positive: '#81C995',
+  positiveLight: '#1B3D20',
+  informative: '#8AB4F8',
+  informativeLight: '#1A2744',
+  neutral: '#9AA0A6',
+  neutralLight: '#3C4043',
+
+  // Derived
+  brandTint: '#2E1F0A',
+  toastDefault: '#E8EAED',
+  badgeRed: '#F28B82',
+  activeBorder: '#8AB4F8',
+
+  // Borders & Fields
+  border: '#3C4043',
+  fieldBorder: '#5F6368',
+  listBorder: '#3C4043',
+
+  // Button (Fiori spec adapted with orange brand)
+  button: {
+    background: '#2C2C2C',
+    border: '#f69000',
+    text: '#FFB347',
+    emphasizedBg: '#f69000',
+    emphasizedText: '#FFFFFF',
+  },
+} as const;
+
+export interface AppColors {
+  brand: string;
+  brandLight: string;
+  brandDark: string;
+  shell: string;
+  surface: string;
+  pressedSurface: string;
+  fieldBackground: string;
+  text: { primary: string; secondary: string; disabled: string; inverse: string };
+  negative: string;
+  negativeLight: string;
+  critical: string;
+  criticalLight: string;
+  positive: string;
+  positiveLight: string;
+  informative: string;
+  informativeLight: string;
+  neutral: string;
+  neutralLight: string;
+  brandTint: string;
+  toastDefault: string;
+  badgeRed: string;
+  activeBorder: string;
+  border: string;
+  fieldBorder: string;
+  listBorder: string;
+  button: { background: string; border: string; text: string; emphasizedBg: string; emphasizedText: string };
+}
+
+// Backward compat — will be removed after full migration
+export const colors = lightColors;
 
 // ─── Fiori 8px Base Grid Spacing ────────────────────────────────────────────
 export const spacing = {
@@ -130,6 +215,16 @@ export const gradients = {
   brand: ['#f69000', '#FFB347'] as readonly string[],
   warmHeader: ['#f69000', '#dd8200'] as readonly string[],
 };
+
+export const darkGradients = {
+  brand: ['#c27400', '#A66A00'] as readonly string[],
+  warmHeader: ['#c27400', '#9B5E00'] as readonly string[],
+};
+
+export interface AppGradients {
+  brand: readonly string[];
+  warmHeader: readonly string[];
+}
 
 // ─── Animation Config ───────────────────────────────────────────────────────
 export const animationConfig = {

@@ -59,6 +59,9 @@ export const formatPrice = (paise: number): string => {
   return `₹${rupees.toFixed(2)}`;
 };
 
+// EAS project ID (used for push notifications)
+export const EAS_PROJECT_ID = '961d69d8-b045-4d5e-be9d-5cbc5736cd83';
+
 // OTP length
 export const OTP_LENGTH = 6;
 export const DELIVERY_OTP_LENGTH = 4;
@@ -81,16 +84,19 @@ export const ORDER_STATUS_LABELS: Record<string, { en: string; gu: string }> = {
   delivery_failed: { en: 'Delivery Failed', gu: 'ડિલિવરી નિષ્ફળ' },
 };
 
-// Order status → Fiori semantic color map
-import { colors } from './theme';
-export const ORDER_STATUS_COLORS: Record<string, string> = {
-  placed: colors.critical,
-  confirmed: colors.informative,
-  out_for_delivery: colors.informative,
-  delivered: colors.positive,
-  cancelled: colors.negative,
-  delivery_failed: colors.negative,
-};
+// Order status → Fiori semantic color map (dynamic for dark mode)
+import type { AppColors } from './theme';
+export function getOrderStatusColor(status: string, c: AppColors): string {
+  switch (status) {
+    case 'placed': return c.critical;
+    case 'confirmed':
+    case 'out_for_delivery': return c.informative;
+    case 'delivered': return c.positive;
+    case 'cancelled':
+    case 'delivery_failed': return c.negative;
+    default: return c.critical;
+  }
+}
 
 // Error codes
 export const ERROR_CODES = {

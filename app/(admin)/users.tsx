@@ -6,7 +6,8 @@ import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontFamily, fontSize, elevation } from '../../src/constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize, elevation } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 import {
   useGetUsersQuery,
   useGetAdminUserAddressesQuery,
@@ -27,13 +28,6 @@ import { PlacesAutocomplete, type PlaceDetails } from '../../src/components/comm
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
 
-// Fiori tag-spec colors (spec 18)
-const ROLE_BADGE_STYLES: Record<UserRole, { bg: string; text: string }> = {
-  customer: { bg: '#EBF8FF', text: '#0040B0' },
-  admin: { bg: '#FEF7F1', text: '#AA5808' },
-  delivery_staff: { bg: '#F5FAE5', text: '#256F14' },
-  super_admin: { bg: '#F3E5F5', text: '#7B1FA2' },
-};
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'admin.roleCustomer',
@@ -54,12 +48,13 @@ const ADDR_STEPS = [
 // Small component that lazily fetches addresses for a single user card
 function UserCardAddresses({ userId }: { userId: string }) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
   const { data: addresses } = useGetAdminUserAddressesQuery(userId);
 
   if (!addresses || addresses.length === 0) return null;
 
   return (
-    <View style={styles.addressSection}>
+    <View style={[styles.addressSection, { borderTopColor: appColors.border }]}>
       {addresses.map((addr) => {
         const parts = [addr.address_line1, addr.city, addr.pincode].filter(Boolean);
         const summary = addr.label ? `${addr.label}: ${parts.join(', ')}` : parts.join(', ');
@@ -70,19 +65,19 @@ function UserCardAddresses({ userId }: { userId: string }) {
             <MaterialCommunityIcons
               name={isDefault ? 'map-marker-check' : 'map-marker-outline'}
               size={16}
-              color={isDefault ? colors.positive : colors.text.secondary}
+              color={isDefault ? appColors.positive : appColors.text.secondary}
               style={styles.addressIcon}
             />
             <Text
               variant="bodySmall"
-              style={[styles.addressText, isDefault && styles.addressTextDefault]}
+              style={[styles.addressText, { color: appColors.text.secondary }, isDefault && { fontFamily: fontFamily.semiBold, color: appColors.text.primary }]}
               numberOfLines={1}
             >
               {summary}
             </Text>
             {isDefault && (
-              <View style={styles.defaultBadge}>
-                <Text style={styles.defaultBadgeText}>{t('admin.defaultAddress')}</Text>
+              <View style={[styles.defaultBadge, { backgroundColor: appColors.positiveLight }]}>
+                <Text style={[styles.defaultBadgeText, { color: appColors.positive }]}>{t('admin.defaultAddress')}</Text>
               </View>
             )}
           </View>
@@ -95,6 +90,15 @@ function UserCardAddresses({ userId }: { userId: string }) {
 export default function UsersScreen() {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const { appColors } = useAppTheme();
+
+  const ROLE_BADGE_STYLES: Record<UserRole, { bg: string; text: string }> = {
+    customer: { bg: appColors.informativeLight, text: appColors.informative },
+    admin: { bg: appColors.criticalLight, text: appColors.critical },
+    delivery_staff: { bg: appColors.positiveLight, text: appColors.positive },
+    super_admin: { bg: appColors.brandLight, text: appColors.brand },
+  };
+
   const [dialog, setDialog] = useState<{ title: string; message: string; onConfirm: () => void; confirmLabel: string; variant?: ButtonVariant } | null>(null);
 
   const [searchText, setSearchText] = useState('');
@@ -395,22 +399,22 @@ export default function UsersScreen() {
     const hasPendingDeletion = pendingDeletionUserIds.has(item.id);
 
     return (
-      <Pressable style={[styles.card, !isActive && styles.cardBlocked]} onPress={() => openEditSheet(item)}>
+      <Pressable style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }, !isActive && styles.cardBlocked]} onPress={() => openEditSheet(item)}>
         <View style={styles.cardRow}>
           <View style={styles.avatarContainer}>
-            <MaterialCommunityIcons name="account-circle" size={40} color={isActive ? colors.neutral : colors.critical} />
+            <MaterialCommunityIcons name="account-circle" size={40} color={isActive ? appColors.neutral : appColors.critical} />
           </View>
           <View style={styles.cardInfo}>
-            <Text variant="bodyLarge" style={styles.userName}>
+            <Text variant="bodyLarge" style={[styles.userName, { color: appColors.text.primary }]}>
               {item.name || '—'}
             </Text>
-            <Text variant="bodySmall" style={styles.userPhone}>
+            <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
               {item.phone || ''}
             </Text>
           </View>
           {!isActive ? (
-            <View style={[styles.roleBadge, styles.blockedBadge]}>
-              <Text style={[styles.roleBadgeText, styles.blockedBadgeText]}>
+            <View style={[styles.roleBadge, { backgroundColor: appColors.negativeLight }]}>
+              <Text style={[styles.roleBadgeText, { color: appColors.negative }]}>
                 {t('admin.blocked')}
               </Text>
             </View>
@@ -424,35 +428,35 @@ export default function UsersScreen() {
           <Switch
             value={isActive}
             onValueChange={() => handleToggleActive(item)}
-            trackColor={{ false: colors.critical, true: colors.positive }}
-            ios_backgroundColor={colors.critical}
+            trackColor={{ false: appColors.critical, true: appColors.positive }}
+            ios_backgroundColor={appColors.critical}
             style={styles.activeSwitch}
           />
         </View>
         {hasPendingDeletion && (
-          <View style={styles.deletionBadgeRow}>
-            <MaterialCommunityIcons name="alert-circle" size={16} color={colors.negative} />
-            <Text style={styles.deletionBadgeText}>{t('admin.deletionRequested')}</Text>
+          <View style={[styles.deletionBadgeRow, { borderTopColor: appColors.border }]}>
+            <MaterialCommunityIcons name="alert-circle" size={16} color={appColors.negative} />
+            <Text style={[styles.deletionBadgeText, { color: appColors.negative }]}>{t('admin.deletionRequested')}</Text>
           </View>
         )}
         <UserCardAddresses userId={item.id} />
       </Pressable>
     );
-  }, [openEditSheet, handleToggleActive, pendingDeletionUserIds, t]);
+  }, [openEditSheet, handleToggleActive, pendingDeletionUserIds, t, appColors]);
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.brand} />
+      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+        <ActivityIndicator size="large" color={appColors.brand} />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.critical} />
-        <Text variant="bodyMedium" style={styles.errorText}>{t('common.error')}</Text>
+      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={appColors.critical} />
+        <Text variant="bodyMedium" style={{ color: appColors.critical, marginTop: spacing.md }}>{t('common.error')}</Text>
         <View style={styles.retryContainer}>
           <AppButton variant="secondary" size="sm" onPress={refetch}>
             {t('common.retry')}
@@ -463,7 +467,7 @@ export default function UsersScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       <View style={styles.searchContainer}>
         <FioriSearchBar
           placeholder={t('admin.searchUsers')}
@@ -473,9 +477,9 @@ export default function UsersScreen() {
       </View>
 
       {users.length === 0 ? (
-        <View style={styles.centered}>
-          <MaterialCommunityIcons name="account-search" size={64} color={colors.neutral} />
-          <Text variant="headlineSmall" style={styles.emptyTitle}>{t('admin.noUsers')}</Text>
+        <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+          <MaterialCommunityIcons name="account-search" size={64} color={appColors.neutral} />
+          <Text variant="headlineSmall" style={[styles.emptyTitle, { color: appColors.text.primary }]}>{t('admin.noUsers')}</Text>
         </View>
       ) : (
         <FlashList
@@ -496,19 +500,19 @@ export default function UsersScreen() {
         onRequestClose={closeSheet}
       >
         <KeyboardAvoidingView
-          style={styles.sheetFull}
+          style={[styles.sheetFull, { backgroundColor: appColors.surface }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={[styles.sheetHeader, { paddingTop: insets.top + spacing.md }]}>
+          <View style={[styles.sheetHeader, { borderBottomColor: appColors.border }, { paddingTop: insets.top + spacing.md }]}>
             <Pressable onPress={closeSheet} hitSlop={8}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.text.primary} />
+              <MaterialCommunityIcons name="close" size={24} color={appColors.text.primary} />
             </Pressable>
             <View style={styles.sheetHeaderCenter}>
-              <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
+              <Text variant="titleMedium" style={[styles.sheetHeaderTitle, { color: appColors.text.primary }]}>
                 {t('admin.editUser')}
               </Text>
               {selectedUser && (
-                <Text variant="bodySmall" style={styles.sheetHeaderSubtitle}>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
                   {selectedUser.phone || ''}
                 </Text>
               )}
@@ -523,25 +527,25 @@ export default function UsersScreen() {
               contentContainerStyle={styles.sheetScrollContent}
             >
               {/* Name field */}
-              <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userName')}</Text>
+              <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.userName')}</Text>
               <TextInput
                 value={formName}
                 onChangeText={setFormName}
                 placeholder={t('admin.userNamePlaceholder')}
                 mode="outlined"
-                style={styles.fieldInput}
-                outlineColor={colors.border}
-                activeOutlineColor={colors.brand}
+                style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                outlineColor={appColors.border}
+                activeOutlineColor={appColors.brand}
                 dense
               />
 
               {/* Phone field (read-only) */}
-              <Text variant="bodySmall" style={styles.fieldLabel}>{t('profile.phone')}</Text>
+              <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('profile.phone')}</Text>
               <TextInput
                 value={selectedUser?.phone || ''}
                 mode="outlined"
-                style={styles.fieldInput}
-                outlineColor={colors.border}
+                style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                outlineColor={appColors.border}
                 disabled
                 dense
               />
@@ -552,14 +556,14 @@ export default function UsersScreen() {
                 if (!req) return null;
                 const displayName = selectedUser?.name || selectedUser?.phone || '';
                 return (
-                  <View style={styles.deletionBanner}>
+                  <View style={[styles.deletionBanner, { backgroundColor: appColors.negativeLight, borderColor: appColors.negative }]}>
                     <View style={styles.deletionBannerHeader}>
-                      <MaterialCommunityIcons name="alert-circle" size={20} color={colors.negative} />
-                      <Text variant="bodyMedium" style={styles.deletionBannerText}>
+                      <MaterialCommunityIcons name="alert-circle" size={20} color={appColors.negative} />
+                      <Text variant="bodyMedium" style={[styles.deletionBannerText, { color: appColors.negative }]}>
                         {t('admin.deletionRequestBanner')}
                       </Text>
                     </View>
-                    <Text variant="bodySmall" style={styles.deletionBannerDate}>
+                    <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: spacing.xs, marginLeft: 20 + spacing.xs }}>
                       {t('admin.deletionRequestDate', { date: new Date(req.created_at).toLocaleDateString() })}
                     </Text>
                     <View style={styles.deletionBannerActions}>
@@ -626,8 +630,8 @@ export default function UsersScreen() {
               })()}
 
               {/* Role picker */}
-              <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userRole')}</Text>
-              <View style={styles.roleCard}>
+              <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.userRole')}</Text>
+              <View style={[styles.roleCard, { borderColor: appColors.border }]}>
                 <RadioButton.Group
                   value={formRole}
                   onValueChange={(v) => setFormRole(v as UserRole)}
@@ -639,12 +643,12 @@ export default function UsersScreen() {
                         key={role}
                         style={({ pressed }) => [
                           styles.roleOption,
-                          pressed && styles.roleOptionPressed,
-                          index < ALL_ROLES.length - 1 && styles.roleOptionBorder,
+                          pressed && { backgroundColor: appColors.pressedSurface },
+                          index < ALL_ROLES.length - 1 && [styles.roleOptionBorder, { borderBottomColor: appColors.border }],
                         ]}
                         onPress={() => setFormRole(role)}
                       >
-                        <RadioButton value={role} color={colors.brand} />
+                        <RadioButton value={role} color={appColors.brand} />
                         <View style={[styles.roleOptionBadge, { backgroundColor: badgeStyle.bg }]}>
                           <Text style={[styles.roleOptionText, { color: badgeStyle.text }]}>
                             {t(ROLE_LABELS[role])}
@@ -658,41 +662,41 @@ export default function UsersScreen() {
 
               {/* Active toggle */}
               <View style={styles.activeRow}>
-                <Text variant="bodyMedium" style={styles.activeLabel}>{t('admin.userActive')}</Text>
+                <Text variant="bodyMedium" style={[styles.activeLabel, { color: appColors.text.primary }]}>{t('admin.userActive')}</Text>
                 <Switch
                   value={formActive}
                   onValueChange={setFormActive}
-                  trackColor={{ false: colors.critical, true: colors.positive }}
-                  ios_backgroundColor={colors.critical}
+                  trackColor={{ false: appColors.critical, true: appColors.positive }}
+                  ios_backgroundColor={appColors.critical}
                 />
               </View>
 
               {/* Addresses with CRUD */}
               <View style={styles.addressHeaderRow}>
-                <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.userAddresses')}</Text>
+                <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.userAddresses')}</Text>
                 <Pressable style={({ pressed }) => [styles.addAddressBtn, pressed && styles.addAddressBtnPressed]} onPress={() => openAddressForm()}>
-                  <MaterialCommunityIcons name="plus" size={16} color={colors.brand} />
-                  <Text style={styles.addAddressBtnText}>{t('admin.addAddress')}</Text>
+                  <MaterialCommunityIcons name="plus" size={16} color={appColors.brand} />
+                  <Text style={[styles.addAddressBtnText, { color: appColors.brand }]}>{t('admin.addAddress')}</Text>
                 </Pressable>
               </View>
               {selectedUserAddresses.length === 0 ? (
-                <Text variant="bodySmall" style={styles.noAddresses}>{t('admin.noAddresses')}</Text>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary, fontStyle: 'italic', marginTop: spacing.xs }}>{t('admin.noAddresses')}</Text>
               ) : (
                 <View style={styles.sheetAddressList}>
                   {selectedUserAddresses.map((addr) => {
                     const parts = [addr.address_line1, addr.city, addr.pincode].filter(Boolean);
                     const summary = addr.label ? `${addr.label}: ${parts.join(', ')}` : parts.join(', ');
                     return (
-                      <View key={addr.id} style={[styles.sheetAddressCard, addr.is_default && styles.sheetAddressCardDefault]}>
+                      <View key={addr.id} style={[styles.sheetAddressCard, { borderColor: appColors.border }, addr.is_default && { borderColor: appColors.positive, backgroundColor: appColors.positiveLight }]}>
                         <View style={styles.sheetAddressRow}>
                           <MaterialCommunityIcons
                             name={addr.is_default ? 'map-marker-check' : 'map-marker-outline'}
                             size={18}
-                            color={addr.is_default ? colors.positive : colors.text.secondary}
+                            color={addr.is_default ? appColors.positive : appColors.text.secondary}
                           />
                           <Text
                             variant="bodySmall"
-                            style={[styles.sheetAddressText, addr.is_default && styles.addressTextDefault]}
+                            style={[styles.sheetAddressText, { color: appColors.text.secondary }, addr.is_default && { fontFamily: fontFamily.semiBold, color: appColors.text.primary }]}
                             numberOfLines={2}
                           >
                             {summary}
@@ -707,14 +711,14 @@ export default function UsersScreen() {
                             onPress={() => openAddressForm(addr)}
                             hitSlop={8}
                           >
-                            <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.text.secondary} />
+                            <MaterialCommunityIcons name="pencil-outline" size={18} color={appColors.text.secondary} />
                           </Pressable>
                           <Pressable
                             style={styles.addrActionBtn}
                             onPress={() => handleDeleteAddress(addr)}
                             hitSlop={8}
                           >
-                            <MaterialCommunityIcons name="delete-outline" size={18} color={colors.critical} />
+                            <MaterialCommunityIcons name="delete-outline" size={18} color={appColors.critical} />
                           </Pressable>
                         </View>
                       </View>
@@ -725,11 +729,11 @@ export default function UsersScreen() {
 
               {/* Error text */}
               {formError ? (
-                <Text variant="bodySmall" style={styles.formError}>{formError}</Text>
+                <Text variant="bodySmall" style={[styles.formError, { color: appColors.critical }]}>{formError}</Text>
               ) : null}
             </ScrollView>
 
-          <View style={styles.sheetFooter}>
+          <View style={[styles.sheetFooter, { borderTopColor: appColors.border }]}>
             <View style={styles.footerButton}>
               <AppButton variant="secondary" size="md" onPress={closeSheet} fullWidth>
                 {t('common.cancel')}
@@ -757,14 +761,14 @@ export default function UsersScreen() {
         animationType="slide"
         onRequestClose={closeAddressForm}
       >
-        <View style={styles.sheetFull}>
+        <View style={[styles.sheetFull, { backgroundColor: appColors.surface }]}>
           {/* Header */}
-          <View style={[styles.sheetHeader, { paddingTop: insets.top + spacing.md }]}>
+          <View style={[styles.sheetHeader, { borderBottomColor: appColors.border }, { paddingTop: insets.top + spacing.md }]}>
             <Pressable onPress={closeAddressForm} hitSlop={8}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.text.primary} />
+              <MaterialCommunityIcons name="close" size={24} color={appColors.text.primary} />
             </Pressable>
             <View style={styles.sheetHeaderCenter}>
-              <Text variant="titleMedium" style={styles.sheetHeaderTitle}>
+              <Text variant="titleMedium" style={[styles.sheetHeaderTitle, { color: appColors.text.primary }]}>
                 {editingAddress ? t('admin.editAddress') : t('admin.addAddress')}
               </Text>
             </View>
@@ -772,24 +776,24 @@ export default function UsersScreen() {
           </View>
 
           {/* Step Indicator */}
-          <View style={styles.addrStepContainer}>
+          <View style={[styles.addrStepContainer, { backgroundColor: appColors.surface, borderBottomColor: appColors.border }]}>
             {ADDR_STEPS.map((step, index) => {
               const isActive = index <= addrStep;
               const isCurrent = index === addrStep;
               const isCompleted = index < addrStep;
               const circleColor = isCurrent
-                ? colors.brand
+                ? appColors.brand
                 : isCompleted
-                  ? colors.positive
-                  : colors.neutralLight;
-              const iconColor = isActive ? colors.text.inverse : colors.neutral;
+                  ? appColors.positive
+                  : appColors.neutralLight;
+              const iconColor = isActive ? appColors.text.inverse : appColors.neutral;
               return (
                 <View key={index} style={styles.addrStepWrapper}>
                   {index > 0 && (
                     <View
                       style={[
                         styles.addrStepLine,
-                        { backgroundColor: isActive ? colors.positive : colors.neutralLight },
+                        { backgroundColor: isActive ? appColors.positive : appColors.neutralLight },
                       ]}
                     />
                   )}
@@ -808,7 +812,7 @@ export default function UsersScreen() {
                   </Animated.View>
                   <Text
                     variant="labelSmall"
-                    style={[styles.addrStepLabel, isActive && styles.addrStepLabelActive]}
+                    style={[styles.addrStepLabel, { color: appColors.neutral }, isActive && { color: appColors.brand, fontFamily: fontFamily.semiBold }]}
                   >
                     {t(step.labelKey)}
                   </Text>
@@ -829,40 +833,40 @@ export default function UsersScreen() {
             >
               {/* Step 0: Contact */}
               {addrStep === 0 && (
-                <View style={styles.addrStepCard}>
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressLabel')}</Text>
+                <View style={[styles.addrStepCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressLabel')}</Text>
                   <TextInput
                     value={addrLabel}
                     onChangeText={setAddrLabel}
                     placeholder={t('admin.addressLabelPlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     dense
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressFullName')} *</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressFullName')} *</Text>
                   <TextInput
                     value={addrFullName}
                     onChangeText={setAddrFullName}
                     placeholder={t('admin.addressFullNamePlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     dense
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressPhone')} *</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressPhone')} *</Text>
                   <TextInput
                     value={addrPhone}
                     onChangeText={setAddrPhone}
                     placeholder={t('admin.addressPhonePlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     keyboardType="phone-pad"
                     dense
                   />
@@ -871,8 +875,8 @@ export default function UsersScreen() {
 
               {/* Step 1: Address */}
               {addrStep === 1 && (
-                <View style={styles.addrStepCard}>
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressLine1')} *</Text>
+                <View style={[styles.addrStepCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressLine1')} *</Text>
                   <PlacesAutocomplete
                     value={addrLine1}
                     onChangeText={setAddrLine1}
@@ -880,63 +884,63 @@ export default function UsersScreen() {
                     placeholder={t('admin.addressLine1Placeholder')}
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressLine2')}</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressLine2')}</Text>
                   <TextInput
                     value={addrLine2}
                     onChangeText={setAddrLine2}
                     placeholder={t('admin.addressLine2Placeholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     dense
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressCity')} *</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressCity')} *</Text>
                   <TextInput
                     value={addrCity}
                     onChangeText={setAddrCity}
                     placeholder={t('admin.addressCityPlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     dense
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressState')}</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressState')}</Text>
                   <TextInput
                     value={addrState}
                     onChangeText={setAddrState}
                     placeholder={t('admin.addressStatePlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     dense
                   />
 
-                  <Text variant="bodySmall" style={styles.fieldLabel}>{t('admin.addressPincode')} *</Text>
+                  <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.addressPincode')} *</Text>
                   <TextInput
                     value={addrPincode}
                     onChangeText={setAddrPincode}
                     placeholder={t('admin.addressPincodePlaceholder')}
                     mode="outlined"
-                    style={styles.fieldInput}
-                    outlineColor={colors.border}
-                    activeOutlineColor={colors.brand}
+                    style={[styles.fieldInput, { backgroundColor: appColors.surface }]}
+                    outlineColor={appColors.border}
+                    activeOutlineColor={appColors.brand}
                     keyboardType="numeric"
                     maxLength={6}
                     dense
                   />
 
                   <View style={styles.activeRow}>
-                    <Text variant="bodyMedium" style={styles.activeLabel}>{t('admin.addressIsDefault')}</Text>
+                    <Text variant="bodyMedium" style={[styles.activeLabel, { color: appColors.text.primary }]}>{t('admin.addressIsDefault')}</Text>
                     <Switch
                       value={addrIsDefault}
                       onValueChange={setAddrIsDefault}
-                      trackColor={{ false: colors.border, true: colors.positive }}
-                      ios_backgroundColor={colors.border}
+                      trackColor={{ false: appColors.border, true: appColors.positive }}
+                      ios_backgroundColor={appColors.border}
                     />
                   </View>
                 </View>
@@ -944,11 +948,11 @@ export default function UsersScreen() {
 
               {/* Step 2: Map Location */}
               {addrStep === 2 && (
-                <View style={styles.addrStepCard}>
+                <View style={[styles.addrStepCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
                   {/* Address summary (read-only) */}
-                  <View style={styles.addrSummaryBox}>
-                    <MaterialCommunityIcons name="map-marker-outline" size={18} color={colors.text.secondary} />
-                    <Text variant="bodySmall" style={styles.addrSummaryText}>
+                  <View style={[styles.addrSummaryBox, { backgroundColor: appColors.shell }]}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={18} color={appColors.text.secondary} />
+                    <Text variant="bodySmall" style={[styles.addrSummaryText, { color: appColors.text.secondary }]}>
                       {[addrLine1, addrLine2, addrCity, addrState, addrPincode].filter(Boolean).join(', ')}
                     </Text>
                   </View>
@@ -967,12 +971,12 @@ export default function UsersScreen() {
               )}
 
               {addrError ? (
-                <Text variant="bodySmall" style={styles.formError}>{addrError}</Text>
+                <Text variant="bodySmall" style={[styles.formError, { color: appColors.critical }]}>{addrError}</Text>
               ) : null}
             </ScrollView>
 
             {/* Bottom Navigation */}
-            <View style={[styles.sheetFooter, { paddingBottom: insets.bottom + spacing.md }]}>
+            <View style={[styles.sheetFooter, { borderTopColor: appColors.border }, { paddingBottom: insets.bottom + spacing.md }]}>
               <View style={styles.footerButton}>
                 <AppButton
                   variant="outline"
@@ -1042,25 +1046,18 @@ export default function UsersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.shell,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.shell,
     padding: spacing.lg,
-  },
-  errorText: {
-    color: colors.critical,
-    marginTop: spacing.md,
   },
   retryContainer: {
     marginTop: spacing.md,
   },
   emptyTitle: {
     fontFamily: fontFamily.bold,
-    color: colors.text.primary,
     marginTop: spacing.md,
   },
   searchContainer: {
@@ -1071,11 +1068,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
     ...elevation.level1,
   },
   cardRow: {
@@ -1090,11 +1085,6 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
-  },
-  userPhone: {
-    color: colors.text.secondary,
-    marginTop: 2,
   },
   cardBlocked: {
     opacity: 0.6,
@@ -1117,12 +1107,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   deletionBadgeText: {
     fontSize: fontSize.xs,
     fontFamily: fontFamily.semiBold,
-    color: colors.negative,
     marginLeft: spacing.xs,
   },
   // Address section on cards
@@ -1130,7 +1118,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   addressRow: {
     flexDirection: 'row',
@@ -1142,15 +1129,9 @@ const styles = StyleSheet.create({
   },
   addressText: {
     flex: 1,
-    color: colors.text.secondary,
     fontSize: fontSize.xs,
   },
-  addressTextDefault: {
-    fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
-  },
   defaultBadge: {
-    backgroundColor: '#F5FAE5',
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: borderRadius.xs,
@@ -1159,20 +1140,9 @@ const styles = StyleSheet.create({
   defaultBadgeText: {
     fontSize: 10,
     fontFamily: fontFamily.semiBold,
-    color: '#256F14',
   },
-  // Fiori tag-spec negative colors
-  blockedBadge: {
-    backgroundColor: '#FFF4F2',
-  },
-  blockedBadgeText: {
-    color: '#AA161F',
-  },
-  // Deletion request banner in edit sheet
   deletionBanner: {
-    backgroundColor: '#FFF4F2',
     borderWidth: 1,
-    borderColor: colors.negative,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginTop: spacing.md,
@@ -1184,13 +1154,7 @@ const styles = StyleSheet.create({
   },
   deletionBannerText: {
     fontFamily: fontFamily.semiBold,
-    color: colors.negative,
     flex: 1,
-  },
-  deletionBannerDate: {
-    color: colors.text.secondary,
-    marginTop: spacing.xs,
-    marginLeft: 20 + spacing.xs, // icon (20) + gap
   },
   deletionBannerActions: {
     flexDirection: 'row',
@@ -1205,7 +1169,6 @@ const styles = StyleSheet.create({
   // Full-screen sheet
   sheetFull: {
     flex: 1,
-    backgroundColor: colors.surface,
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -1214,7 +1177,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   sheetHeaderCenter: {
     flex: 1,
@@ -1222,11 +1184,6 @@ const styles = StyleSheet.create({
   },
   sheetHeaderTitle: {
     fontFamily: fontFamily.bold,
-    color: colors.text.primary,
-  },
-  sheetHeaderSubtitle: {
-    color: colors.text.secondary,
-    marginTop: 2,
   },
   headerSpacer: {
     width: 24,
@@ -1242,17 +1199,13 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: fontSize.label,
     fontFamily: fontFamily.regular,
-    color: colors.text.secondary,
     marginBottom: spacing.xs,
     marginTop: spacing.md,
   },
-  fieldInput: {
-    backgroundColor: colors.surface,
-  },
+  fieldInput: {},
   // Fiori card for role options
   roleCard: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
@@ -1262,12 +1215,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: spacing.xs,
   },
-  roleOptionPressed: {
-    backgroundColor: colors.pressedSurface,
-  },
   roleOptionBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   roleOptionBadge: {
     paddingHorizontal: spacing.md,
@@ -1288,12 +1237,6 @@ const styles = StyleSheet.create({
   },
   activeLabel: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
-  },
-  noAddresses: {
-    color: colors.text.secondary,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
   },
   addressHeaderRow: {
     flexDirection: 'row',
@@ -1314,7 +1257,6 @@ const styles = StyleSheet.create({
   addAddressBtnText: {
     fontSize: fontSize.label,
     fontFamily: fontFamily.semiBold,
-    color: colors.brand,
     marginLeft: spacing.xs,
   },
   addrActionBtn: {
@@ -1327,13 +1269,8 @@ const styles = StyleSheet.create({
   },
   sheetAddressCard: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.sm,
     padding: spacing.sm,
-  },
-  sheetAddressCardDefault: {
-    borderColor: colors.positive,
-    backgroundColor: colors.positiveLight,
   },
   sheetAddressRow: {
     flexDirection: 'row',
@@ -1341,12 +1278,10 @@ const styles = StyleSheet.create({
   },
   sheetAddressText: {
     flex: 1,
-    color: colors.text.secondary,
     fontSize: fontSize.label,
     marginLeft: spacing.xs,
   },
   formError: {
-    color: colors.critical,
     marginTop: spacing.md,
     marginHorizontal: spacing.lg,
     textAlign: 'center',
@@ -1358,9 +1293,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
-    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   addrStepWrapper: {
     alignItems: 'center',
@@ -1384,19 +1317,12 @@ const styles = StyleSheet.create({
   },
   addrStepLabel: {
     marginTop: spacing.xs,
-    color: colors.neutral,
     textAlign: 'center',
   },
-  addrStepLabelActive: {
-    color: colors.brand,
-    fontFamily: fontFamily.semiBold,
-  },
   addrStepCard: {
-    backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     ...elevation.level1,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -1404,14 +1330,12 @@ const styles = StyleSheet.create({
   addrSummaryBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.shell,
     borderRadius: borderRadius.sm,
     padding: spacing.sm,
     marginBottom: spacing.sm,
   },
   addrSummaryText: {
     flex: 1,
-    color: colors.text.secondary,
     marginLeft: spacing.xs,
     fontSize: fontSize.label,
   },
@@ -1422,7 +1346,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   footerButton: {
     flex: 1,

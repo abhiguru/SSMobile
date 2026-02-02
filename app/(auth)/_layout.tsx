@@ -1,14 +1,17 @@
 import { Stack } from 'expo-router';
-import { colors, fontFamily } from '../../src/constants/theme';
+import { fontFamily } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 export default function AuthLayout() {
+  const { appColors } = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: appColors.surface,
         },
-        headerTintColor: colors.text.primary,
+        headerTintColor: appColors.text.primary,
         headerTitleStyle: {
           fontFamily: fontFamily.semiBold,
           fontSize: 17,

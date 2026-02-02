@@ -12,7 +12,7 @@ SplashScreen.preventAutoHideAsync();
 
 import { store, useAppSelector, useAppDispatch } from '../src/store';
 import i18n from '../src/i18n';
-import { paperTheme } from '../src/theme';
+import { ThemeProvider, useThemeMode } from '../src/theme';
 import { apiSlice, useCheckSessionMutation, useGetFavoritesQuery, useSyncFavoritesMutation } from '../src/store/apiSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 import { ToastProvider } from '../src/components/common/Toast';
@@ -46,9 +46,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       syncFavorites();
 
       registerForPushNotificationsAsync().then((token) => {
+        console.log('[Push] registerForPushNotificationsAsync result:', token ? `token obtained (${token.substring(0, 30)}...)` : 'null (no token)');
         if (token) {
-          registerPushToken(token);
+          registerPushToken(token).then((ok) => {
+            console.log('[Push] registerPushToken result:', ok ? 'SUCCESS' : 'FAILED');
+          });
         }
+      }).catch((err) => {
+        console.error('[Push] registration error:', err);
       });
     } else if (wasAuthenticated.current) {
       wasAuthenticated.current = false;
@@ -63,7 +68,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     // Foreground: invalidate order caches so lists and detail screens auto-refresh
     const notificationSub = addNotificationListener((notification) => {
       const data = notification.request.content.data as Record<string, string> | undefined;
-      if (data?.type === 'order_update' || data?.type === 'new_order') {
+      if (data?.type === 'order_update' || data?.type === 'new_order' || data?.type === 'delivery_assignment') {
         const tags: Array<{ type: 'Order'; id: string } | 'Orders'> = ['Orders'];
         if (data.order_id) {
           tags.push({ type: 'Order', id: data.order_id });
@@ -79,13 +84,13 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
       switch (data.type) {
         case 'order_update':
-          router.push('/(customer)/orders');
+          router.push(data.order_id ? `/(customer)/orders/${data.order_id}` : '/(customer)/orders');
           break;
         case 'new_order':
-          router.push('/(admin)/orders');
+          router.push(data.order_id ? `/(admin)/orders/${data.order_id}` : '/(admin)/orders');
           break;
         case 'delivery_assignment':
-          router.push('/(delivery)');
+          router.push(data.order_id ? `/(delivery)/${data.order_id}` : '/(delivery)');
           break;
       }
     });
@@ -97,6 +102,29 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, dispatch, router]);
 
   return <>{children}</>;
+}
+
+function ThemedApp() {
+  const { theme, isDark } = useThemeMode();
+
+  return (
+    <PaperProvider theme={theme}>
+      <I18nextProvider i18n={i18n}>
+        <AppInitializer>
+          <ToastProvider>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(customer)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(admin)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(delivery)" options={{ animation: 'fade' }} />
+            </Stack>
+          </ToastProvider>
+        </AppInitializer>
+      </I18nextProvider>
+    </PaperProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -120,22 +148,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <Provider store={store}>
-          <PaperProvider theme={paperTheme}>
-            <I18nextProvider i18n={i18n}>
-              <AppInitializer>
-                <ToastProvider>
-                  <StatusBar style="dark" />
-                  <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-                    <Stack.Screen name="(customer)" options={{ animation: 'fade' }} />
-                    <Stack.Screen name="(admin)" options={{ animation: 'fade' }} />
-                    <Stack.Screen name="(delivery)" options={{ animation: 'fade' }} />
-                  </Stack>
-                </ToastProvider>
-              </AppInitializer>
-            </I18nextProvider>
-          </PaperProvider>
+          <ThemeProvider>
+            <ThemedApp />
+          </ThemeProvider>
         </Provider>
       </ErrorBoundary>
     </GestureHandlerRootView>

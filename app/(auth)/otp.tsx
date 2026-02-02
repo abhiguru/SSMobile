@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, HelperText, useTheme } from 'react-native-paper';
+import { Text, TextInput, HelperText } from 'react-native-paper';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -20,10 +20,10 @@ import Animated, {
 
 import { useVerifyOtpMutation, useSendOtpMutation } from '../../src/store/apiSlice';
 import { OTP_LENGTH, ERROR_CODES } from '../../src/constants';
-import { colors, spacing, borderRadius, fontSize, fontFamily } from '../../src/constants/theme';
+import { spacing, fontFamily } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
-import type { AppTheme } from '../../src/theme';
+import { useAppTheme } from '../../src/theme/useAppTheme';
 
 const OTP_RESEND_SECONDS = 60;
 
@@ -35,7 +35,7 @@ export default function OtpScreen() {
   const [sendOtp, { isLoading: resendLoading }] = useSendOtpMutation();
   const isLoading = verifyLoading || resendLoading;
   const error = verifyError && 'data' in verifyError ? (verifyError.data as string) : null;
-  const theme = useTheme<AppTheme>();
+  const { appColors } = useAppTheme();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(OTP_RESEND_SECONDS);
@@ -174,15 +174,15 @@ export default function OtpScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: appColors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
         <Animated.View entering={FadeInDown.duration(400)}>
-          <Text variant="headlineSmall" style={styles.title}>
+          <Text variant="headlineSmall" style={[styles.title, { color: appColors.text.primary }]}>
             {t('auth.enterOtp')}
           </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
+          <Text variant="bodyMedium" style={[styles.subtitle, { color: appColors.text.secondary }]}>
             {t('auth.otpSent')} {pendingPhone}
           </Text>
 
@@ -198,9 +198,9 @@ export default function OtpScreen() {
                   onChangeText={(value) => handleOtpChange(value, index)}
                   onKeyPress={(e) => handleKeyPress(e, index)}
                   disabled={isLoading}
-                  style={[styles.otpInput, digit ? styles.otpInputFilled : undefined]}
+                  style={[styles.otpInput, { backgroundColor: appColors.surface }, digit ? { backgroundColor: appColors.informativeLight } : undefined]}
                   contentStyle={styles.otpInputContent}
-                  outlineStyle={digit ? { borderColor: theme.colors.primary, borderWidth: 2 } : undefined}
+                  outlineStyle={digit ? { borderColor: appColors.brand, borderWidth: 2 } : undefined}
                 />
               </Animated.View>
             ))}
@@ -231,7 +231,7 @@ export default function OtpScreen() {
               {t('auth.resendOtp')}
             </AppButton>
             {countdown > 0 && (
-              <Text variant="bodySmall" style={styles.countdown}>
+              <Text variant="bodySmall" style={{ color: appColors.neutral }}>
                 {t('auth.resendIn', { seconds: countdown })}
               </Text>
             )}
@@ -245,7 +245,6 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
   },
   content: {
     flex: 1,
@@ -254,12 +253,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fontFamily.bold,
-    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   subtitle: {
-    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing.xxl,
   },
@@ -272,11 +269,7 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 48,
     height: 56,
-    backgroundColor: colors.surface,
     textAlign: 'center',
-  },
-  otpInputFilled: {
-    backgroundColor: colors.informativeLight,
   },
   otpInputContent: {
     fontSize: 24,
@@ -291,8 +284,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.lg,
     gap: spacing.sm,
-  },
-  countdown: {
-    color: colors.neutral,
   },
 });

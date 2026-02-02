@@ -120,6 +120,10 @@
     "aboutUs": "અમારા વિશે",
     "help": "મદદ અને સપોર્ટ",
     "savedAddresses": "સાચવેલા સરનામાં",
+    "theme": "થીમ",
+    "themeSystem": "સિસ્ટમ",
+    "themeLight": "લાઇટ",
+    "themeDark": "ડાર્ક",
     "guest": "મહેમાન",
     "deleteAccount": "એકાઉન્ટ કાઢી નાખો",
     "deleteAccountConfirmTitle": "એકાઉન્ટ કાઢી નાખો",
@@ -346,7 +350,11 @@
     "rejectDeletionConfirmMessage": "{{name}} ની એકાઉન્ટ ડિલીશન વિનંતી નકારશો? તેઓ પછીથી નવી વિનંતી કરી શકે છે.",
     "deletionApproved": "ડિલીશન વિનંતી મંજૂર થઈ",
     "deletionRejected": "ડિલીશન વિનંતી નકારવામાં આવી",
-    "deletionProcessFailed": "ડિલીશન વિનંતી પ્રક્રિયા કરવામાં નિષ્ફળ"
+    "deletionProcessFailed": "ડિલીશન વિનંતી પ્રક્રિયા કરવામાં નિષ્ફળ",
+    "customer": "ગ્રાહક",
+    "viewHistory": "ઇતિહાસ",
+    "userOrderHistory": "{{name}} ના ઓર્ડર્સ",
+    "noCustomerInfo": "ગ્રાહક માહિતી ઉપલબ્ધ નથી"
   },
   "delivery": {
     "deliveries": "ડિલિવરીઓ",

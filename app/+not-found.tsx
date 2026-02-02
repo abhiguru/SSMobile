@@ -1,21 +1,21 @@
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text, Button, useTheme } from 'react-native-paper';
+import { Text, Button } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import { colors, spacing, borderRadius } from '../src/constants/theme';
-import type { AppTheme } from '../src/theme';
+import { spacing, borderRadius } from '../src/constants/theme';
+import { useAppTheme } from '../src/theme/useAppTheme';
 
 export default function NotFoundScreen() {
   const router = useRouter();
-  const theme = useTheme<AppTheme>();
+  const { appColors } = useAppTheme();
 
   return (
-    <View style={styles.container}>
-      <MaterialCommunityIcons name="alert-circle-outline" size={64} color={theme.colors.primary} />
-      <Text variant="displaySmall" style={[styles.code, { color: theme.colors.primary }]}>404</Text>
-      <Text variant="headlineSmall" style={styles.title}>Page Not Found</Text>
-      <Text variant="bodyMedium" style={styles.subtitle}>
+    <View style={[styles.container, { backgroundColor: appColors.surface }]}>
+      <MaterialCommunityIcons name="alert-circle-outline" size={64} color={appColors.brand} />
+      <Text variant="displaySmall" style={[styles.code, { color: appColors.brand }]}>404</Text>
+      <Text variant="headlineSmall" style={[styles.title, { color: appColors.text.primary }]}>Page Not Found</Text>
+      <Text variant="bodyMedium" style={[styles.subtitle, { color: appColors.text.secondary }]}>
         The page you're looking for doesn't exist.
       </Text>
       <Button
@@ -35,7 +35,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     padding: spacing.lg,
   },
   code: {
@@ -45,11 +44,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
-    color: colors.text.primary,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },

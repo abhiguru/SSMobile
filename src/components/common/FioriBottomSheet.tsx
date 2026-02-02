@@ -11,7 +11,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, elevation, fontFamily, fontSize } from '../../constants/theme';
+import { spacing, borderRadius, elevation, fontFamily, fontSize } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -30,6 +31,7 @@ export function FioriBottomSheet({
   showCloseButton = true,
   children,
 }: FioriBottomSheetProps) {
+  const { appColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(SCREEN_HEIGHT);
 
@@ -55,14 +57,14 @@ export function FioriBottomSheet({
     <Portal>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={handleDismiss} />
-        <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }, sheetStyle]}>
-          <View style={styles.handle} />
+        <Animated.View style={[styles.sheet, { backgroundColor: appColors.surface, paddingBottom: insets.bottom + spacing.lg }, sheetStyle]}>
+          <View style={[styles.handle, { backgroundColor: appColors.fieldBorder }]} />
           {(title || showCloseButton) && (
             <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+              <Text style={[styles.title, { color: appColors.text.primary }]}>{title}</Text>
               {showCloseButton && (
                 <Pressable onPress={handleDismiss} hitSlop={8}>
-                  <MaterialCommunityIcons name="close" size={24} color={colors.text.primary} />
+                  <MaterialCommunityIcons name="close" size={24} color={appColors.text.primary} />
                 </Pressable>
               )}
             </View>
@@ -85,7 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.lg,
@@ -95,7 +96,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#89919A',
     alignSelf: 'center',
     marginBottom: spacing.md,
   },
@@ -109,7 +109,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
     flex: 1,
   },
 });

@@ -3,7 +3,8 @@ import { View, TextInput, StyleSheet, Pressable, StyleProp, ViewStyle } from 're
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Controller, Control, FieldValues, Path } from 'react-hook-form';
-import { colors, spacing, borderRadius, fontFamily, fontSize } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 type ValidationState = 'error' | 'warning' | 'success' | undefined;
 
@@ -26,12 +27,6 @@ interface FormTextInputProps<T extends FieldValues> {
   /** @deprecated Accepted for backward compat but ignored */
   mode?: string;
 }
-
-const VALIDATION_COLORS: Record<string, string> = {
-  error: colors.negative,
-  warning: colors.critical,
-  success: colors.positive,
-};
 
 const VALIDATION_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
   error: 'alert-circle',
@@ -58,6 +53,13 @@ export function FormTextInput<T extends FieldValues>({
   mode: _mode,
 }: FormTextInputProps<T>) {
   const [focused, setFocused] = useState(false);
+  const { appColors } = useAppTheme();
+
+  const VALIDATION_COLORS: Record<string, string> = {
+    error: appColors.negative,
+    warning: appColors.critical,
+    success: appColors.positive,
+  };
 
   return (
     <Controller
@@ -69,14 +71,14 @@ export function FormTextInput<T extends FieldValues>({
         const borderColor = vState
           ? VALIDATION_COLORS[vState]
           : focused
-          ? colors.activeBorder
-          : colors.fieldBorder;
+          ? appColors.activeBorder
+          : appColors.fieldBorder;
         const borderWidth = focused || vState ? 2 : 1;
 
         return (
           <View style={styles.wrapper}>
             {label && (
-              <Text style={styles.label}>{label}</Text>
+              <Text style={[styles.label, { color: appColors.text.secondary }]}>{label}</Text>
             )}
             <View
               style={[
@@ -84,7 +86,7 @@ export function FormTextInput<T extends FieldValues>({
                 {
                   borderColor,
                   borderWidth,
-                  backgroundColor: focused ? colors.surface : colors.fieldBackground,
+                  backgroundColor: focused ? appColors.surface : appColors.fieldBackground,
                 },
               ]}
             >
@@ -94,7 +96,7 @@ export function FormTextInput<T extends FieldValues>({
                 onBlur={() => { onBlur(); setFocused(false); }}
                 onFocus={() => setFocused(true)}
                 placeholder={placeholder}
-                placeholderTextColor={colors.text.secondary}
+                placeholderTextColor={appColors.text.secondary}
                 secureTextEntry={secureTextEntry}
                 keyboardType={keyboardType}
                 autoCapitalize={autoCapitalize}
@@ -104,12 +106,13 @@ export function FormTextInput<T extends FieldValues>({
                 maxLength={maxLength}
                 style={[
                   styles.input,
+                  { color: appColors.text.primary },
                   multiline && { textAlignVertical: 'top' as const },
                 ]}
               />
               {value && value.length > 0 && editable && (
                 <Pressable onPress={() => onChange('')} style={styles.clearButton}>
-                  <MaterialCommunityIcons name="close-circle" size={18} color={colors.fieldBorder} />
+                  <MaterialCommunityIcons name="close-circle" size={18} color={appColors.fieldBorder} />
                 </Pressable>
               )}
               {vState && (
@@ -126,7 +129,7 @@ export function FormTextInput<T extends FieldValues>({
                 {message}
               </Text>
             ) : helperText ? (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={[styles.helperText, { color: appColors.text.secondary }]}>{helperText}</Text>
             ) : null}
           </View>
         );
@@ -142,7 +145,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.label,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
@@ -158,7 +160,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.body,
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
     paddingVertical: spacing.sm,
   },
   clearButton: {
@@ -170,7 +171,6 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: fontSize.label,
     fontFamily: fontFamily.regular,
-    color: colors.text.secondary,
     marginTop: spacing.xs,
   },
 });

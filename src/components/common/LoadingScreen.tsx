@@ -1,22 +1,22 @@
 import { StyleSheet } from 'react-native';
-import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { colors, spacing, fontFamily } from '../../constants/theme';
-import type { AppTheme } from '../../theme';
+import { spacing, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 export function LoadingScreen() {
-  const theme = useTheme<AppTheme>();
+  const { appColors, colors: themeColors } = useAppTheme();
   const { t } = useTranslation();
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
-      <Animated.View style={styles.logoContainer}>
-        <MaterialCommunityIcons name="store" size={32} color={theme.colors.primary} />
+      <Animated.View style={[styles.logoContainer, { backgroundColor: appColors.shell }]}>
+        <MaterialCommunityIcons name="store" size={32} color={themeColors.primary} />
       </Animated.View>
-      <ActivityIndicator size="large" color={theme.colors.primary} style={styles.spinner} />
-      <Text variant="bodyMedium" style={styles.loadingText}>{t('common.loading')}</Text>
+      <ActivityIndicator size="large" color={themeColors.primary} style={styles.spinner} />
+      <Text variant="bodyMedium" style={[styles.loadingText, { color: appColors.text.secondary }]}>{t('common.loading')}</Text>
     </Animated.View>
   );
 }
@@ -31,7 +31,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.shell,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.lg,
@@ -40,7 +39,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   loadingText: {
-    color: colors.text.secondary,
     fontFamily: fontFamily.regular,
   },
 });

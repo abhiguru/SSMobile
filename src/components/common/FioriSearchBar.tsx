@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { View, TextInput, StyleSheet, Pressable, LayoutAnimation } from 'react-native';
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing, fontFamily } from '../../constants/theme';
+import { spacing, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface FioriSearchBarProps {
   placeholder?: string;
@@ -21,6 +22,7 @@ export function FioriSearchBar({
   onBlur,
   autoFocus,
 }: FioriSearchBarProps) {
+  const { appColors } = useAppTheme();
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
@@ -46,13 +48,14 @@ export function FioriSearchBar({
       <View
         style={[
           styles.container,
-          focused && styles.containerFocused,
+          { backgroundColor: appColors.fieldBackground },
+          focused && { backgroundColor: appColors.surface, borderWidth: 2, borderColor: appColors.activeBorder },
         ]}
       >
         <MaterialCommunityIcons
           name="magnify"
           size={20}
-          color={colors.text.secondary}
+          color={appColors.text.secondary}
           style={styles.searchIcon}
         />
         <TextInput
@@ -62,20 +65,20 @@ export function FioriSearchBar({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          placeholderTextColor={colors.text.secondary}
+          placeholderTextColor={appColors.text.secondary}
           autoFocus={autoFocus}
-          style={styles.input}
+          style={[styles.input, { color: appColors.text.primary }]}
           returnKeyType="search"
         />
         {value.length > 0 && (
           <Pressable onPress={() => onChangeText('')} style={styles.clearButton}>
-            <MaterialCommunityIcons name="close-circle" size={16} color={colors.fieldBorder} />
+            <MaterialCommunityIcons name="close-circle" size={16} color={appColors.fieldBorder} />
           </Pressable>
         )}
       </View>
       {focused && (
         <Pressable onPress={handleCancel} style={styles.cancelButton}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={[styles.cancelText, { color: appColors.activeBorder }]}>Cancel</Text>
         </Pressable>
       )}
     </View>
@@ -93,13 +96,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 36,
     borderRadius: 10,
-    backgroundColor: colors.fieldBackground,
     paddingHorizontal: spacing.sm,
-  },
-  containerFocused: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.activeBorder,
   },
   searchIcon: {
     marginRight: spacing.xs,
@@ -108,7 +105,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
     paddingVertical: 0,
   },
   clearButton: {
@@ -121,6 +117,5 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 14,
     fontFamily: fontFamily.regular,
-    color: colors.activeBorder,
   },
 });

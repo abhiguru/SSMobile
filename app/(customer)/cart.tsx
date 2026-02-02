@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, IconButton, useTheme } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -27,16 +27,16 @@ import {
 } from '../../src/store/slices/cartSlice';
 import { formatPrice, getPerKgPaise, resolveImageSource } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
-import { colors, spacing, borderRadius, elevation, gradients, fontFamily } from '../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme';
 import { hapticMedium, hapticSuccess } from '../../src/utils/haptics';
 import type { CartItem } from '../../src/types';
-import type { AppTheme } from '../../src/theme';
 
 export default function CartScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const theme = useTheme<AppTheme>();
+  const { appColors, appGradients } = useAppTheme();
   const { showToast } = useToast();
   const items = useAppSelector(selectCartItems);
   const total = useAppSelector(selectCartTotal);
@@ -82,13 +82,13 @@ export default function CartScreen() {
 
     return (
       <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
-        <View style={styles.cartItem}>
+        <View style={[styles.cartItem, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level1]}>
           <View style={styles.thumbnailContainer}>
             {imgSource ? (
               <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
             ) : (
               <LinearGradient
-                colors={gradients.brand as unknown as [string, string]}
+                colors={appGradients.brand as unknown as [string, string]}
                 style={styles.thumbnail}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -98,14 +98,14 @@ export default function CartScreen() {
             )}
           </View>
           <View style={styles.itemInfo}>
-            <Text variant="titleSmall" style={styles.itemName}>{isGujarati ? item.product.name_gu : item.product.name}</Text>
-            <Text variant="bodySmall" style={styles.itemWeight}>{item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`}</Text>
-            <Text variant="titleSmall" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>{formatPrice(Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000))}</Text>
+            <Text variant="titleSmall" style={[styles.itemName, { color: appColors.text.primary }]}>{isGujarati ? item.product.name_gu : item.product.name}</Text>
+            <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>{item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`}</Text>
+            <Text variant="titleSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000))}</Text>
           </View>
           <View style={styles.rightSection}>
             <IconButton
               icon="delete-outline"
-              iconColor={colors.negative}
+              iconColor={appColors.negative}
               size={18}
               onPress={() => handleRemove(item.product_id, item.weight_grams)}
               style={styles.deleteBtn}
@@ -130,14 +130,14 @@ export default function CartScreen() {
 
   if (items.length === 0) {
     return (
-      <Animated.View entering={FadeInUp.duration(400)} style={{ flex: 1 }}>
+      <Animated.View entering={FadeInUp.duration(400)} style={{ flex: 1, backgroundColor: appColors.shell }}>
         <EmptyState icon="cart-off" title={t('cart.empty')} actionLabel={t('cart.startShopping')} onAction={() => router.push('/(customer)')} />
       </Animated.View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       <FlashList
         data={items}
         renderItem={renderItem}
@@ -145,13 +145,13 @@ export default function CartScreen() {
         contentContainerStyle={styles.listContent}
       />
       <LinearGradient
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+        colors={[appColors.surface + '00', appColors.surface]}
         style={styles.footerGradient}
         pointerEvents="none"
       />
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: appColors.surface, borderTopColor: appColors.border }, elevation.level3]}>
         <View style={styles.totalRow}>
-          <Text variant="titleMedium" style={styles.totalLabel}>{t('cart.total')}</Text>
+          <Text variant="titleMedium" style={[styles.totalLabel, { color: appColors.text.primary }]}>{t('cart.total')}</Text>
           <PriceText paise={total} variant="headlineSmall" />
         </View>
         <AppButton
@@ -173,21 +173,21 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
+  container: { flex: 1 },
   listContent: { padding: spacing.lg, paddingBottom: 140 },
-  cartItem: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, flexDirection: 'row', marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...elevation.level1 },
+  cartItem: { borderRadius: borderRadius.lg, padding: spacing.lg, flexDirection: 'row', marginBottom: 12, borderWidth: 1 },
   thumbnailContainer: { marginRight: spacing.sm },
   thumbnail: { width: 50, height: 50, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
   itemInfo: { flex: 1 },
-  itemName: { fontFamily: fontFamily.regular, color: colors.text.primary, marginBottom: spacing.xs },
-  itemWeight: { color: colors.text.secondary, marginBottom: spacing.xs },
+  itemName: { fontFamily: fontFamily.regular, marginBottom: spacing.xs },
+  itemWeight: { marginBottom: spacing.xs },
   rightSection: { alignItems: 'flex-end' },
   deleteBtn: { margin: 0, marginBottom: spacing.xs },
   quantityContainer: { flexDirection: 'row', alignItems: 'center' },
-  quantityBadge: { backgroundColor: colors.informativeLight, borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 32, alignItems: 'center' },
-  quantity: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
+  quantityBadge: { borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 32, alignItems: 'center' },
+  quantity: { fontFamily: fontFamily.semiBold },
   footerGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 30, zIndex: 1 },
-  footer: { backgroundColor: colors.surface, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, ...elevation.level3 },
+  footer: { padding: spacing.lg, borderTopWidth: 1 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  totalLabel: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
+  totalLabel: { fontFamily: fontFamily.semiBold },
 });

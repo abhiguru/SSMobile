@@ -4,7 +4,8 @@ import { TextInput, Text, ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import * as Crypto from 'expo-crypto';
 import { GOOGLE_PLACES_API_KEY } from '../../constants';
-import { colors, spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 export interface PlaceDetails {
   addressLine1: string;
@@ -102,6 +103,7 @@ function parseAddressComponents(
 
 export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder }: PlacesAutocompleteProps) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
 
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -226,7 +228,7 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
   }, [onPlaceSelected]);
 
   const rightIcon = isFetchingDetails || isSearching
-    ? <TextInput.Icon icon={() => <ActivityIndicator size={16} color={colors.brand} />} />
+    ? <TextInput.Icon icon={() => <ActivityIndicator size={16} color={appColors.brand} />} />
     : undefined;
 
   return (
@@ -236,18 +238,18 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
         onChangeText={handleTextChange}
         placeholder={placeholder}
         mode="outlined"
-        style={styles.input}
+        style={{ backgroundColor: appColors.surface }}
         right={rightIcon}
-        outlineColor={colors.border}
-        activeOutlineColor={colors.brand}
+        outlineColor={appColors.border}
+        activeOutlineColor={appColors.brand}
         dense
         autoCorrect={false}
       />
       {showSuggestions && (
-        <View style={styles.suggestions}>
+        <View style={[styles.suggestions, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
           {noResults ? (
             <View style={styles.noResultsRow}>
-              <Text variant="bodySmall" style={styles.noResultsText}>
+              <Text variant="bodySmall" style={[styles.noResultsText, { color: appColors.text.secondary }]}>
                 {t('admin.addressSearchNoResults')}
               </Text>
             </View>
@@ -255,14 +257,18 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
             predictions.map((pred) => (
               <Pressable
                 key={pred.place_id}
-                style={({ pressed }) => [styles.suggestionRow, pressed && styles.suggestionPressed]}
+                style={({ pressed }) => [
+                  styles.suggestionRow,
+                  { borderBottomColor: appColors.border },
+                  pressed && { backgroundColor: appColors.pressedSurface },
+                ]}
                 onPress={() => handleSelect(pred)}
               >
-                <Text variant="bodySmall" style={styles.suggestionMain} numberOfLines={1}>
+                <Text variant="bodySmall" style={[styles.suggestionMain, { color: appColors.text.primary }]} numberOfLines={1}>
                   {pred.structured_formatting?.main_text || pred.description}
                 </Text>
                 {pred.structured_formatting?.secondary_text ? (
-                  <Text variant="labelSmall" style={styles.suggestionSecondary} numberOfLines={1}>
+                  <Text variant="labelSmall" style={[styles.suggestionSecondary, { color: appColors.text.secondary }]} numberOfLines={1}>
                     {pred.structured_formatting.secondary_text}
                   </Text>
                 ) : null}
@@ -279,14 +285,9 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.sm,
   },
-  input: {
-    backgroundColor: colors.surface,
-  },
   suggestions: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
     marginTop: spacing.xs,
     ...elevation.level2,
   },
@@ -294,18 +295,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  suggestionPressed: {
-    backgroundColor: colors.pressedSurface,
   },
   suggestionMain: {
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
     fontSize: fontSize.label,
   },
   suggestionSecondary: {
-    color: colors.text.secondary,
     fontSize: 11,
     marginTop: 2,
   },
@@ -314,7 +309,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   noResultsText: {
-    color: colors.text.secondary,
     fontStyle: 'italic',
   },
 });

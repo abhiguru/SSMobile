@@ -3,15 +3,17 @@ import { Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { colors, spacing, elevation, fontFamily } from '../../constants/theme';
+import { spacing, elevation, fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
 
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { appColors } = useAppTheme();
 
   return (
-    <View style={[styles.bar, { height: TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm), paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+    <View style={[styles.bar, { height: TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm), paddingBottom: Math.max(insets.bottom, spacing.sm), backgroundColor: appColors.surface, borderTopColor: appColors.border }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
@@ -54,7 +56,8 @@ function TabBarItem({
   options: any;
   onPress: () => void;
 }) {
-  const iconColor = isFocused ? colors.brand : colors.neutral;
+  const { appColors } = useAppTheme();
+  const iconColor = isFocused ? appColors.brand : appColors.neutral;
   const badge = options.tabBarBadge;
 
   return (
@@ -65,8 +68,8 @@ function TabBarItem({
       <View style={styles.tabIconWrapper}>
         {options.tabBarIcon?.({ color: iconColor, size: 24, focused: isFocused })}
         {badge != null && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
+          <View style={[styles.badge, { backgroundColor: appColors.badgeRed }]}>
+            <Text style={[styles.badgeText, { color: appColors.text.inverse }]}>
               {typeof badge === 'number' && badge > 9 ? '9+' : badge}
             </Text>
           </View>
@@ -86,10 +89,8 @@ function TabBarItem({
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     ...elevation.level4,
   },
   tabItem: {
@@ -110,13 +111,11 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.badgeRed,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   badgeText: {
-    color: colors.text.inverse,
     fontSize: 10,
     fontFamily: fontFamily.semiBold,
     lineHeight: 14,

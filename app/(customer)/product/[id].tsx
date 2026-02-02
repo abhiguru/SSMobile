@@ -25,11 +25,12 @@ import { useAppDispatch } from '../../../src/store';
 import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation, useGetProductImagesQuery } from '../../../src/store/apiSlice';
 import { addToCart } from '../../../src/store/slices/cartSlice';
 import { formatPrice, getPerKgPaise, resolveImageSource, getProductImageUrl } from '../../../src/constants';
-import { colors, spacing, borderRadius, gradients, elevation, fontFamily } from '../../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { StepperControl } from '../../../src/components/common/StepperControl';
 import { ImagePreviewModal, PreviewImage } from '../../../src/components/common/ImagePreviewModal';
-import { useToast } from '../../../src/components/common/Toast';
+
 import { hapticLight, hapticSuccess } from '../../../src/utils/haptics';
 function formatWeight(grams: number): string {
   if (grams >= 1000) {
@@ -51,7 +52,7 @@ export default function ProductDetailScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { showToast } = useToast();
+  const { appColors, appGradients } = useAppTheme();
 
   const { data: products = [] } = useGetProductsQuery();
   const product = useMemo(() => products.find((p) => p.id === id), [products, id]);
@@ -98,8 +99,7 @@ export default function ProductDetailScreen() {
     if (weightGrams === 0 || !product) return;
     hapticSuccess();
     dispatch(addToCart({ product, weightGrams, quantity }));
-    showToast({ message: t('product.addedToCart'), type: 'success' });
-  }, [dispatch, product, weightGrams, quantity, showToast, t]);
+  }, [dispatch, product, weightGrams, quantity]);
 
   const perKgPaise = product ? getPerKgPaise(product) : 0;
   const computedPrice = Math.round(perKgPaise * weightGrams / 1000 * quantity);
@@ -107,7 +107,7 @@ export default function ProductDetailScreen() {
   if (!product) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.brand} />
+        <ActivityIndicator size="large" color={appColors.brand} />
       </View>
     );
   }
@@ -139,7 +139,7 @@ export default function ProductDetailScreen() {
   }, [screenWidth]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: appColors.surface }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
           {carouselImages.length > 0 ? (
@@ -182,7 +182,7 @@ export default function ProductDetailScreen() {
             </>
           ) : (
             <LinearGradient
-              colors={gradients.brand as unknown as [string, string]}
+              colors={appGradients.brand as unknown as [string, string]}
               style={styles.heroImage}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -193,27 +193,27 @@ export default function ProductDetailScreen() {
           <Animated.View style={[styles.favoriteButton, heartAnimatedStyle]}>
             <IconButton
               icon={isFavorite ? 'heart' : 'heart-outline'}
-              iconColor={isFavorite ? colors.negative : colors.text.secondary}
+              iconColor={isFavorite ? appColors.negative : appColors.text.secondary}
               size={28}
               mode="contained"
-              containerColor={colors.surface}
+              containerColor={appColors.surface}
               onPress={handleToggleFavorite}
             />
           </Animated.View>
         </View>
 
         <View style={styles.content}>
-          <Text variant="headlineSmall" style={styles.name}>{isGujarati ? product.name_gu : product.name}</Text>
+          <Text variant="headlineSmall" style={[styles.name, { color: appColors.text.primary }]}>{isGujarati ? product.name_gu : product.name}</Text>
           {product.description && (
-            <Text variant="bodyMedium" style={styles.description}>
+            <Text variant="bodyMedium" style={[styles.description, { color: appColors.text.secondary }]}>
               {isGujarati ? product.description_gu : product.description}
             </Text>
           )}
-          <Text variant="bodyMedium" style={styles.perKgPrice}>
+          <Text variant="bodyMedium" style={[styles.perKgPrice, { color: appColors.text.secondary }]}>
             {formatPrice(getPerKgPaise(product))}{t('product.perKg')}
           </Text>
 
-          <Text variant="titleMedium" style={styles.sectionTitle}>{t('product.selectWeight')}</Text>
+          <Text variant="titleMedium" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('product.selectWeight')}</Text>
           <View style={styles.weightAccumulator}>
             {WEIGHT_INCREMENTS.map((inc) => (
               <AppButton
@@ -232,13 +232,13 @@ export default function ProductDetailScreen() {
             )}
           </View>
           <View style={styles.weightDisplay}>
-            <Text variant="headlineMedium" style={styles.weightValue}>
+            <Text variant="headlineMedium" style={[styles.weightValue, { color: appColors.text.primary }]}>
               {weightGrams > 0 ? formatWeight(weightGrams) : '0g'}
             </Text>
           </View>
 
           <View style={styles.quantitySection}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>{t('product.quantity')}</Text>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('product.quantity')}</Text>
             <StepperControl
               value={quantity}
               onValueChange={setQuantity}
@@ -248,8 +248,8 @@ export default function ProductDetailScreen() {
           </View>
 
           <View style={styles.totalContainer}>
-            <Text variant="bodyLarge" style={styles.totalLabel}>{t('cart.total')}</Text>
-            <Text variant="headlineSmall" style={{ color: colors.brand, fontFamily: fontFamily.bold }}>
+            <Text variant="bodyLarge" style={{ color: appColors.text.secondary }}>{t('cart.total')}</Text>
+            <Text variant="headlineSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>
               {weightGrams > 0 ? formatPrice(computedPrice) : '-'}
             </Text>
           </View>
@@ -278,7 +278,7 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1 },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: spacing.xl },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -289,21 +289,19 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: '#fff', width: 9, height: 9, borderRadius: 4.5 },
   favoriteButton: { position: 'absolute', top: spacing.sm, right: spacing.sm },
   content: { padding: spacing.lg },
-  name: { fontFamily: fontFamily.bold, color: colors.text.primary, marginBottom: spacing.sm },
-  description: { color: colors.text.secondary, lineHeight: 20, marginBottom: spacing.sm },
-  perKgPrice: { color: colors.text.secondary, marginBottom: spacing.md },
+  name: { fontFamily: fontFamily.bold, marginBottom: spacing.sm },
+  description: { lineHeight: 20, marginBottom: spacing.sm },
+  perKgPrice: { marginBottom: spacing.md },
   sectionTitle: {
     fontSize: 13,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.secondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginBottom: 12,
   },
   weightAccumulator: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   weightDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl },
-  weightValue: { fontFamily: fontFamily.bold, color: colors.text.primary },
+  weightValue: { fontFamily: fontFamily.bold },
   quantitySection: {},
   totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md },
-  totalLabel: { color: colors.text.secondary },
 });

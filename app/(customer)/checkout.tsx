@@ -35,7 +35,8 @@ import { selectSelectedAddressId, setSelectedAddress } from '../../src/store/sli
 import { useGetAddressesQuery, useGetAppSettingsQuery, useCreateOrderMutation } from '../../src/store/apiSlice';
 import { formatPrice, getPerKgPaise, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS, resolveImageSource } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
-import { colors, spacing, borderRadius, elevation, fontFamily, gradients } from '../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
+import { useAppTheme } from '../../src/theme';
 import { Address } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriChip } from '../../src/components/common/FioriChip';
@@ -47,7 +48,6 @@ import { EmptyState } from '../../src/components/common/EmptyState';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 
 const SCROLL_OFFSET = 100;
-const BG_BLACK = '#000000';
 const STEP_SIZE = 40;
 
 export default function CheckoutScreen() {
@@ -55,6 +55,7 @@ export default function CheckoutScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { showToast } = useToast();
+  const { appColors, appGradients } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
 
   const items = useAppSelector(selectCartItems);
@@ -108,17 +109,17 @@ export default function CheckoutScreen() {
   };
 
   const StepIndicator = () => (
-    <View style={styles.stepContainer}>
+    <View style={[styles.stepContainer, { backgroundColor: appColors.surface }, elevation.level2]}>
       {STEPS.map((step, index) => {
         const isActive = index <= currentStep;
         const isCurrent = index === currentStep;
         const isCompleted = index < currentStep;
-        const circleColor = isCurrent ? colors.brand : isCompleted ? colors.positive : colors.neutralLight;
-        const iconColor = isActive ? colors.text.inverse : colors.neutral;
+        const circleColor = isCurrent ? appColors.brand : isCompleted ? appColors.positive : appColors.neutralLight;
+        const iconColor = isActive ? appColors.text.inverse : appColors.neutral;
         return (
           <View key={index} style={styles.stepWrapper}>
             {index > 0 && (
-              <View style={[styles.stepLine, { backgroundColor: isActive ? colors.positive : colors.neutralLight }]} />
+              <View style={[styles.stepLine, { backgroundColor: isActive ? appColors.positive : appColors.neutralLight }]} />
             )}
             <Animated.View style={[styles.stepCircle, { backgroundColor: circleColor }, stepAnimStyles[index]]}>
               {isCompleted ? (
@@ -129,7 +130,7 @@ export default function CheckoutScreen() {
             </Animated.View>
             <Text
               variant="labelSmall"
-              style={[styles.stepLabel, isActive && styles.stepLabelActive]}
+              style={[styles.stepLabel, { color: appColors.neutral }, isActive && { color: appColors.brand, fontFamily: fontFamily.semiBold }]}
               accessibilityRole="header"
             >
               {step.label}
@@ -217,13 +218,13 @@ export default function CheckoutScreen() {
   };
 
   if (addressesLoading && addresses.length === 0) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.brand} /></View>;
+    return <View style={[styles.centered, { backgroundColor: appColors.shell }]}><ActivityIndicator size="large" color={appColors.brand} /></View>;
   }
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: appColors.shell }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: appColors.shell }]}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
         scrollEventThrottle={100}
@@ -231,7 +232,7 @@ export default function CheckoutScreen() {
         <StepIndicator />
 
         {/* ── Address Section ────────────────────────────────────── */}
-        <View style={styles.card} onLayout={handleSectionLayout(0)}>
+        <View style={[styles.card, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(0)}>
           <SectionHeader title={t('checkout.deliveryAddress')} actionLabel={t('checkout.addNew')} onAction={handleAddAddress} style={{ paddingHorizontal: 0 }} />
           {addresses.length === 0 ? (
             <EmptyState
@@ -250,7 +251,7 @@ export default function CheckoutScreen() {
                 <Card
                   key={address.id}
                   mode="outlined"
-                  style={[styles.addressCard, selectedAddressId === address.id && styles.addressCardSelected]}
+                  style={[styles.addressCard, selectedAddressId === address.id && { borderColor: appColors.brand, borderWidth: 2, backgroundColor: appColors.brandTint, borderRadius: borderRadius.lg }]}
                   onPress={() => handleSelectAddress(address)}
                 >
                   <Card.Content style={styles.addressCardContent}>
@@ -266,20 +267,20 @@ export default function CheckoutScreen() {
                         <IconButton
                           icon="pencil-outline"
                           size={18}
-                          iconColor={colors.brand}
+                          iconColor={appColors.brand}
                           style={styles.editBtn}
                           onPress={() => handleEditAddress(address.id)}
                           accessibilityLabel={t('common.edit')}
                         />
                       </View>
-                      <Text variant="bodySmall" style={styles.addressName}>{address.full_name}</Text>
-                      <Text variant="bodySmall" style={styles.addressLine}>
+                      <Text variant="bodySmall" style={[styles.addressName, { color: appColors.text.primary }]}>{address.full_name}</Text>
+                      <Text variant="bodySmall" style={[styles.addressLine, { color: appColors.text.secondary }]}>
                         {address.address_line1}{address.address_line2 ? `, ${address.address_line2}` : ''}
                       </Text>
-                      <Text variant="bodySmall" style={styles.addressLine}>
+                      <Text variant="bodySmall" style={[styles.addressLine, { color: appColors.text.secondary }]}>
                         {address.city}{address.state ? `, ${address.state}` : ''} - {address.pincode}
                       </Text>
-                      <Text variant="bodySmall" style={styles.addressPhone}>{address.phone}</Text>
+                      <Text variant="bodySmall" style={[styles.addressPhone, { color: appColors.text.secondary }]}>{address.phone}</Text>
                     </View>
                   </Card.Content>
                 </Card>
@@ -289,7 +290,7 @@ export default function CheckoutScreen() {
         </View>
 
         {/* ── Notes Section ──────────────────────────────────────── */}
-        <View style={styles.card} onLayout={handleSectionLayout(1)}>
+        <View style={[styles.card, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(1)}>
           <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
           <TextInput
             mode="outlined"
@@ -298,16 +299,16 @@ export default function CheckoutScreen() {
             onChangeText={setNotes}
             multiline
             numberOfLines={3}
-            style={styles.notesInput}
+            style={[styles.notesInput, { backgroundColor: appColors.surface }]}
             contentStyle={styles.notesContent}
-            outlineColor={colors.fieldBorder}
-            activeOutlineColor={colors.brand}
+            outlineColor={appColors.fieldBorder}
+            activeOutlineColor={appColors.brand}
             outlineStyle={styles.notesOutline}
           />
         </View>
 
         {/* ── Summary Section ────────────────────────────────────── */}
-        <View style={styles.summaryCard} onLayout={handleSectionLayout(2)}>
+        <View style={[styles.summaryCard, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(2)}>
           <View style={styles.summaryBody}>
             <SectionHeader title={`${t('checkout.orderSummary')} (${items.length})`} style={{ paddingHorizontal: 0 }} />
 
@@ -319,13 +320,13 @@ export default function CheckoutScreen() {
               const imgSource = resolveImageSource(item.product?.image_url, accessToken);
               const displayName = isGujarati && item.product.name_gu ? item.product.name_gu : item.product.name;
               return (
-                <View key={`${item.product_id}-${item.weight_grams}`} style={[styles.orderItem, isLast && styles.orderItemLast]}>
+                <View key={`${item.product_id}-${item.weight_grams}`} style={[styles.orderItem, { borderBottomColor: appColors.border }, isLast && styles.orderItemLast]}>
                   <View style={styles.itemThumb}>
                     {imgSource ? (
                       <Image source={imgSource} style={styles.thumbImage} contentFit="cover" />
                     ) : (
                       <LinearGradient
-                        colors={gradients.brand as unknown as [string, string]}
+                        colors={appGradients.brand as unknown as [string, string]}
                         style={styles.thumbImage}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -335,13 +336,13 @@ export default function CheckoutScreen() {
                     )}
                   </View>
                   <View style={styles.itemInfo}>
-                    <Text variant="bodyMedium" style={styles.itemName} numberOfLines={1}>{displayName}</Text>
-                    <Text variant="bodySmall" style={styles.itemWeight}>{weightLabel}</Text>
+                    <Text variant="bodyMedium" style={[styles.itemName, { color: appColors.text.primary }]} numberOfLines={1}>{displayName}</Text>
+                    <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>{weightLabel}</Text>
                   </View>
-                  <View style={styles.itemQtyBadge}>
-                    <Text variant="labelSmall" style={styles.itemQtyText}>x{item.quantity}</Text>
+                  <View style={[styles.itemQtyBadge, { backgroundColor: appColors.informativeLight }]}>
+                    <Text variant="labelSmall" style={[styles.itemQtyText, { color: appColors.informative }]}>x{item.quantity}</Text>
                   </View>
-                  <Text variant="bodyMedium" style={styles.itemPrice}>{formatPrice(itemPrice * item.quantity)}</Text>
+                  <Text variant="bodyMedium" style={[styles.itemPrice, { color: appColors.text.primary }]}>{formatPrice(itemPrice * item.quantity)}</Text>
                 </View>
               );
             })}
@@ -350,22 +351,22 @@ export default function CheckoutScreen() {
             <Divider style={styles.divider} />
             <KeyValueRow label={t('checkout.subtotal')} value={formatPrice(subtotal)} />
             <View style={styles.summaryRow}>
-              <Text variant="bodyMedium" style={styles.summaryLabel}>{t('checkout.shipping')}</Text>
+              <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('checkout.shipping')}</Text>
               {shippingCharge === 0 ? (
                 <View style={styles.freeShippingBadge}>
-                  <MaterialCommunityIcons name="check-circle" size={14} color={colors.positive} />
-                  <Text variant="bodyMedium" style={styles.freeShippingText}>{t('checkout.free')}</Text>
+                  <MaterialCommunityIcons name="check-circle" size={14} color={appColors.positive} />
+                  <Text variant="bodyMedium" style={{ color: appColors.positive, fontFamily: fontFamily.bold, marginLeft: spacing.xs }}>{t('checkout.free')}</Text>
                 </View>
               ) : (
-                <Text variant="bodyMedium" style={styles.summaryValue}>{formatPrice(shippingCharge)}</Text>
+                <Text variant="bodyMedium" style={{ color: appColors.text.primary }}>{formatPrice(shippingCharge)}</Text>
               )}
             </View>
 
             {/* ── Min Order Warning ──────────────────────────────── */}
             {!minOrderMet && (
-              <View style={styles.minOrderRow}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.negative} />
-                <Text variant="bodySmall" style={styles.minOrderWarning}>
+              <View style={[styles.minOrderRow, { backgroundColor: appColors.negativeLight }]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={16} color={appColors.negative} />
+                <Text variant="bodySmall" style={{ color: appColors.negative, marginLeft: spacing.sm }}>
                   {t('checkout.minOrderWarning', { amount: formatPrice(appSettings.min_order_paise) })}
                 </Text>
               </View>
@@ -373,9 +374,9 @@ export default function CheckoutScreen() {
           </View>
 
           {/* ── Total (full-bleed highlight) ──────────────────── */}
-          <View style={styles.totalHighlight}>
-            <Text variant="titleMedium" style={styles.totalLabel}>{t('cart.total')}</Text>
-            <Text variant="headlineSmall" style={styles.totalPrice}>{formatPrice(total)}</Text>
+          <View style={[styles.totalHighlight, { backgroundColor: appColors.brandTint, borderTopColor: appColors.border }]}>
+            <Text variant="titleMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{t('cart.total')}</Text>
+            <Text variant="headlineSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(total)}</Text>
           </View>
         </View>
 
@@ -401,10 +402,10 @@ export default function CheckoutScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   // Layout
-  root: { flex: 1, backgroundColor: BG_BLACK },
-  container: { flex: 1, backgroundColor: BG_BLACK },
+  root: { flex: 1 },
+  container: { flex: 1 },
   scrollContent: { paddingTop: spacing.lg, paddingBottom: 100 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG_BLACK },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Step Indicator
   stepContainer: {
@@ -413,11 +414,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
     marginBottom: spacing.sm,
     marginHorizontal: spacing.lg,
     borderRadius: borderRadius.lg,
-    ...elevation.level2,
   },
   stepWrapper: { alignItems: 'center', flex: 1, position: 'relative' },
   stepCircle: {
@@ -436,37 +435,28 @@ const styles = StyleSheet.create({
     height: 3,
     zIndex: -1,
   },
-  stepLabel: { marginTop: spacing.sm, color: colors.neutral, textAlign: 'center' },
-  stepLabelActive: { color: colors.brand, fontFamily: fontFamily.semiBold },
+  stepLabel: { marginTop: spacing.sm, textAlign: 'center' },
 
   // Section Cards
   card: {
-    backgroundColor: colors.surface,
     padding: spacing.lg,
     marginBottom: spacing.sm,
     marginHorizontal: spacing.lg,
     borderRadius: borderRadius.lg,
-    ...elevation.level2,
   },
   // Address Cards
   addressCard: { marginBottom: spacing.sm, borderRadius: borderRadius.lg },
-  addressCardSelected: {
-    borderColor: colors.brand,
-    borderWidth: 2,
-    backgroundColor: colors.brandTint,
-    borderRadius: borderRadius.lg,
-  },
   addressCardContent: { flexDirection: 'row', alignItems: 'flex-start' },
   addressContent: { flex: 1, marginLeft: spacing.xs },
   addressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   addressLabelRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   editBtn: { margin: 0 },
-  addressName: { color: colors.text.primary, marginBottom: spacing.xs },
-  addressLine: { color: colors.text.secondary, lineHeight: 20 },
-  addressPhone: { color: colors.text.secondary, marginTop: spacing.xs },
+  addressName: { marginBottom: spacing.xs },
+  addressLine: { lineHeight: 20 },
+  addressPhone: { marginTop: spacing.xs },
 
   // Notes
-  notesInput: { backgroundColor: colors.surface, minHeight: 88 },
+  notesInput: { minHeight: 88 },
   notesContent: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
   notesOutline: { borderRadius: borderRadius.md },
 
@@ -475,9 +465,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginHorizontal: spacing.lg,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.surface,
     overflow: 'hidden',
-    ...elevation.level2,
   },
   summaryBody: { padding: spacing.lg },
 
@@ -487,7 +475,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   orderItemLast: { borderBottomWidth: 0 },
   itemThumb: { marginRight: spacing.sm },
@@ -499,10 +486,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemInfo: { flex: 1 },
-  itemName: { color: colors.text.primary },
-  itemWeight: { color: colors.text.secondary, marginTop: 2 },
+  itemName: {},
+  itemWeight: { marginTop: 2 },
   itemQtyBadge: {
-    backgroundColor: colors.informativeLight,
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.sm,
     marginHorizontal: spacing.sm,
@@ -512,8 +498,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
   },
-  itemQtyText: { color: colors.informative, fontFamily: fontFamily.semiBold },
-  itemPrice: { fontFamily: fontFamily.semiBold, color: colors.text.primary, minWidth: 64, textAlign: 'right' },
+  itemQtyText: { fontFamily: fontFamily.semiBold },
+  itemPrice: { fontFamily: fontFamily.semiBold, minWidth: 64, textAlign: 'right' },
 
   // Breakdown
   divider: { marginVertical: spacing.md },
@@ -523,24 +509,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  summaryLabel: { color: colors.text.secondary },
-  summaryValue: { color: colors.text.primary },
   freeShippingBadge: { flexDirection: 'row', alignItems: 'center' },
-  freeShippingText: { color: colors.positive, fontFamily: fontFamily.bold, marginLeft: spacing.xs },
 
   // Total (full-bleed footer)
   totalHighlight: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.brandTint,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
-  totalLabel: { fontFamily: fontFamily.semiBold, color: colors.text.primary },
-  totalPrice: { color: colors.brand, fontFamily: fontFamily.bold },
 
   // Validation
   minOrderRow: {
@@ -548,12 +527,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,
-    backgroundColor: colors.negativeLight,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.sm,
   },
-  minOrderWarning: { color: colors.negative, marginLeft: spacing.sm },
 
   // Toolbar
   toolbarInner: { flex: 1 },

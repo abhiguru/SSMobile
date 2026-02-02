@@ -22,7 +22,8 @@ import {
 } from '../../../src/store/apiSlice';
 import { getStoredTokens } from '../../../src/services/supabase';
 import { formatPrice, getProductImageUrl, SUPABASE_ANON_KEY } from '../../../src/constants';
-import { colors, spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
+import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { Toolbar } from '../../../src/components/common/Toolbar';
 import { ProductImageManager } from '../../../src/components/common/ProductImageManager';
@@ -42,6 +43,7 @@ export default function EditProductScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { appColors } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
   const { productId } = useLocalSearchParams<{ productId: string }>();
 
@@ -176,31 +178,31 @@ export default function EditProductScreen() {
   if (!isCreateMode && !product) return null;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: appColors.shell }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Step Indicator */}
-        <View style={styles.stepContainer}>
+        <View style={[styles.stepContainer, { backgroundColor: appColors.surface }]}>
           {STEPS.map((step, index) => {
             const isActive = index <= currentStep;
             const isCurrent = index === currentStep;
             const isCompleted = index < currentStep;
             const circleColor = isCurrent
-              ? colors.brand
+              ? appColors.brand
               : isCompleted
-                ? colors.positive
-                : colors.neutralLight;
-            const iconColor = isActive ? colors.text.inverse : colors.neutral;
+                ? appColors.positive
+                : appColors.neutralLight;
+            const iconColor = isActive ? appColors.text.inverse : appColors.neutral;
             return (
               <View key={index} style={styles.stepWrapper}>
                 {index > 0 && (
                   <View
                     style={[
                       styles.stepLine,
-                      { backgroundColor: isActive ? colors.positive : colors.neutralLight },
+                      { backgroundColor: isActive ? appColors.positive : appColors.neutralLight },
                     ]}
                   />
                 )}
@@ -219,7 +221,7 @@ export default function EditProductScreen() {
                 </Animated.View>
                 <Text
                   variant="labelSmall"
-                  style={[styles.stepLabel, isActive && styles.stepLabelActive]}
+                  style={[styles.stepLabel, { color: appColors.neutral }, isActive && { color: appColors.brand, fontFamily: fontFamily.semiBold }]}
                 >
                   {t(step.labelKey)}
                 </Text>
@@ -230,11 +232,11 @@ export default function EditProductScreen() {
 
         {/* Step 0: Identity */}
         {currentStep === 0 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
             {isCreateMode ? (
-              <View style={styles.imageNote}>
-                <MaterialCommunityIcons name="image-off-outline" size={20} color={colors.neutral} />
-                <Text variant="bodySmall" style={styles.imageNoteText}>{t('admin.saveFirstForImages')}</Text>
+              <View style={[styles.imageNote, { backgroundColor: appColors.shell }]}>
+                <MaterialCommunityIcons name="image-off-outline" size={20} color={appColors.neutral} />
+                <Text variant="bodySmall" style={[styles.imageNoteText, { color: appColors.neutral }]}>{t('admin.saveFirstForImages')}</Text>
               </View>
             ) : (
               <ProductImageManager productId={productId!} disabled={saving} onUploadingChange={handleUploadingChange} />
@@ -244,25 +246,25 @@ export default function EditProductScreen() {
               value={name}
               onChangeText={setName}
               mode="outlined"
-              style={styles.input}
-              outlineColor={colors.border}
-              activeOutlineColor={colors.brand}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
+              outlineColor={appColors.border}
+              activeOutlineColor={appColors.brand}
             />
             <TextInput
               label={t('admin.nameGu')}
               value={nameGu}
               onChangeText={setNameGu}
               mode="outlined"
-              style={styles.input}
-              outlineColor={colors.border}
-              activeOutlineColor={colors.brand}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
+              outlineColor={appColors.border}
+              activeOutlineColor={appColors.brand}
             />
           </View>
         )}
 
         {/* Step 1: Details */}
         {currentStep === 1 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
             <TextInput
               label={t('admin.descriptionEn')}
               value={description}
@@ -270,9 +272,9 @@ export default function EditProductScreen() {
               mode="outlined"
               multiline
               numberOfLines={3}
-              style={styles.input}
-              outlineColor={colors.border}
-              activeOutlineColor={colors.brand}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
+              outlineColor={appColors.border}
+              activeOutlineColor={appColors.brand}
             />
             <TextInput
               label={t('admin.descriptionGu')}
@@ -281,9 +283,9 @@ export default function EditProductScreen() {
               mode="outlined"
               multiline
               numberOfLines={3}
-              style={styles.input}
-              outlineColor={colors.border}
-              activeOutlineColor={colors.brand}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
+              outlineColor={appColors.border}
+              activeOutlineColor={appColors.brand}
             />
             <TextInput
               label={t('admin.pricePerKg')}
@@ -291,16 +293,16 @@ export default function EditProductScreen() {
               onChangeText={setPriceRupees}
               mode="outlined"
               keyboardType="numeric"
-              style={styles.input}
-              outlineColor={colors.border}
-              activeOutlineColor={colors.brand}
+              style={[styles.input, { backgroundColor: appColors.surface }]}
+              outlineColor={appColors.border}
+              activeOutlineColor={appColors.brand}
             />
           </View>
         )}
 
         {/* Step 2: Review */}
         {currentStep === 2 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
             {/* Image thumbnails */}
             {productImages.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewImageScroll}>
@@ -327,13 +329,14 @@ export default function EditProductScreen() {
               </ScrollView>
             )}
 
-            <ReviewRow label={t('admin.nameEn')} value={name} />
-            <ReviewRow label={t('admin.nameGu')} value={nameGu} />
-            <ReviewRow label={t('admin.descriptionEn')} value={description || '—'} />
-            <ReviewRow label={t('admin.descriptionGu')} value={descriptionGu || '—'} />
+            <ReviewRow label={t('admin.nameEn')} value={name} appColors={appColors} />
+            <ReviewRow label={t('admin.nameGu')} value={nameGu} appColors={appColors} />
+            <ReviewRow label={t('admin.descriptionEn')} value={description || '—'} appColors={appColors} />
+            <ReviewRow label={t('admin.descriptionGu')} value={descriptionGu || '—'} appColors={appColors} />
             <ReviewRow
               label={t('admin.pricePerKg')}
               isLast
+              appColors={appColors}
               value={
                 !isNaN(parseFloat(priceRupees))
                   ? formatPrice(Math.round(parseFloat(priceRupees) * 100))
@@ -350,8 +353,8 @@ export default function EditProductScreen() {
             disabled={isBusy}
             onPress={() => setDeleteDialogVisible(true)}
           >
-            <MaterialCommunityIcons name="delete-outline" size={18} color={colors.negative} />
-            <Text style={styles.deleteBtnText}>{t('admin.deleteProduct')}</Text>
+            <MaterialCommunityIcons name="delete-outline" size={18} color={appColors.negative} />
+            <Text style={[styles.deleteBtnText, { color: appColors.negative }]}>{t('admin.deleteProduct')}</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -398,7 +401,7 @@ export default function EditProductScreen() {
           { label: t('admin.deleteProduct'), onPress: handleDelete, variant: 'danger' },
         ]}
       >
-        <Text variant="bodyMedium" style={{ color: colors.text.secondary }}>
+        <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>
           {t('admin.deleteProductConfirm')}
         </Text>
       </FioriDialog>
@@ -406,13 +409,13 @@ export default function EditProductScreen() {
   );
 }
 
-function ReviewRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
+function ReviewRow({ label, value, isLast, appColors }: { label: string; value: string; isLast?: boolean; appColors: any }) {
   return (
-    <View style={[styles.reviewRow, !isLast && styles.reviewRowBorder]}>
-      <Text variant="labelSmall" style={styles.reviewLabel}>
+    <View style={[styles.reviewRow, !isLast && [styles.reviewRowBorder, { borderBottomColor: appColors.border }]]}>
+      <Text variant="labelSmall" style={[styles.reviewLabel, { color: appColors.text.secondary }]}>
         {label}
       </Text>
-      <Text variant="bodyMedium" style={styles.reviewValue}>
+      <Text variant="bodyMedium" style={{ color: appColors.text.primary }}>
         {value}
       </Text>
     </View>
@@ -422,7 +425,6 @@ function ReviewRow({ label, value, isLast }: { label: string; value: string; isL
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.shell,
   },
   scrollView: {
     flex: 1,
@@ -438,7 +440,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
     marginBottom: spacing.lg,
     borderRadius: borderRadius.lg,
     ...elevation.level2,
@@ -465,26 +466,18 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     marginTop: spacing.sm,
-    color: colors.neutral,
     textAlign: 'center',
-  },
-  stepLabelActive: {
-    color: colors.brand,
-    fontFamily: fontFamily.semiBold,
   },
 
   // Card (Fiori: 12pt radius, 1px border, elevation 1)
   card: {
-    backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     ...elevation.level1,
   },
   input: {
     marginBottom: spacing.md,
-    backgroundColor: colors.surface,
   },
 
   // Review
@@ -503,16 +496,11 @@ const styles = StyleSheet.create({
   },
   reviewRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   reviewLabel: {
-    color: colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
-  },
-  reviewValue: {
-    color: colors.text.primary,
   },
 
   deleteBtn: {
@@ -526,20 +514,17 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   deleteBtnText: {
-    color: colors.negative,
     fontFamily: fontFamily.semiBold,
     fontSize: 14,
   },
   imageNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.shell,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
   },
   imageNoteText: {
-    color: colors.neutral,
     marginLeft: spacing.sm,
     flex: 1,
   },

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, fontFamily, fontSize } from '../../constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 interface StepperControlProps {
   value: number;
@@ -19,6 +20,7 @@ export function StepperControl({
   max = 999,
   step = 1,
 }: StepperControlProps) {
+  const { appColors } = useAppTheme();
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
 
@@ -54,13 +56,13 @@ export function StepperControl({
     <View style={styles.container}>
       <Pressable
         onPress={handleDecrement}
-        style={[styles.button, atMin && styles.buttonDisabled]}
+        style={[styles.button, { backgroundColor: appColors.shell }, atMin && styles.buttonDisabled]}
         disabled={atMin}
       >
         <MaterialCommunityIcons
           name="minus"
           size={18}
-          color={atMin ? colors.text.disabled : colors.text.primary}
+          color={atMin ? appColors.text.disabled : appColors.text.primary}
         />
       </Pressable>
 
@@ -72,7 +74,7 @@ export function StepperControl({
           onSubmitEditing={handleEndEdit}
           keyboardType="number-pad"
           autoFocus
-          style={styles.valueInput}
+          style={[styles.valueInput, { color: appColors.text.primary, borderBottomColor: appColors.activeBorder }]}
           selectTextOnFocus
         />
       ) : (
@@ -80,7 +82,7 @@ export function StepperControl({
           <TextInput
             value={String(value)}
             editable={false}
-            style={styles.valueText}
+            style={[styles.valueText, { color: appColors.text.primary }]}
             pointerEvents="none"
           />
         </Pressable>
@@ -88,13 +90,13 @@ export function StepperControl({
 
       <Pressable
         onPress={handleIncrement}
-        style={[styles.button, atMax && styles.buttonDisabled]}
+        style={[styles.button, { backgroundColor: appColors.shell }, atMax && styles.buttonDisabled]}
         disabled={atMax}
       >
         <MaterialCommunityIcons
           name="plus"
           size={18}
-          color={atMax ? colors.text.disabled : colors.text.primary}
+          color={atMax ? appColors.text.disabled : appColors.text.primary}
         />
       </Pressable>
     </View>
@@ -111,7 +113,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.shell,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -128,15 +129,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: fontSize.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
     borderBottomWidth: 2,
-    borderBottomColor: colors.activeBorder,
     paddingVertical: spacing.xs,
   },
   valueText: {
     textAlign: 'center',
     fontSize: fontSize.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.text.primary,
   },
 });

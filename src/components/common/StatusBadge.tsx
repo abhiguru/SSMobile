@@ -1,19 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, fontFamily } from '../../constants/theme';
-
-// Fiori tag-spec colors (spec 18): darker text for readability in small containers
-const STATUS_CONFIG: Record<string, {
-  bg: string;
-  text: string;
-}> = {
-  placed: { bg: '#FEF7F1', text: '#AA5808' },
-  confirmed: { bg: '#EBF8FF', text: '#0040B0' },
-  out_for_delivery: { bg: '#EBF8FF', text: '#0040B0' },
-  delivered: { bg: '#F5FAE5', text: '#256F14' },
-  cancelled: { bg: '#FFF4F2', text: '#AA161F' },
-  delivery_failed: { bg: '#FFF4F2', text: '#AA161F' },
-};
+import { fontFamily } from '../../constants/theme';
+import { useAppTheme } from '../../theme/useAppTheme';
 
 type BadgeSize = 'compact' | 'default';
 type BadgeVariant = 'filled' | 'outlined';
@@ -26,6 +14,16 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, size = 'default', variant = 'filled' }: StatusBadgeProps) {
   const { t } = useTranslation();
+  const { appColors } = useAppTheme();
+
+  const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
+    placed: { bg: appColors.criticalLight, text: appColors.critical },
+    confirmed: { bg: appColors.informativeLight, text: appColors.informative },
+    out_for_delivery: { bg: appColors.informativeLight, text: appColors.informative },
+    delivered: { bg: appColors.positiveLight, text: appColors.positive },
+    cancelled: { bg: appColors.negativeLight, text: appColors.negative },
+    delivery_failed: { bg: appColors.negativeLight, text: appColors.negative },
+  };
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.placed;
 
   const isCompact = size === 'compact';

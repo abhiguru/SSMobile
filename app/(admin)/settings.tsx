@@ -8,12 +8,15 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useAppSelector } from '../../src/store';
 import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
-import { colors, spacing, borderRadius, fontFamily, fontSize } from '../../src/constants/theme';
+import { spacing, borderRadius, fontFamily, fontSize } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
 import { SegmentedControl } from '../../src/components/common/SegmentedControl';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
 import { useToast } from '../../src/components/common/Toast';
+import { useAppTheme } from '../../src/theme/useAppTheme';
+import { useThemeMode } from '../../src/theme';
+import type { ThemeMode } from '../../src/theme';
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -25,6 +28,8 @@ export default function AdminSettingsScreen() {
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const { appColors } = useAppTheme();
+  const { mode, setMode } = useThemeMode();
 
   const handleLogout = () => {
     setLogoutDialogVisible(true);
@@ -49,32 +54,32 @@ export default function AdminSettingsScreen() {
   const handleLanguageToggle = async (lang: string) => { await changeLanguage(lang); };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.section}>
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+      <View style={[styles.section, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
         <SectionHeader title="Account" />
         <View style={styles.kvRow}>
-          <Text style={styles.kvLabel}>Phone</Text>
-          <Text style={styles.kvValue}>{user?.phone || '-'}</Text>
+          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>Phone</Text>
+          <Text style={[styles.kvValue, { color: appColors.text.primary }]}>{user?.phone || '-'}</Text>
         </View>
-        <View style={styles.kvDivider} />
+        <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
         <View style={styles.kvRow}>
-          <Text style={styles.kvLabel}>Role</Text>
-          <Text style={styles.kvValue}>Admin</Text>
+          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>Role</Text>
+          <Text style={[styles.kvValue, { color: appColors.text.primary }]}>Admin</Text>
         </View>
-        <View style={styles.kvDivider} />
+        <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
         <Pressable
           onPress={handleDeleteAccount}
-          style={({ pressed }) => [styles.kvRow, pressed && styles.kvRowPressed]}
+          style={({ pressed }) => [styles.kvRow, pressed && { backgroundColor: appColors.pressedSurface }]}
         >
-          <Text style={styles.deleteLabel}>{t('profile.deleteAccount')}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.negative} />
+          <Text style={[styles.deleteLabel, { color: appColors.negative }]}>{t('profile.deleteAccount')}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={16} color={appColors.negative} />
         </Pressable>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
         <SectionHeader title="Preferences" />
         <View style={styles.languageRow}>
-          <Text variant="bodyMedium" style={styles.languageLabel}>{t('profile.language')}</Text>
+          <Text variant="bodyMedium" style={[styles.languageLabel, { color: appColors.text.primary }]}>{t('profile.language')}</Text>
           <SegmentedControl
             options={[
               { key: 'en', label: 'English' },
@@ -82,6 +87,19 @@ export default function AdminSettingsScreen() {
             ]}
             selectedKey={isGujarati ? 'gu' : 'en'}
             onSelect={handleLanguageToggle}
+          />
+        </View>
+        <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
+        <View style={styles.languageRow}>
+          <Text variant="bodyMedium" style={[styles.languageLabel, { color: appColors.text.primary }]}>{t('profile.theme')}</Text>
+          <SegmentedControl
+            options={[
+              { key: 'system', label: t('profile.themeSystem') },
+              { key: 'light', label: t('profile.themeLight') },
+              { key: 'dark', label: t('profile.themeDark') },
+            ]}
+            selectedKey={mode}
+            onSelect={(key) => setMode(key as ThemeMode)}
           />
         </View>
       </View>
@@ -120,18 +138,14 @@ export default function AdminSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.shell },
-  // Fiori grouped section: white bg, rounded corners, border
+  container: { flex: 1 },
   section: {
-    backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
   },
-  // Key-value row per spec 21: min 44pt height, 16pt horizontal padding, 11pt vertical
   kvRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -140,35 +154,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 11,
   },
-  kvRowPressed: {
-    backgroundColor: colors.pressedSurface,
-  },
   kvLabel: {
     fontSize: fontSize.label,
     fontFamily: fontFamily.regular,
-    color: colors.text.secondary,
   },
   kvValue: {
     fontSize: 17,
     fontFamily: fontFamily.regular,
-    color: colors.text.primary,
   },
   kvDivider: {
     height: 1,
-    backgroundColor: colors.border,
     marginLeft: spacing.lg,
   },
   deleteLabel: {
     fontSize: fontSize.body,
     fontFamily: fontFamily.regular,
-    color: colors.negative,
   },
   languageRow: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   languageLabel: {
-    color: colors.text.primary,
     marginBottom: spacing.sm,
   },
   logoutContainer: {

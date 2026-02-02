@@ -4,6 +4,7 @@ import { TextInput, Text, ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import * as Crypto from 'expo-crypto';
 import { GOOGLE_PLACES_API_KEY } from '../../constants';
+import { parseAddressComponents } from '../../utils/geocoding';
 import { spacing, borderRadius, fontFamily, fontSize, elevation } from '../../constants/theme';
 import { useAppTheme } from '../../theme/useAppTheme';
 
@@ -42,66 +43,7 @@ const MAX_RESULTS = 5;
 const PLACES_AUTOCOMPLETE_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 const PLACES_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
 
-function parseAddressComponents(
-  components: Array<{ long_name: string; short_name: string; types: string[] }>,
-  description: string,
-): {
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  pincode: string;
-} {
-  console.log('[PlacesAutocomplete] raw address_components:', JSON.stringify(components, null, 2));
-  console.log('[PlacesAutocomplete] prediction description:', description);
-
-  let sublocalityLevel2 = '';
-  let sublocalityLevel1 = '';
-  let city = '';
-  let state = '';
-  let pincode = '';
-
-  for (const comp of components) {
-    const types = comp.types;
-    if (types.includes('sublocality_level_2')) {
-      sublocalityLevel2 = comp.long_name;
-    } else if (types.includes('sublocality_level_1')) {
-      sublocalityLevel1 = comp.long_name;
-    } else if (types.includes('locality')) {
-      city = comp.long_name;
-    } else if (types.includes('administrative_area_level_1')) {
-      state = comp.long_name;
-    } else if (types.includes('postal_code')) {
-      pincode = comp.long_name;
-    }
-  }
-
-  // Build Line 1 from the prediction description rather than components,
-  // so contextual words like "opposite", "near", "behind" are preserved.
-  // Strip trailing city, state, country suffix from the description.
-  let addressLine1 = '';
-  if (city && description.includes(city)) {
-    const cityIdx = description.indexOf(city);
-    addressLine1 = description.substring(0, cityIdx).replace(/,\s*$/, '').trim();
-  } else {
-    // Fallback: drop last 2 comma-separated parts (state, country)
-    const parts = description.split(',').map(p => p.trim());
-    addressLine1 = parts.length > 2
-      ? parts.slice(0, -2).join(', ')
-      : description;
-  }
-
-  // Line 2: sublocality info from components, but only parts not already in Line 1
-  const line2Candidates = [sublocalityLevel2, sublocalityLevel1].filter(Boolean);
-  const line2Parts = line2Candidates.filter(part => !addressLine1.includes(part));
-  const addressLine2 = line2Parts.join(', ');
-
-  console.log('[PlacesAutocomplete] parsed:', { addressLine1, addressLine2, city, state, pincode });
-
-  return { addressLine1, addressLine2, city, state, pincode };
-}
-
-export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder }: PlacesAutocompleteProps) {
+export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder, label }: PlacesAutocompleteProps) {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
 
@@ -236,6 +178,7 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
       <TextInput
         value={value}
         onChangeText={handleTextChange}
+        label={label}
         placeholder={placeholder}
         mode="outlined"
         style={{ backgroundColor: appColors.surface }}

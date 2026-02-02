@@ -7,11 +7,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
 import { useAddAddressMutation, useGetAppSettingsQuery } from '../../../src/store/apiSlice';
+import { useAppSelector } from '../../../src/store';
 import { DEFAULT_APP_SETTINGS, isPincodeServiceable } from '../../../src/constants';
 import { spacing } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme';
 import { addressSchema, AddressFormData } from '../../../src/validation/schemas';
 import { FormTextInput } from '../../../src/components/common/FormTextInput';
+import { PlacesAutocomplete } from '../../../src/components/common/PlacesAutocomplete';
+import { InlineMapPicker } from '../../../src/components/common/InlineMapPicker';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { FioriSwitch } from '../../../src/components/common/FioriSwitch';
 import { useToast } from '../../../src/components/common/Toast';
@@ -24,29 +27,77 @@ export default function NewAddressScreen() {
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [addAddress, { isLoading }] = useAddAddressMutation();
   const { showToast } = useToast();
+  const user = useAppSelector((state) => state.auth.user);
 
-  const { control, handleSubmit, setError } = useForm<AddressFormData>({
+  const { control, handleSubmit, setError, setValue, watch } = useForm<AddressFormData>({
     resolver: yupResolver(addressSchema),
-    defaultValues: { label: '', full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false },
+    defaultValues: { label: '', full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false, lat: null, lng: null, formatted_address: null },
   });
 
   const onSubmit = async (data: AddressFormData) => {
+    console.log('[NewAddress] onSubmit called, data:', JSON.stringify(data));
     if (!isPincodeServiceable(data.pincode, appSettings)) { setError('pincode', { message: t('checkout.pincodeNotServiceable') }); return; }
-    const phoneNumber = data.phone.replace(/\D/g, '').slice(-10);
+    const fullName = data.full_name?.trim() || user?.name?.trim() || '';
+    const phone = data.phone?.trim() || user?.phone || '';
+    const payload = { label: data.label?.trim() || undefined, full_name: fullName, phone, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default, lat: data.lat ?? null, lng: data.lng ?? null, formatted_address: data.formatted_address ?? null };
+    console.log('[NewAddress] API payload:', JSON.stringify(payload));
     try {
-      await addAddress({ label: data.label?.trim() || undefined, full_name: data.full_name.trim(), phone: `+91${phoneNumber}`, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default }).unwrap();
+      const result = await addAddress(payload).unwrap();
+      console.log('[NewAddress] addAddress success:', JSON.stringify(result));
       router.back();
-    } catch { showToast({ message: t('addresses.errors.saveFailed'), type: 'error' }); }
+    } catch (err) {
+      console.error('[NewAddress] addAddress error:', err);
+      showToast({ message: t('addresses.errors.saveFailed'), type: 'error' });
+    }
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={headerHeight}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}>
       <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
-          <FormTextInput control={control} name="full_name" mode="outlined" label={`${t('addresses.fullName')} *`} placeholder={t('addresses.fullNamePlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
-          <FormTextInput control={control} name="phone" mode="outlined" label={`${t('addresses.phone')} *`} placeholder={t('addresses.phonePlaceholder')} keyboardType="phone-pad" maxLength={14} style={[styles.input, { backgroundColor: appColors.surface }]} />
-          <FormTextInput control={control} name="address_line1" mode="outlined" label={`${t('checkout.addressLine1')} *`} placeholder={t('addresses.addressLine1Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <InlineMapPicker
+            lat={watch('lat')}
+            lng={watch('lng')}
+            onUseAddress={(details) => {
+              setValue('address_line1', details.addressLine1);
+              setValue('address_line2', details.addressLine2);
+              setValue('city', details.city);
+              setValue('state', details.state);
+              setValue('pincode', details.pincode);
+              setValue('lat', details.lat);
+              setValue('lng', details.lng);
+              setValue('formatted_address', details.formattedAddress);
+            }}
+            onClearAddress={() => {
+              setValue('address_line1', '');
+              setValue('address_line2', '');
+              setValue('city', '');
+              setValue('state', '');
+              setValue('pincode', '');
+              setValue('lat', null);
+              setValue('lng', null);
+              setValue('formatted_address', null);
+            }}
+          />
+          <Controller control={control} name="address_line1" render={({ field: { onChange, value } }) => (
+            <PlacesAutocomplete
+              value={value}
+              onChangeText={onChange}
+              onPlaceSelected={(details) => {
+                onChange(details.addressLine1);
+                setValue('address_line2', details.addressLine2);
+                setValue('city', details.city);
+                setValue('state', details.state);
+                setValue('pincode', details.pincode);
+                setValue('lat', details.lat);
+                setValue('lng', details.lng);
+                setValue('formatted_address', details.formattedAddress);
+              }}
+              label={`${t('checkout.addressLine1')} *`}
+              placeholder={t('addresses.addressLine1Placeholder')}
+            />
+          )} />
           <FormTextInput control={control} name="address_line2" mode="outlined" label={t('checkout.addressLine2')} placeholder={t('addresses.addressLine2Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <View style={styles.row}>
             <View style={styles.halfField}><FormTextInput control={control} name="city" mode="outlined" label={`${t('checkout.city')} *`} placeholder={t('addresses.cityPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} /></View>
@@ -56,7 +107,7 @@ export default function NewAddressScreen() {
           <Controller control={control} name="is_default" render={({ field: { onChange, value } }) => <FioriSwitch label={t('addresses.setAsDefault')} value={value} onValueChange={onChange} />} />
         </View>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.xl }}>
-          <AppButton variant="primary" size="lg" fullWidth onPress={handleSubmit(onSubmit)} loading={isLoading} disabled={isLoading}>{t('common.save')}</AppButton>
+          <AppButton variant="primary" size="lg" fullWidth onPress={handleSubmit(onSubmit, (errors) => console.log('[NewAddress] validation errors:', JSON.stringify(errors)))} loading={isLoading} disabled={isLoading}>{t('common.save')}</AppButton>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

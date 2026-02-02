@@ -6,11 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { Card, Text, Button, FAB } from 'react-native-paper';
 
 import { useGetAddressesQuery, useDeleteAddressMutation, useSetDefaultAddressMutation } from '../../../src/store/apiSlice';
+import { useAppSelector } from '../../../src/store';
 import { Address } from '../../../src/types';
 import { EmptyState } from '../../../src/components/common/EmptyState';
 import { LoadingScreen } from '../../../src/components/common/LoadingScreen';
 import { FioriChip } from '../../../src/components/common/FioriChip';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
+import { useToast } from '../../../src/components/common/Toast';
 import { spacing, borderRadius } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme';
 
@@ -23,8 +25,17 @@ export default function AddressesScreen() {
   const [setDefaultAddress] = useSetDefaultAddressMutation();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const user = useAppSelector((state) => state.auth.user);
+  const { showToast } = useToast();
 
-  const handleAddAddress = () => { router.push('/(customer)/addresses/new'); };
+  const handleAddAddress = () => {
+    if (!user?.name?.trim()) {
+      showToast({ message: t('addresses.errors.nameRequired'), type: 'error' });
+      router.push('/(customer)/profile');
+      return;
+    }
+    router.push('/(customer)/addresses/new');
+  };
   const handleEditAddress = (id: string) => { router.push(`/(customer)/addresses/${id}`); };
   const handleDeleteAddress = (id: string) => {
     setDeletingId(id);

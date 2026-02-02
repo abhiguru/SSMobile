@@ -125,6 +125,10 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "guest": "Guest",
+    "editName": "Edit Name",
+    "enterYourName": "Enter your name",
+    "nameSaved": "Name updated",
+    "nameEmpty": "Name cannot be empty",
     "deleteAccount": "Delete Account",
     "deleteAccountConfirmTitle": "Delete Account",
     "deleteAccountConfirmMessage": "This will permanently delete your account and all associated data. This action cannot be undone.",
@@ -154,6 +158,15 @@
     "state": "State",
     "statePlaceholder": "State (Optional)",
     "pincodePlaceholder": "6-digit pincode",
+    "useCurrentLocation": "Use Current Location",
+    "pickLocation": "Pick Location",
+    "confirmLocation": "Confirm Location",
+    "useThisAddress": "Use this address",
+    "adjustPin": "Move the map to adjust the pin",
+    "locationPermissionTitle": "Location Permission Required",
+    "locationPermissionMessage": "Please enable location access in Settings to use this feature.",
+    "openSettings": "Open Settings",
+    "fetchingLocation": "Getting your location...",
     "errors": {
       "fullNameRequired": "Full name is required",
       "phoneRequired": "Phone number is required",
@@ -162,7 +175,8 @@
       "cityRequired": "City is required",
       "pincodeRequired": "Pincode is required",
       "pincodeInvalid": "Please enter a valid 6-digit pincode",
-      "saveFailed": "Failed to save address. Please try again."
+      "saveFailed": "Failed to save address. Please try again.",
+      "nameRequired": "Please set your name in Profile before adding an address."
     }
   },
   "admin": {

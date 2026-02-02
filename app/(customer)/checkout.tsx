@@ -61,6 +61,7 @@ export default function CheckoutScreen() {
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartTotal);
   const selectedAddressId = useAppSelector(selectSelectedAddressId);
+  const user = useAppSelector((state) => state.auth.user);
 
   const { data: addresses = [], isLoading: addressesLoading } = useGetAddressesQuery();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
@@ -154,7 +155,14 @@ export default function CheckoutScreen() {
   }, [addresses, selectedAddressId, dispatch]);
 
   const handleSelectAddress = (address: Address) => { dispatch(setSelectedAddress(address.id)); };
-  const handleAddAddress = () => { router.push('/(customer)/addresses/new'); };
+  const handleAddAddress = () => {
+    if (!user?.name?.trim()) {
+      showToast({ message: t('addresses.errors.nameRequired'), type: 'error' });
+      router.push('/(customer)/profile');
+      return;
+    }
+    router.push('/(customer)/addresses/new');
+  };
   const handleEditAddress = (id: string) => { router.push(`/(customer)/addresses/${id}`); };
 
   const handlePlaceOrder = async () => {

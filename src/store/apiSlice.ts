@@ -10,7 +10,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, PorterQuoteResponse, PorterBookResponse, PorterCancelResponse, DeliveryType, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 const FAVORITES_KEY = '@masala_favorites';
@@ -404,16 +404,11 @@ export const apiSlice = createApi({
 
     getOrderById: builder.query<Order | null, string>({
       query: (orderId) => ({
-        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*),porter_delivery:porter_deliveries(*),customer:users!user_id(id,name,phone)`,
+        url: `/rest/v1/orders?id=eq.${orderId}&select=*,items:order_items(*),customer:users!user_id(id,name,phone)`,
       }),
       transformResponse: (response: unknown) => {
         const arr = Array.isArray(response) ? response : [];
-        const order = arr[0] || null;
-        // Flatten porter_delivery from array to single object
-        if (order && Array.isArray(order.porter_delivery)) {
-          order.porter_delivery = order.porter_delivery[0] || undefined;
-        }
-        return order;
+        return arr[0] || null;
       },
       providesTags: (_result, _error, id) => [{ type: 'Order', id }],
     }),
@@ -502,46 +497,6 @@ export const apiSlice = createApi({
       ],
     }),
 
-    // ── Porter Delivery ──────────────────────────────────────
-    getPorterQuote: builder.mutation<PorterQuoteResponse, string>({
-      query: (orderId) => ({
-        url: '/functions/v1/porter-quote',
-        method: 'POST',
-        body: { order_id: orderId },
-      }),
-    }),
-
-    bookPorterDelivery: builder.mutation<PorterBookResponse, string>({
-      query: (orderId) => ({
-        url: '/functions/v1/porter-book',
-        method: 'POST',
-        body: { order_id: orderId },
-      }),
-      invalidatesTags: (_result, _error, orderId) => [
-        { type: 'Order', id: orderId },
-        'Orders',
-      ],
-    }),
-
-    cancelPorterDelivery: builder.mutation<
-      PorterCancelResponse,
-      { orderId: string; reason?: string; fallbackToInhouse?: boolean }
-    >({
-      query: ({ orderId, reason, fallbackToInhouse }) => ({
-        url: '/functions/v1/porter-cancel',
-        method: 'POST',
-        body: {
-          order_id: orderId,
-          reason,
-          fallback_to_inhouse: fallbackToInhouse,
-        },
-      }),
-      invalidatesTags: (_result, _error, { orderId }) => [
-        { type: 'Order', id: orderId },
-        'Orders',
-      ],
-    }),
-
     dispatchOrder: builder.mutation<
       void,
       { orderId: string; deliveryStaffId: string }
@@ -553,7 +508,6 @@ export const apiSlice = createApi({
           order_id: orderId,
           status: 'out_for_delivery',
           delivery_staff_id: deliveryStaffId,
-          delivery_type: 'in_house' as DeliveryType,
         },
       }),
       invalidatesTags: (_result, _error, { orderId }) => [
@@ -730,14 +684,20 @@ export const apiSlice = createApi({
       Address,
       Omit<Address, 'id' | 'user_id' | 'created_at' | 'updated_at'>
     >({
-      query: (address) => ({
-        url: '/rest/v1/user_addresses',
-        method: 'POST',
-        headers: { Prefer: 'return=representation' },
-        body: address,
-      }),
-      transformResponse: (response: Address | Address[]) =>
-        Array.isArray(response) ? response[0] : response,
+      queryFn: async (address, { getState }) => {
+        const state = getState() as { auth: { user: { id: string } | null } };
+        const userId = state.auth.user?.id;
+        if (!userId) return { error: { status: 401, data: 'Not authenticated' } };
+        const response = await authenticatedFetch('/rest/v1/user_addresses', {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ ...address, user_id: userId }),
+        });
+        const data = await response.json();
+        if (!response.ok) return { error: { status: response.status, data } };
+        const result = Array.isArray(data) ? data[0] : data;
+        return { data: result as Address };
+      },
       invalidatesTags: [{ type: 'Addresses', id: 'LIST' }],
     }),
 
@@ -955,6 +915,35 @@ export const apiSlice = createApi({
       },
     }),
 
+    updateProfile: builder.mutation<User, { name: string }>({
+      queryFn: async ({ name }, { getState }) => {
+        try {
+          const state = getState() as { auth: { user: User | null } };
+          const userId = state.auth.user?.id;
+          if (!userId) {
+            return { error: { status: 'CUSTOM_ERROR' as const, data: 'Not authenticated' } };
+          }
+          const response = await authenticatedFetch(
+            `/rest/v1/users?id=eq.${userId}`,
+            {
+              method: 'PATCH',
+              body: JSON.stringify({ name }),
+              headers: { Prefer: 'return=representation' },
+            },
+          );
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            return { error: { status: response.status, data: data.message || 'Failed to update profile' } };
+          }
+          const rows = await response.json();
+          const updated = Array.isArray(rows) ? rows[0] : rows;
+          return { data: updated as User };
+        } catch {
+          return { error: { status: 'FETCH_ERROR' as const, data: 'Network error' } };
+        }
+      },
+    }),
+
     requestAccountDeletion: builder.mutation<null, void>({
       query: () => ({
         url: '/functions/v1/request-account-deletion',
@@ -1134,10 +1123,6 @@ export const {
   useUpdateOrderNotesMutation,
   useUpdateOrderItemsMutation,
   useVerifyDeliveryOtpMutation,
-  // Porter delivery
-  useGetPorterQuoteMutation,
-  useBookPorterDeliveryMutation,
-  useCancelPorterDeliveryMutation,
   useDispatchOrderMutation,
   // Users
   useGetUsersQuery,
@@ -1161,6 +1146,7 @@ export const {
   useVerifyOtpMutation,
   useCheckSessionMutation,
   useLogoutMutation,
+  useUpdateProfileMutation,
   useRequestAccountDeletionMutation,
   useGetDeletionRequestsQuery,
   useProcessAccountDeletionMutation,

@@ -125,6 +125,10 @@
     "themeLight": "લાઇટ",
     "themeDark": "ડાર્ક",
     "guest": "મહેમાન",
+    "editName": "નામ બદલો",
+    "enterYourName": "તમારું નામ દાખલ કરો",
+    "nameSaved": "નામ અપડેટ થયું",
+    "nameEmpty": "નામ ખાલી ન હોઈ શકે",
     "deleteAccount": "એકાઉન્ટ કાઢી નાખો",
     "deleteAccountConfirmTitle": "એકાઉન્ટ કાઢી નાખો",
     "deleteAccountConfirmMessage": "આ તમારું એકાઉન્ટ અને તમામ સંબંધિત ડેટા કાયમી ધોરણે કાઢી નાખશે. આ ક્રિયા પૂર્વવત્ કરી શકાતી નથી.",
@@ -154,6 +158,15 @@
     "state": "રાજ્ય",
     "statePlaceholder": "રાજ્ય (વૈકલ્પિક)",
     "pincodePlaceholder": "6-અંકનો પિનકોડ",
+    "useCurrentLocation": "વર્તમાન સ્થાન વાપરો",
+    "pickLocation": "સ્થાન પસંદ કરો",
+    "confirmLocation": "સ્થાન પુષ્ટિ કરો",
+    "useThisAddress": "આ સરનામું વાપરો",
+    "adjustPin": "પિન એડજસ્ટ કરવા માટે નકશો ખસેડો",
+    "locationPermissionTitle": "સ્થાન પરવાનગી જરૂરી છે",
+    "locationPermissionMessage": "આ સુવિધાનો ઉપયોગ કરવા માટે કૃપા કરી સેટિંગ્સમાં સ્થાન ઍક્સેસ સક્ષમ કરો.",
+    "openSettings": "સેટિંગ્સ ખોલો",
+    "fetchingLocation": "તમારું સ્થાન મેળવી રહ્યા છીએ...",
     "errors": {
       "fullNameRequired": "પૂર્ણ નામ જરૂરી છે",
       "phoneRequired": "ફોન નંબર જરૂરી છે",
@@ -162,7 +175,8 @@
       "cityRequired": "શહેર જરૂરી છે",
       "pincodeRequired": "પિનકોડ જરૂરી છે",
       "pincodeInvalid": "કૃપા કરી માન્ય 6-અંકનો પિનકોડ દાખલ કરો",
-      "saveFailed": "સરનામું સાચવવામાં નિષ્ફળ. કૃપા કરી ફરી પ્રયાસ કરો."
+      "saveFailed": "સરનામું સાચવવામાં નિષ્ફળ. કૃપા કરી ફરી પ્રયાસ કરો.",
+      "nameRequired": "સરનામું ઉમેરતા પહેલા કૃપા કરી પ્રોફાઇલમાં તમારું નામ સેટ કરો."
     }
   },
   "admin": {

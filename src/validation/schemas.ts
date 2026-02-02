@@ -3,14 +3,14 @@ import { PHONE_REGEX } from '../constants';
 
 export const addressSchema = yup.object({
   label: yup.string().default(''),
-  full_name: yup.string().required('addresses.errors.fullNameRequired'),
+  full_name: yup.string().default(''),
   phone: yup
     .string()
-    .required('addresses.errors.phoneRequired')
+    .default('')
     .test(
       'valid-phone',
       'addresses.errors.phoneInvalid',
-      (val) => !!val && PHONE_REGEX.test(val.replace(/\D/g, '').slice(-10))
+      (val) => !val || PHONE_REGEX.test(val.replace(/\D/g, '').slice(-10))
     ),
   address_line1: yup.string().required('addresses.errors.addressRequired'),
   address_line2: yup.string().default(''),
@@ -21,6 +21,9 @@ export const addressSchema = yup.object({
     .required('addresses.errors.pincodeRequired')
     .length(6, 'addresses.errors.pincodeInvalid'),
   is_default: yup.boolean().default(false),
+  lat: yup.number().nullable().default(null),
+  lng: yup.number().nullable().default(null),
+  formatted_address: yup.string().nullable().default(null),
 });
 
 export type AddressFormData = yup.InferType<typeof addressSchema>;

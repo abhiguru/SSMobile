@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -30,11 +30,15 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
-import { selectCartItems, selectCartTotal, clearCart } from '../../src/store/slices/cartSlice';
 import { selectSelectedAddressId, setSelectedAddress } from '../../src/store/slices/addressesSlice';
-import { useGetAddressesQuery, useGetAppSettingsQuery, useCreateOrderMutation } from '../../src/store/apiSlice';
-import { formatPrice, getPerKgPaise, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS, resolveImageSource } from '../../src/constants';
-import { getStoredTokens } from '../../src/services/supabase';
+import {
+  useGetAddressesQuery,
+  useGetAppSettingsQuery,
+  useCreateOrderMutation,
+  useGetCartQuery,
+  useClearServerCartMutation,
+} from '../../src/store/apiSlice';
+import { formatPrice, calculateShipping, isPincodeServiceable, DEFAULT_APP_SETTINGS, resolveImageSource } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme';
 import { Address } from '../../src/types';
@@ -50,6 +54,15 @@ import { hapticSuccess, hapticError } from '../../src/utils/haptics';
 const SCROLL_OFFSET = 100;
 const STEP_SIZE = 40;
 
+function formatWeight(grams: number, label?: string): string {
+  if (label) return label;
+  if (grams >= 1000) {
+    const kg = grams / 1000;
+    return Number.isInteger(kg) ? `${kg} kg` : `${kg.toFixed(1)} kg`;
+  }
+  return `${grams}g`;
+}
+
 export default function CheckoutScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -58,8 +71,18 @@ export default function CheckoutScreen() {
   const { appColors, appGradients } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
 
-  const items = useAppSelector(selectCartItems);
-  const subtotal = useAppSelector(selectCartTotal);
+  // Server-side cart
+  const { data: items = [], isLoading: cartLoading } = useGetCartQuery();
+  const [clearServerCart] = useClearServerCartMutation();
+
+  // Calculate subtotal from server cart
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const price = item.weight_option?.price_paise ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
+  }, [items]);
+
   const selectedAddressId = useAppSelector(selectSelectedAddressId);
   const user = useAppSelector((state) => state.auth.user);
 
@@ -69,8 +92,6 @@ export default function CheckoutScreen() {
 
   const [notes, setNotes] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
   const sectionYPositions = useRef<number[]>([0, 0, 0]);
 
   const STEPS = [
@@ -191,9 +212,10 @@ export default function CheckoutScreen() {
       return;
     }
 
+    // Build order items from server cart (use weight_grams from weight_option for backend compatibility)
     const orderItems = items.map((item) => ({
       product_id: item.product_id,
-      weight_grams: item.weight_grams,
+      weight_grams: item.weight_option?.weight_grams ?? 0,
       quantity: item.quantity,
     }));
 
@@ -203,7 +225,8 @@ export default function CheckoutScreen() {
     try {
       const result = await createOrder(payload).unwrap();
       console.log('[checkout] SUCCESS — order created:', JSON.stringify(result));
-      dispatch(clearCart());
+      // Clear server cart after successful order
+      await clearServerCart().unwrap();
       hapticSuccess();
       showToast({ message: t('checkout.orderPlaced'), type: 'success' });
       router.replace('/(customer)/orders');
@@ -225,7 +248,7 @@ export default function CheckoutScreen() {
     }
   };
 
-  if (addressesLoading && addresses.length === 0) {
+  if ((addressesLoading && addresses.length === 0) || cartLoading) {
     return <View style={[styles.centered, { backgroundColor: appColors.shell }]}><ActivityIndicator size="large" color={appColors.brand} /></View>;
   }
 
@@ -322,13 +345,18 @@ export default function CheckoutScreen() {
 
             {/* ── Line Items ─────────────────────────────────────── */}
             {items.map((item, idx) => {
-              const itemPrice = Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000);
-              const weightLabel = item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`;
+              const itemPrice = item.weight_option?.price_paise ?? 0;
+              const weightLabel = formatWeight(
+                item.weight_option?.weight_grams ?? 0,
+                item.weight_option?.weight_label
+              );
               const isLast = idx === items.length - 1;
-              const imgSource = resolveImageSource(item.product?.image_url, accessToken);
-              const displayName = isGujarati && item.product.name_gu ? item.product.name_gu : item.product.name;
+              const imgSource = item.product?.image_url
+                ? resolveImageSource(item.product.image_url, null)
+                : null;
+              const displayName = isGujarati && item.product?.name_gu ? item.product.name_gu : item.product?.name;
               return (
-                <View key={`${item.product_id}-${item.weight_grams}`} style={[styles.orderItem, { borderBottomColor: appColors.border }, isLast && styles.orderItemLast]}>
+                <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }, isLast && styles.orderItemLast]}>
                   <View style={styles.itemThumb}>
                     {imgSource ? (
                       <Image source={imgSource} style={styles.thumbImage} contentFit="cover" />

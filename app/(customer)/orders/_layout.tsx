@@ -32,6 +32,7 @@ export default function OrdersLayout() {
         name="[id]"
         options={{
           title: 'Order Details',
+          headerBackVisible: true,
         }}
       />
     </Stack>

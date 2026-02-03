@@ -13,6 +13,8 @@ import { spacing } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme';
 import { addressSchema, AddressFormData } from '../../../src/validation/schemas';
 import { FormTextInput } from '../../../src/components/common/FormTextInput';
+import { PlacesAutocomplete } from '../../../src/components/common/PlacesAutocomplete';
+import { UseCurrentLocationButton } from '../../../src/components/common/UseCurrentLocationButton';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { FioriSwitch } from '../../../src/components/common/FioriSwitch';
 import { useToast } from '../../../src/components/common/Toast';
@@ -29,14 +31,14 @@ export default function EditAddressScreen() {
   const { showToast } = useToast();
   const address = addresses.find((a) => a.id === id);
 
-  const { control, handleSubmit, setError, reset } = useForm<AddressFormData>({
+  const { control, handleSubmit, setError, reset, setValue } = useForm<AddressFormData>({
     resolver: yupResolver(addressSchema),
-    defaultValues: { label: '', full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false },
+    defaultValues: { label: '', full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false, lat: null, lng: null, formatted_address: null },
   });
 
   useEffect(() => {
     if (address) {
-      reset({ label: address.label || '', full_name: address.full_name, phone: address.phone.replace('+91', ''), address_line1: address.address_line1, address_line2: address.address_line2 || '', city: address.city, state: address.state || '', pincode: address.pincode, is_default: address.is_default });
+      reset({ label: address.label || '', full_name: address.full_name, phone: address.phone.replace('+91', ''), address_line1: address.address_line1, address_line2: address.address_line2 || '', city: address.city, state: address.state || '', pincode: address.pincode, is_default: address.is_default, lat: address.lat ?? null, lng: address.lng ?? null, formatted_address: address.formatted_address ?? null });
     }
   }, [address, reset]);
 
@@ -45,7 +47,7 @@ export default function EditAddressScreen() {
     if (!isPincodeServiceable(data.pincode, appSettings)) { setError('pincode', { message: t('checkout.pincodeNotServiceable') }); return; }
     const phoneNumber = data.phone.replace(/\D/g, '').slice(-10);
     try {
-      await updateAddress({ id, updates: { label: data.label?.trim() || undefined, full_name: data.full_name.trim(), phone: `+91${phoneNumber}`, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default } }).unwrap();
+      await updateAddress({ id, updates: { label: data.label?.trim() || undefined, full_name: data.full_name.trim(), phone: `+91${phoneNumber}`, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default, lat: data.lat ?? null, lng: data.lng ?? null, formatted_address: data.formatted_address ?? null } }).unwrap();
       router.back();
     } catch { showToast({ message: t('addresses.errors.saveFailed'), type: 'error' }); }
   };
@@ -59,7 +61,30 @@ export default function EditAddressScreen() {
           <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <FormTextInput control={control} name="full_name" mode="outlined" label={`${t('addresses.fullName')} *`} placeholder={t('addresses.fullNamePlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <FormTextInput control={control} name="phone" mode="outlined" label={`${t('addresses.phone')} *`} placeholder={t('addresses.phonePlaceholder')} keyboardType="phone-pad" maxLength={14} style={[styles.input, { backgroundColor: appColors.surface }]} />
-          <FormTextInput control={control} name="address_line1" mode="outlined" label={`${t('checkout.addressLine1')} *`} placeholder={t('addresses.addressLine1Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <UseCurrentLocationButton
+            onLocationSelected={(details) => {
+              setValue('lat', details.lat);
+              setValue('lng', details.lng);
+              setValue('formatted_address', details.formattedAddress);
+            }}
+          />
+          <Controller control={control} name="address_line1" render={({ field: { onChange, value } }) => (
+            <PlacesAutocomplete
+              value={value}
+              onChangeText={onChange}
+              onPlaceSelected={(details) => {
+                onChange(details.addressLine1);
+                setValue('address_line2', details.addressLine2);
+                setValue('city', details.city);
+                setValue('state', details.state);
+                setValue('pincode', details.pincode);
+                setValue('lat', details.lat);
+                setValue('lng', details.lng);
+                setValue('formatted_address', details.formattedAddress);
+              }}
+              placeholder={t('addresses.addressLine1Placeholder')}
+            />
+          )} />
           <FormTextInput control={control} name="address_line2" mode="outlined" label={t('checkout.addressLine2')} placeholder={t('addresses.addressLine2Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
           <View style={styles.row}>
             <View style={styles.halfField}><FormTextInput control={control} name="city" mode="outlined" label={`${t('checkout.city')} *`} placeholder={t('addresses.cityPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} /></View>

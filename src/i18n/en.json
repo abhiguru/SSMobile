@@ -51,7 +51,8 @@
     "details": "Product Details",
     "weight": "Weight",
     "resetWeight": "Reset",
-    "perKg": "/kg"
+    "perKg": "/kg",
+    "noWeightOptions": "No weight options available"
   },
   "cart": {
     "title": "Cart",
@@ -62,7 +63,8 @@
     "checkout": "Proceed to Checkout",
     "itemRemoved": "Item removed from cart",
     "updateItem": "Update",
-    "itemUpdated": "Cart updated!"
+    "itemUpdated": "Cart updated!",
+    "weightChangeNotSupported": "To change weight, remove the item and add it again"
   },
   "checkout": {
     "title": "Checkout",
@@ -104,7 +106,16 @@
     "trackOrder": "Track Order",
     "reorder": "Reorder",
     "deliveryOtp": "Delivery OTP",
-    "shareOtpHint": "Share this code with the delivery person"
+    "shareOtpHint": "Share this code with the delivery person",
+    "cancelOrder": "Cancel Order",
+    "cancelConfirmTitle": "Cancel this order?",
+    "cancelConfirmMessage": "Are you sure you want to cancel this order? This cannot be undone.",
+    "cancelReason": "Reason (optional)",
+    "cancelReasonPlaceholder": "Why are you cancelling?",
+    "orderCancelled": "Order cancelled",
+    "cancelFailed": "Failed to cancel order",
+    "statusHistory": "Order Timeline",
+    "filterOrders": "Filter"
   },
   "favorites": {
     "title": "Favorites",
@@ -287,7 +298,6 @@
     "roleCustomer": "Customer",
     "roleAdmin": "Admin",
     "roleDeliveryStaff": "Delivery Staff",
-    "roleSuperAdmin": "Super Admin",
     "roleChangeConfirmTitle": "Change Role",
     "roleChangeConfirmMessage": "Change {{name}}'s role to {{role}}?",
     "roleChanged": "Role updated successfully",

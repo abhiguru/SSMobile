@@ -1,5 +1,5 @@
 // User types
-export type UserRole = 'customer' | 'admin' | 'super_admin' | 'delivery_staff';
+export type UserRole = 'customer' | 'admin' | 'delivery_staff';
 
 export interface User {
   id: string;
@@ -58,7 +58,7 @@ export interface Category {
   display_order: number;
 }
 
-// Cart types
+// Cart types (legacy client-side)
 export interface CartItem {
   product_id: string;
   weight_grams: number;
@@ -66,10 +66,34 @@ export interface CartItem {
   product: Product;
 }
 
+// Server-side cart types (RPC-based)
+export interface ServerCartItem {
+  id: string;                    // cart_item_id
+  product_id: string;
+  weight_option_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+  // Joined data from RPC
+  product: Product;
+  weight_option: WeightOption;
+}
+
+export interface AddToCartRequest {
+  p_product_id: string;
+  p_weight_option_id: string;
+  p_quantity: number;
+}
+
+export interface CartSummary {
+  item_count: number;
+  subtotal_paise: number;
+}
+
 // Address types
 export interface Address {
   id: string;
-  user_id: string;
+  user_id?: string;  // Optional - not returned by RPC endpoints
   label?: string;
   full_name: string;
   phone: string;
@@ -79,15 +103,30 @@ export interface Address {
   state?: string;
   pincode: string;
   is_default: boolean;
+  lat?: number | null;
+  lng?: number | null;
+  formatted_address?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface AdminAddress extends Address {
-  lat?: number | null;
-  lng?: number | null;
-  formatted_address?: string | null;
+// Profile with addresses (from get_profile RPC)
+export interface ProfileWithAddresses {
+  id: string;
+  phone: string;
+  name: string | null;
+  language: 'en' | 'gu';
+  created_at: string;
+  addresses: Address[];
 }
+
+// Delete address RPC response
+export interface DeleteAddressResponse {
+  success: boolean;
+  deleted_id: string;
+}
+
+export interface AdminAddress extends Address {}
 
 // Legacy address type for checkout form (kept for backward compatibility)
 export interface DeliveryAddress {
@@ -105,39 +144,6 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'delivery_failed';
-
-// Delivery types
-export type DeliveryType = 'in_house' | 'porter';
-
-export type PorterStatus =
-  | 'pending'
-  | 'live'
-  | 'allocated'
-  | 'reached_for_pickup'
-  | 'picked_up'
-  | 'reached_for_drop'
-  | 'ended'
-  | 'cancelled';
-
-export interface PorterDelivery {
-  id: string;
-  order_id: string;
-  porter_order_id?: string;
-  crn?: string;
-  tracking_url?: string;
-  driver_name?: string;
-  driver_phone?: string;
-  vehicle_number?: string;
-  quoted_fare_paise?: number;
-  final_fare_paise?: number;
-  porter_status?: PorterStatus;
-  estimated_pickup_time?: string;
-  estimated_delivery_time?: string;
-  actual_pickup_time?: string;
-  actual_delivery_time?: string;
-  created_at?: string;
-  updated_at?: string;
-}
 
 export interface OrderItem {
   id: string;
@@ -175,11 +181,7 @@ export interface Order {
   delivery_otp?: string;
   notes?: string;
   admin_notes?: string;
-  // Delivery type (in-house or Porter)
-  delivery_type?: DeliveryType;
   delivery_staff_id?: string;
-  // Porter delivery info (populated via join)
-  porter_delivery?: PorterDelivery;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -264,54 +266,7 @@ export interface ApiError {
   message: string;
 }
 
-// Porter API types
-export interface PorterQuoteResponse {
-  success: boolean;
-  order_id: string;
-  order_number: string;
-  quote: {
-    fare_paise: number;
-    fare_display: string;
-    estimated_minutes: number;
-    estimated_time_display: string;
-    distance_km: number;
-    vehicle_type: string;
-  };
-  addresses: {
-    pickup: { lat: number; lng: number };
-    drop: { lat: number; lng: number; address: string; formatted_address?: string };
-  };
-  error?: string;
-  message?: string;
-}
-
-export interface PorterBookResponse {
-  success: boolean;
-  order_id: string;
-  order_number: string;
-  porter: {
-    porter_order_id: string;
-    crn: string;
-    tracking_url: string;
-    estimated_pickup_time?: string;
-    estimated_delivery_time?: string;
-  };
-  message: string;
-  error?: string;
-}
-
-export interface PorterCancelResponse {
-  success: boolean;
-  order_id: string;
-  order_number: string;
-  porter_cancelled: boolean;
-  new_status: string;
-  fallback_to_inhouse: boolean;
-  message: string;
-  error?: string;
-}
-
-// Delivery staff type (for in-house dispatch)
+// Delivery staff type
 export interface DeliveryStaff {
   id: string;
   name: string;
@@ -320,4 +275,25 @@ export interface DeliveryStaff {
   is_available?: boolean;
   current_order_id?: string | null;
   created_at?: string;
+}
+
+// Order summary (from get_orders RPC)
+export interface OrderSummary {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  total_paise: number;
+  item_count: number;
+  created_at: string;
+  delivery_otp?: string;
+}
+
+// Status history entry (from get_order_status_history RPC)
+export interface OrderStatusHistoryEntry {
+  id: string;
+  order_id: string;
+  status: OrderStatus;
+  changed_by?: string;
+  notes?: string;
+  created_at: string;
 }

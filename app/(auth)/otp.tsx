@@ -64,7 +64,10 @@ export default function OtpScreen() {
   const digitAnimStyles = [da0, da1, da2, da3, da4, da5];
 
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    const timer = setTimeout(() => {
+      inputRefs.current[0]?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   // Countdown timer

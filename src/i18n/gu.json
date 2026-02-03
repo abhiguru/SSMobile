@@ -51,7 +51,8 @@
     "details": "ઉત્પાદન વિગતો",
     "weight": "વજન",
     "resetWeight": "રીસેટ",
-    "perKg": "/કિલો"
+    "perKg": "/કિલો",
+    "noWeightOptions": "કોઈ વજન વિકલ્પ ઉપલબ્ધ નથી"
   },
   "cart": {
     "title": "કાર્ટ",
@@ -62,7 +63,8 @@
     "checkout": "ચેકઆઉટ પર જાઓ",
     "itemRemoved": "કાર્ટમાંથી આઇટમ દૂર કરવામાં આવી",
     "updateItem": "અપડેટ કરો",
-    "itemUpdated": "કાર્ટ અપડેટ થયું!"
+    "itemUpdated": "કાર્ટ અપડેટ થયું!",
+    "weightChangeNotSupported": "વજન બદલવા માટે, આઇટમ દૂર કરો અને ફરી ઉમેરો"
   },
   "checkout": {
     "title": "ચેકઆઉટ",
@@ -104,7 +106,16 @@
     "trackOrder": "ઓર્ડર ટ્રેક કરો",
     "reorder": "ફરી ઓર્ડર કરો",
     "deliveryOtp": "ડિલિવરી OTP",
-    "shareOtpHint": "ડિલિવરી વ્યક્તિ સાથે આ કોડ શેર કરો"
+    "shareOtpHint": "ડિલિવરી વ્યક્તિ સાથે આ કોડ શેર કરો",
+    "cancelOrder": "ઓર્ડર રદ કરો",
+    "cancelConfirmTitle": "આ ઓર્ડર રદ કરશો?",
+    "cancelConfirmMessage": "શું તમે ખરેખર આ ઓર્ડર રદ કરવા માંગો છો? આ પૂર્વવત્ કરી શકાતું નથી.",
+    "cancelReason": "કારણ (વૈકલ્પિક)",
+    "cancelReasonPlaceholder": "તમે શા માટે રદ કરી રહ્યા છો?",
+    "orderCancelled": "ઓર્ડર રદ થયો",
+    "cancelFailed": "ઓર્ડર રદ કરવામાં નિષ્ફળ",
+    "statusHistory": "ઓર્ડર ટાઈમલાઈન",
+    "filterOrders": "ફિલ્ટર"
   },
   "favorites": {
     "title": "મનપસંદ",
@@ -287,7 +298,6 @@
     "roleCustomer": "ગ્રાહક",
     "roleAdmin": "એડમિન",
     "roleDeliveryStaff": "ડિલિવરી સ્ટાફ",
-    "roleSuperAdmin": "સુપર એડમિન",
     "roleChangeConfirmTitle": "ભૂમિકા બદલો",
     "roleChangeConfirmMessage": "{{name}} ની ભૂમિકા {{role}} માં બદલશો?",
     "roleChanged": "ભૂમિકા સફળતાપૂર્વક અપડેટ થઈ",

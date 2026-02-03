@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, ActivityIndicator, SegmentedButtons } from 'react-native-paper';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import {
@@ -11,18 +11,14 @@ import {
   useUpdateOrderNotesMutation,
   useUpdateOrderItemsMutation,
   useGetProductsQuery,
-  useGetPorterQuoteMutation,
-  useBookPorterDeliveryMutation,
-  useCancelPorterDeliveryMutation,
   useDispatchOrderMutation,
 } from '../../../src/store/apiSlice';
 import { formatPrice, getPerKgPaise, getOrderStatusColor } from '../../../src/constants';
 import { spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme/useAppTheme';
-import { OrderStatus, DeliveryType, PorterQuoteResponse, DeliveryStaff, OrderItem, Product } from '../../../src/types';
+import { OrderStatus, DeliveryStaff, OrderItem, Product } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { SectionHeader } from '../../../src/components/common/SectionHeader';
-import { KeyValueRow } from '../../../src/components/common/KeyValueRow';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { DeliveryStaffPicker } from '../../../src/components/common/DeliveryStaffPicker';
 import { EditOrderItemSheet } from '../../../src/components/common/EditOrderItemSheet';
@@ -59,9 +55,6 @@ export default function AdminOrderDetailScreen() {
     pollingInterval: 15_000,
   });
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
-  const [getPorterQuote, { isLoading: quoteLoading }] = useGetPorterQuoteMutation();
-  const [bookPorterDelivery, { isLoading: bookingPorter }] = useBookPorterDeliveryMutation();
-  const [cancelPorterDelivery, { isLoading: cancellingPorter }] = useCancelPorterDeliveryMutation();
   const [dispatchOrder, { isLoading: dispatching }] = useDispatchOrderMutation();
 
   const [updateOrderNotes, { isLoading: savingNotes }] = useUpdateOrderNotesMutation();
@@ -69,8 +62,6 @@ export default function AdminOrderDetailScreen() {
   const { data: allProducts = [] } = useGetProductsQuery({ includeUnavailable: false });
 
   const [dialog, setDialog] = useState<{ title: string; message: string; onConfirm: () => void; confirmLabel: string; variant?: ButtonVariant } | null>(null);
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('porter');
-  const [porterQuote, setPorterQuote] = useState<PorterQuoteResponse['quote'] | null>(null);
   const [staffPickerVisible, setStaffPickerVisible] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState('');
@@ -232,88 +223,6 @@ export default function AdminOrderDetailScreen() {
     }
   };
 
-  const handleGetPorterQuote = async () => {
-    if (!id) return;
-    try {
-      const result = await getPorterQuote(id).unwrap();
-      if (result.success) {
-        setPorterQuote(result.quote);
-        hapticSuccess();
-      } else {
-        hapticError();
-        showToast({ message: result.message || 'Failed to get quote', type: 'error' });
-      }
-    } catch (err: unknown) {
-      hapticError();
-      const errorData = (err as { data?: string })?.data;
-      showToast({ message: errorData || 'Failed to get Porter quote', type: 'error' });
-    }
-  };
-
-  const handleBookPorter = () => {
-    if (!id) return;
-    setDialog({
-      title: 'Book Porter Delivery',
-      message: `Estimated fare: ${porterQuote?.fare_display || 'N/A'}\nETA: ${porterQuote?.estimated_time_display || 'N/A'}`,
-      confirmLabel: 'Book Porter',
-      variant: 'primary',
-      onConfirm: async () => {
-        setDialog(null);
-        try {
-          const result = await bookPorterDelivery(id).unwrap();
-          if (result.success) {
-            hapticSuccess();
-            showToast({ message: 'Porter delivery booked!', type: 'success' });
-            setPorterQuote(null);
-            refetch();
-          } else {
-            hapticError();
-            showToast({ message: result.message || 'Booking failed', type: 'error' });
-          }
-        } catch (err: unknown) {
-          hapticError();
-          const errorData = (err as { data?: string })?.data;
-          showToast({ message: errorData || 'Failed to book Porter', type: 'error' });
-        }
-      },
-    });
-  };
-
-  const handleCancelPorter = (fallbackToInhouse: boolean) => {
-    if (!id) return;
-    const title = fallbackToInhouse ? 'Cancel & Reassign' : 'Cancel Porter';
-    const message = fallbackToInhouse
-      ? 'Cancel Porter delivery and return order to dispatch queue?'
-      : 'Cancel Porter delivery? Order will be marked as delivery failed.';
-
-    setDialog({
-      title,
-      message,
-      confirmLabel: 'Confirm',
-      variant: 'danger',
-      onConfirm: async () => {
-        setDialog(null);
-        try {
-          await cancelPorterDelivery({
-            orderId: id,
-            reason: fallbackToInhouse ? 'Reassigning to in-house' : 'Cancelled by admin',
-            fallbackToInhouse,
-          }).unwrap();
-          hapticSuccess();
-          showToast({
-            message: fallbackToInhouse ? 'Order returned to dispatch queue' : 'Porter cancelled',
-            type: 'success',
-          });
-          refetch();
-        } catch (err: unknown) {
-          hapticError();
-          const errorData = (err as { data?: string })?.data;
-          showToast({ message: errorData || 'Failed to cancel', type: 'error' });
-        }
-      },
-    });
-  };
-
   const handleDispatchInHouse = () => {
     if (!id) return;
     setStaffPickerVisible(true);
@@ -334,35 +243,6 @@ export default function AdminOrderDetailScreen() {
     }
   };
 
-  const openTrackingUrl = () => {
-    if (order?.porter_delivery?.tracking_url) {
-      Linking.openURL(order.porter_delivery.tracking_url);
-    }
-  };
-
-  const callDriver = () => {
-    if (order?.porter_delivery?.driver_phone) {
-      Linking.openURL(`tel:${order.porter_delivery.driver_phone}`);
-    }
-  };
-
-  const getPorterStatusColor = (status?: string): string => {
-    switch (status) {
-      case 'allocated':
-      case 'reached_for_pickup':
-        return appColors.brandLight;
-      case 'picked_up':
-      case 'reached_for_drop':
-        return appColors.positiveLight;
-      case 'ended':
-        return appColors.positive;
-      case 'cancelled':
-        return appColors.criticalLight;
-      default:
-        return appColors.neutralLight;
-    }
-  };
-
   if (isLoading || !order) {
     return (<View style={styles.centered}><ActivityIndicator size="large" color={appColors.brand} /></View>);
   }
@@ -371,8 +251,6 @@ export default function AdminOrderDetailScreen() {
   const stripeColor = getOrderStatusColor(order.status, appColors);
   const isConfirmed = order.status === 'confirmed';
   const isOutForDelivery = order.status === 'out_for_delivery';
-  const isPorterDelivery = order.delivery_type === 'porter';
-  const porterDelivery = order.porter_delivery;
 
   return (
     <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -386,18 +264,6 @@ export default function AdminOrderDetailScreen() {
           <StatusBadge status={order.status} />
         </View>
         <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{new Date(order.created_at).toLocaleString()}</Text>
-        {order.delivery_type && (
-          <View style={styles.deliveryTypeBadge}>
-            <MaterialCommunityIcons
-              name={order.delivery_type === 'porter' ? 'motorbike' : 'account'}
-              size={14}
-              color={appColors.text.secondary}
-            />
-            <Text variant="labelSmall" style={{ color: appColors.text.secondary }}>
-              {order.delivery_type === 'porter' ? 'Porter Delivery' : 'In-House Delivery'}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Customer info */}
@@ -461,78 +327,22 @@ export default function AdminOrderDetailScreen() {
         </View>
       )}
 
-      {/* Delivery type selector for confirmed orders */}
+      {/* Dispatch section for confirmed orders */}
       {isConfirmed && (
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title="Dispatch Order" style={{ paddingHorizontal: 0 }} />
 
-          <SegmentedButtons
-            value={deliveryType}
-            onValueChange={(v) => {
-              setDeliveryType(v as DeliveryType);
-              setPorterQuote(null);
-            }}
-            buttons={[
-              { value: 'porter', label: 'Porter', icon: 'motorbike' },
-              { value: 'in_house', label: 'In-House', icon: 'account' },
-            ]}
-            style={styles.segmentedButtons}
-          />
-
-          {deliveryType === 'porter' && (
-            <View style={styles.porterSection}>
-              {!porterQuote ? (
-                <AppButton
-                  variant="secondary"
-                  size="md"
-                  fullWidth
-                  loading={quoteLoading}
-                  disabled={quoteLoading}
-                  icon="calculator"
-                  onPress={handleGetPorterQuote}
-                >
-                  Get Porter Quote
-                </AppButton>
-              ) : (
-                <View style={[styles.quoteCard, { backgroundColor: appColors.shell, borderColor: appColors.border }]}>
-                  <View style={styles.quoteRow}>
-                    <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>Estimated Fare</Text>
-                    <Text variant="titleMedium" style={[styles.quoteValue, { color: appColors.brand }]}>{porterQuote.fare_display}</Text>
-                  </View>
-                  <KeyValueRow label="Delivery Time" value={porterQuote.estimated_time_display} />
-                  <KeyValueRow label="Distance" value={`${porterQuote.distance_km} km`} />
-                  <AppButton
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    loading={bookingPorter}
-                    disabled={bookingPorter}
-                    icon="motorbike"
-                    onPress={handleBookPorter}
-                    style={{ marginTop: spacing.md }}
-                  >
-                    Book Porter Delivery
-                  </AppButton>
-                </View>
-              )}
-            </View>
-          )}
-
-          {deliveryType === 'in_house' && (
-            <View style={styles.inHouseSection}>
-              <AppButton
-                variant="primary"
-                size="lg"
-                fullWidth
-                loading={dispatching}
-                disabled={dispatching}
-                icon="account-arrow-right"
-                onPress={handleDispatchInHouse}
-              >
-                Assign Delivery Staff
-              </AppButton>
-            </View>
-          )}
+          <AppButton
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={dispatching}
+            disabled={dispatching}
+            icon="account-arrow-right"
+            onPress={handleDispatchInHouse}
+          >
+            Assign Delivery Staff
+          </AppButton>
 
           <View style={styles.cancelOption}>
             <AppButton
@@ -546,72 +356,8 @@ export default function AdminOrderDetailScreen() {
         </View>
       )}
 
-      {/* Porter tracking section for out_for_delivery */}
-      {isOutForDelivery && isPorterDelivery && porterDelivery && (
-        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
-          <SectionHeader title="Porter Delivery" style={{ paddingHorizontal: 0 }} />
-
-          <View style={[styles.porterStatusCard, { backgroundColor: appColors.shell, borderColor: appColors.border }]}>
-            <View style={styles.porterStatusRow}>
-              <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>Status</Text>
-              <View style={[styles.porterStatusBadge, { backgroundColor: getPorterStatusColor(porterDelivery.porter_status) }]}>
-                <Text style={[styles.porterStatusText, { color: appColors.text.primary }]}>{formatPorterStatus(porterDelivery.porter_status)}</Text>
-              </View>
-            </View>
-
-            {porterDelivery.driver_name && (
-              <Pressable onPress={callDriver} style={[styles.driverCard, { backgroundColor: appColors.surface }]}>
-                <MaterialCommunityIcons name="account" size={24} color={appColors.brand} />
-                <View style={styles.driverInfo}>
-                  <Text variant="bodyMedium" style={[styles.driverName, { color: appColors.text.primary }]}>{porterDelivery.driver_name}</Text>
-                  {porterDelivery.driver_phone && (
-                    <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{porterDelivery.driver_phone}</Text>
-                  )}
-                  {porterDelivery.vehicle_number && (
-                    <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{porterDelivery.vehicle_number}</Text>
-                  )}
-                </View>
-                <MaterialCommunityIcons name="phone" size={24} color={appColors.positive} />
-              </Pressable>
-            )}
-
-            {porterDelivery.tracking_url && (
-              <AppButton
-                variant="secondary"
-                size="md"
-                fullWidth
-                icon="map-marker"
-                onPress={openTrackingUrl}
-                style={{ marginTop: spacing.md }}
-              >
-                Track on Porter
-              </AppButton>
-            )}
-
-            <View style={styles.porterActions}>
-              <AppButton
-                variant="text"
-                size="sm"
-                onPress={() => handleCancelPorter(true)}
-                loading={cancellingPorter}
-              >
-                Cancel & Reassign
-              </AppButton>
-              <AppButton
-                variant="danger"
-                size="sm"
-                onPress={() => handleCancelPorter(false)}
-                loading={cancellingPorter}
-              >
-                Cancel Delivery
-              </AppButton>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Standard actions for out_for_delivery (in-house) */}
-      {isOutForDelivery && !isPorterDelivery && availableActions.length > 0 && (
+      {/* Status actions for out_for_delivery */}
+      {isOutForDelivery && availableActions.length > 0 && (
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
           <SectionHeader title={t('admin.updateStatus')} style={{ paddingHorizontal: 0 }} />
           <View style={styles.actionsRow}>
@@ -799,28 +545,6 @@ export default function AdminOrderDetailScreen() {
   );
 }
 
-function formatPorterStatus(status?: string): string {
-  switch (status) {
-    case 'live':
-    case 'pending':
-      return 'Searching...';
-    case 'allocated':
-      return 'Driver Assigned';
-    case 'reached_for_pickup':
-      return 'At Pickup';
-    case 'picked_up':
-      return 'Picked Up';
-    case 'reached_for_drop':
-      return 'Arriving';
-    case 'ended':
-      return 'Delivered';
-    case 'cancelled':
-      return 'Cancelled';
-    default:
-      return status || 'Unknown';
-  }
-}
-
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   container: { flex: 1 },
@@ -830,7 +554,6 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerStripe: { width: 4, height: 24, borderRadius: 2, marginRight: spacing.sm },
   orderId: { fontFamily: fontFamily.bold },
-  deliveryTypeBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs },
   customerCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
   customerInfo: { flex: 1 },
   sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.md },
@@ -838,21 +561,7 @@ const styles = StyleSheet.create({
   editPencilBtn: { padding: spacing.sm, borderRadius: borderRadius.sm },
   actionsRow: { flexDirection: 'row', gap: spacing.md },
   actionButtonWrapper: { flex: 1 },
-  segmentedButtons: { marginBottom: spacing.lg },
-  porterSection: { marginTop: spacing.sm },
-  quoteCard: { padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
-  quoteRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
-  quoteValue: { fontFamily: fontFamily.bold },
-  inHouseSection: { marginTop: spacing.sm },
   cancelOption: { marginTop: spacing.md, alignItems: 'center' },
-  porterStatusCard: { padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
-  porterStatusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  porterStatusBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm },
-  porterStatusText: { fontSize: 12, fontFamily: fontFamily.semiBold },
-  driverCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
-  driverInfo: { flex: 1 },
-  driverName: { fontFamily: fontFamily.semiBold },
-  porterActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
   orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   totalDivider: { height: 1, marginTop: spacing.sm, marginBottom: spacing.md },

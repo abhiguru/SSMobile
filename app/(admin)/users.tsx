@@ -33,10 +33,9 @@ const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'admin.roleCustomer',
   admin: 'admin.roleAdmin',
   delivery_staff: 'admin.roleDeliveryStaff',
-  super_admin: 'admin.roleSuperAdmin',
 };
 
-const ALL_ROLES: UserRole[] = ['customer', 'admin', 'delivery_staff', 'super_admin'];
+const ALL_ROLES: UserRole[] = ['customer', 'admin', 'delivery_staff'];
 
 const ADDR_STEP_SIZE = 32;
 const ADDR_STEPS = [
@@ -96,7 +95,6 @@ export default function UsersScreen() {
     customer: { bg: appColors.informativeLight, text: appColors.informative },
     admin: { bg: appColors.criticalLight, text: appColors.critical },
     delivery_staff: { bg: appColors.positiveLight, text: appColors.positive },
-    super_admin: { bg: appColors.brandLight, text: appColors.brand },
   };
 
   const [dialog, setDialog] = useState<{ title: string; message: string; onConfirm: () => void; confirmLabel: string; variant?: ButtonVariant } | null>(null);
@@ -733,7 +731,7 @@ export default function UsersScreen() {
               ) : null}
             </ScrollView>
 
-          <View style={[styles.sheetFooter, { borderTopColor: appColors.border }]}>
+          <View style={[styles.sheetFooter, { borderTopColor: appColors.border, paddingBottom: insets.bottom + spacing.md }]}>
             <View style={styles.footerButton}>
               <AppButton variant="secondary" size="md" onPress={closeSheet} fullWidth>
                 {t('common.cancel')}

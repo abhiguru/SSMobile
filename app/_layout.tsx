@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { PaperProvider } from 'react-native-paper';
 import { I18nextProvider } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -146,13 +147,15 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        <Provider store={store}>
-          <ThemeProvider>
-            <ThemedApp />
-          </ThemeProvider>
-        </Provider>
-      </ErrorBoundary>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <Provider store={store}>
+            <ThemeProvider>
+              <ThemedApp />
+            </ThemeProvider>
+          </Provider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

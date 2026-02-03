@@ -6,6 +6,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +26,7 @@ export default function LoginScreen() {
   const [sendOtp, { isLoading, error, reset }] = useSendOtpMutation();
   const { appColors, appGradients } = useAppTheme();
 
-  const [phone, setPhone] = useState('9876543210');
+  const [phone, setPhone] = useState('8156092919');
   const [validationError, setValidationError] = useState('');
 
   const apiError = error && 'data' in error ? (error.data as string) : '';
@@ -56,7 +57,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.wrapper}>
+        <ScrollView
+          contentContainerStyle={styles.wrapper}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
           <LinearGradient
             colors={appGradients.brand as unknown as [string, string]}
             start={{ x: 0, y: 0 }}
@@ -110,7 +115,7 @@ export default function LoginScreen() {
               {t('auth.sendOtp')}
             </AppButton>
           </View>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
@@ -121,20 +126,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   wrapper: {
-    flex: 1,
+    flexGrow: 1,
   },
   heroGradient: {
-    paddingTop: 80,
-    paddingBottom: 60,
+    paddingTop: 48,
+    paddingBottom: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 24,
+    width: 88,
+    height: 88,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     ...elevation.level3,
   },
   logoImage: {
@@ -158,11 +163,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     marginTop: -24,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   formTitle: {
     fontFamily: fontFamily.semiBold,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   input: {},
   inputOutline: {

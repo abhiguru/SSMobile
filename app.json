@@ -19,11 +19,11 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyC_C1PlSB1jSXxYsgoYTc9DChdrR9lSlDI"
         }
       },
       "package": "com.masalaspiceshop.app",
-      "versionCode": 5,
+      "versionCode": 7,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",

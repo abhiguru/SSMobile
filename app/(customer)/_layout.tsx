@@ -11,14 +11,14 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { useAppSelector } from '../../src/store';
-import { selectCartItemCount } from '../../src/store/slices/cartSlice';
+import { useGetCartSummaryQuery } from '../../src/store/apiSlice';
 import { fontFamily } from '../../src/constants/theme';
 import { CustomTabBar } from '../../src/components/common/CustomTabBar';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 
 const CartBadge = () => {
-  const count = useAppSelector(selectCartItemCount);
+  const { data: cartSummary } = useGetCartSummaryQuery();
+  const count = cartSummary?.item_count ?? 0;
   const prevCount = useRef(count);
   const scale = useSharedValue(1);
   const { appColors } = useAppTheme();
@@ -51,7 +51,8 @@ const CartBadge = () => {
 };
 
 const HeaderCartButton = () => {
-  const count = useAppSelector(selectCartItemCount);
+  const { data: cartSummary } = useGetCartSummaryQuery();
+  const count = cartSummary?.item_count ?? 0;
   const prevCount = useRef(count);
   const scale = useSharedValue(1);
   const router = useRouter();
@@ -97,6 +98,7 @@ const HeaderCartButton = () => {
 export default function CustomerLayout() {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
+  const router = useRouter();
 
   return (
     <Tabs
@@ -151,6 +153,12 @@ export default function CustomerLayout() {
             <MaterialCommunityIcons name={focused ? 'package-variant' : 'package-variant-closed'} color={color} size={size} />
           ),
           headerShown: false,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.navigate('/(customer)/orders');
+          },
         }}
       />
       <Tabs.Screen

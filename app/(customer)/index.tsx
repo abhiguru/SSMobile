@@ -9,20 +9,17 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { useRouter, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Badge } from 'react-native-paper';
+import { Text, Badge, ActivityIndicator } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeInUp, FadeInDown, FadeOutUp,
   useSharedValue, useAnimatedStyle, withTiming, interpolate, Extrapolation,
 } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
-import { useGetProductsQuery, useGetCategoriesQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
-import { useAppSelector, useAppDispatch } from '../../src/store';
+import { useGetProductsQuery, useGetCategoriesQuery, useGetFavoritesQuery, useToggleFavoriteMutation, useGetCartSummaryQuery } from '../../src/store/apiSlice';
 import type { Product } from '../../src/types';
-import { selectCartItemCount, addToCart } from '../../src/store/slices/cartSlice';
 import { getPerKgPaise, resolveImageSource } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
@@ -97,7 +94,7 @@ function SkeletonProductGrid() {
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { appColors, appGradients } = useAppTheme();
+  const { appColors } = useAppTheme();
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -111,7 +108,10 @@ export default function HomeScreen() {
   } = useGetCategoriesQuery();
 
   const { data: favorites = [] } = useGetFavoritesQuery();
-  const [toggleFav] = useToggleFavoriteMutation();
+  const [toggleFav, { isLoading: isTogglingFav, originalArgs: togglingFavId }] = useToggleFavoriteMutation();
+  const { data: cartSummary } = useGetCartSummaryQuery();
+  const cartCount = cartSummary?.item_count ?? 0;
+
   const isLoading = productsLoading;
   const error = productsError
     ? (typeof productsError === 'object' && 'data' in productsError
@@ -119,18 +119,11 @@ export default function HomeScreen() {
         : 'Failed to load products')
     : null;
 
-  const dispatch = useAppDispatch();
-  const cartCount = useAppSelector(selectCartItemCount);
   const navigation = useNavigation();
-
 
   const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
-
-  const handleQuickAdd = useCallback((product: Product, weightGrams: number, quantity: number) => {
-    dispatch(addToCart({ product, weightGrams, quantity }));
-  }, [dispatch]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -344,35 +337,18 @@ export default function HomeScreen() {
           onPress={() => router.push(`/(customer)/product/${product.id}`)}
           style={[styles.productCard, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level2]}
         >
-          <View style={styles.productImageWrapper}>
-            {imgSource ? (
-              <Image
-                source={imgSource}
-                style={styles.productImage}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <LinearGradient
-                colors={appGradients.brand as unknown as [string, string]}
-                style={styles.productImage}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <MaterialCommunityIcons name="leaf" size={28} color={appColors.text.inverse} />
-              </LinearGradient>
-            )}
-            <AnimatedPressable
-              onPress={() => handleToggleFavorite(product.id)}
-              style={styles.favoriteBtn}
-            >
-              <MaterialCommunityIcons
-                name={isFav ? 'heart' : 'heart-outline'}
-                size={16}
-                color={isFav ? appColors.negative : appColors.text.inverse}
-              />
-            </AnimatedPressable>
-          </View>
+          {imgSource ? (
+            <Image
+              source={imgSource}
+              style={styles.productImage}
+              contentFit="cover"
+              transition={200}
+            />
+          ) : (
+            <View style={[styles.productImage, styles.productImagePlaceholder, { backgroundColor: appColors.brandLight }]}>
+              <MaterialCommunityIcons name="leaf" size={26} color={appColors.brand} />
+            </View>
+          )}
           <View style={styles.productInfo}>
             <Text variant="titleSmall" numberOfLines={2} style={[styles.productName, { color: appColors.text.primary }]}>
               {isGujarati ? product.name_gu : product.name}
@@ -383,6 +359,22 @@ export default function HomeScreen() {
               </Text>
             )}
           </View>
+          <AnimatedPressable
+            onPress={() => handleToggleFavorite(product.id)}
+            style={styles.favoriteBtn}
+            disabled={isTogglingFav && togglingFavId === product.id}
+          >
+            {isTogglingFav && togglingFavId === product.id ? (
+              <ActivityIndicator size={18} color={appColors.neutral} />
+            ) : (
+              <MaterialCommunityIcons
+                name={isFav ? 'heart' : 'heart-outline'}
+                size={20}
+                color={isFav ? appColors.negative : appColors.neutral}
+              />
+            )}
+          </AnimatedPressable>
+          <View style={[styles.actionDivider, { backgroundColor: appColors.border }]} />
           <AnimatedPressable
             onPress={() => {
               hapticLight();
@@ -395,7 +387,7 @@ export default function HomeScreen() {
         </AnimatedPressable>
       </Animated.View>
     );
-  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken, appColors, appGradients]);
+  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken, appColors, isTogglingFav, togglingFavId]);
 
   const getListItemKey = useCallback((item: ListItem) => {
     return item.type === 'header' ? `header-${item.letter}` : item.product.id;
@@ -493,7 +485,6 @@ export default function HomeScreen() {
       <QuickAddSheet
         product={quickAddProduct}
         onDismiss={() => setQuickAddProduct(null)}
-        onAdd={handleQuickAdd}
       />
     </View>
   );
@@ -594,27 +585,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  productImageWrapper: {
-    position: 'relative',
-  },
   productImage: {
     width: 64,
     height: 64,
     borderTopLeftRadius: borderRadius.lg,
     borderBottomLeftRadius: borderRadius.lg,
+  },
+  productImagePlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   favoriteBtn: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 40,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionDivider: {
+    width: 1,
+    height: 24,
   },
   productInfo: {
     flex: 1,

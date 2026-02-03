@@ -1,9 +1,9 @@
-import { useCallback, useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useCallback, useState, useMemo } from 'react';
+import { View, StyleSheet, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, IconButton } from 'react-native-paper';
+import { Text, IconButton, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -17,68 +17,120 @@ import { AnimatedPressable } from '../../src/components/common/AnimatedPressable
 import { EditCartItemSheet } from '../../src/components/common/EditCartItemSheet';
 import { useToast } from '../../src/components/common/Toast';
 
-import { useAppDispatch, useAppSelector } from '../../src/store';
 import {
-  selectCartItems,
-  selectCartTotal,
-  updateQuantity,
-  updateCartItem,
-  removeFromCart,
-} from '../../src/store/slices/cartSlice';
-import { formatPrice, getPerKgPaise, resolveImageSource } from '../../src/constants';
-import { getStoredTokens } from '../../src/services/supabase';
+  useGetCartQuery,
+  useUpdateCartQuantityMutation,
+  useRemoveFromCartMutation,
+  useGetProductsQuery,
+} from '../../src/store/apiSlice';
+import { formatPrice, resolveImageSource, getProductImageUrl } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme';
 import { hapticMedium, hapticSuccess } from '../../src/utils/haptics';
-import type { CartItem } from '../../src/types';
+import type { ServerCartItem, WeightOption } from '../../src/types';
+
+function formatWeight(grams: number, label?: string): string {
+  if (label) return label;
+  if (grams >= 1000) {
+    const kg = grams / 1000;
+    return Number.isInteger(kg) ? `${kg} kg` : `${kg.toFixed(1)} kg`;
+  }
+  return `${grams}g`;
+}
 
 export default function CartScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const { appColors, appGradients } = useAppTheme();
   const { showToast } = useToast();
-  const items = useAppSelector(selectCartItems);
-  const total = useAppSelector(selectCartTotal);
   const isGujarati = i18n.language === 'gu';
-  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
 
-  const handleQuantityChange = useCallback((productId: string, weightGrams: number, delta: number, currentQuantity: number) => {
-    const newQuantity = currentQuantity + delta;
+  const { data: items = [], isLoading, isFetching, refetch } = useGetCartQuery();
+  const { data: products = [] } = useGetProductsQuery();
+  const [updateQuantity, { isLoading: isUpdating }] = useUpdateCartQuantityMutation();
+  const [removeItem, { isLoading: isRemoving }] = useRemoveFromCartMutation();
+
+  const [editingItem, setEditingItem] = useState<ServerCartItem | null>(null);
+
+  // Calculate total from cart items
+  const total = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const price = item.weight_option?.price_paise ?? 0;
+      return sum + price * item.quantity;
+    }, 0);
+  }, [items]);
+
+  const handleQuantityChange = useCallback(async (cartItemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       hapticMedium();
-      dispatch(removeFromCart({ productId, weightGrams }));
+      try {
+        await removeItem(cartItemId).unwrap();
+      } catch {
+        showToast({ message: t('common.error'), type: 'error' });
+      }
     } else {
-      dispatch(updateQuantity({ productId, weightGrams, quantity: newQuantity }));
+      try {
+        await updateQuantity({ cart_item_id: cartItemId, quantity: newQuantity }).unwrap();
+      } catch {
+        showToast({ message: t('common.error'), type: 'error' });
+      }
     }
-  }, [dispatch]);
+  }, [removeItem, updateQuantity, showToast, t]);
 
-  const handleRemove = useCallback((productId: string, weightGrams: number) => {
+  const handleRemove = useCallback(async (cartItemId: string) => {
     hapticMedium();
-    dispatch(removeFromCart({ productId, weightGrams }));
-  }, [dispatch]);
+    try {
+      await removeItem(cartItemId).unwrap();
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  }, [removeItem, showToast, t]);
 
   const handleDismissSheet = useCallback(() => {
     setEditingItem(null);
   }, []);
 
-  const handleUpdateItem = useCallback((newWeightGrams: number, newQuantity: number) => {
+  const handleUpdateItem = useCallback(async (newWeightOptionId: string, newQuantity: number) => {
     if (!editingItem) return;
-    hapticSuccess();
-    dispatch(updateCartItem({
-      productId: editingItem.product_id,
-      oldWeightGrams: editingItem.weight_grams,
-      newWeightGrams,
-      newQuantity,
-      product: editingItem.product,
-    }));
-    showToast({ message: t('cart.itemUpdated'), type: 'success' });
-  }, [dispatch, editingItem, showToast, t]);
 
-  const renderItem = ({ item }: { item: typeof items[0] }) => {
-    const imgSource = resolveImageSource(item.product?.image_url, accessToken);
+    hapticSuccess();
+
+    // If weight option changed, we need to remove old item and add new one
+    if (newWeightOptionId !== editingItem.weight_option_id) {
+      // For now, just update the quantity if same weight option
+      // Weight option changes are handled by removing and re-adding
+      showToast({ message: t('cart.weightChangeNotSupported'), type: 'info' });
+      return;
+    }
+
+    try {
+      await updateQuantity({
+        cart_item_id: editingItem.id,
+        quantity: newQuantity,
+      }).unwrap();
+      showToast({ message: t('cart.itemUpdated'), type: 'success' });
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  }, [editingItem, updateQuantity, showToast, t]);
+
+  // Get available weight options for the editing item's product
+  const editingProductWeightOptions = useMemo((): WeightOption[] => {
+    if (!editingItem) return [];
+    const product = products.find((p) => p.id === editingItem.product_id);
+    if (!product?.weight_options) return [];
+    return product.weight_options
+      .filter((wo) => wo.is_available !== false)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  }, [editingItem, products]);
+
+  const renderItem = ({ item }: { item: ServerCartItem }) => {
+    const product = item.product;
+    const weightOption = item.weight_option;
+    const imgSource = product?.image_url
+      ? resolveImageSource(product.image_url, null)
+      : null;
+    const itemPrice = weightOption?.price_paise ?? 0;
 
     return (
       <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
@@ -98,27 +150,28 @@ export default function CartScreen() {
             )}
           </View>
           <View style={styles.itemInfo}>
-            <Text variant="titleSmall" style={[styles.itemName, { color: appColors.text.primary }]}>{isGujarati ? item.product.name_gu : item.product.name}</Text>
-            <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>{item.weight_grams >= 1000 ? `${(item.weight_grams / 1000)}kg` : `${item.weight_grams}g`}</Text>
-            <Text variant="titleSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(Math.round(getPerKgPaise(item.product) * item.weight_grams / 1000))}</Text>
+            <Text variant="titleSmall" style={[styles.itemName, { color: appColors.text.primary }]}>
+              {isGujarati && product?.name_gu ? product.name_gu : product?.name}
+            </Text>
+            <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>
+              {formatWeight(weightOption?.weight_grams ?? 0, weightOption?.weight_label)}
+            </Text>
+            <Text variant="titleSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>
+              {formatPrice(itemPrice)}
+            </Text>
           </View>
           <View style={styles.rightSection}>
             <IconButton
               icon="delete-outline"
               iconColor={appColors.negative}
               size={18}
-              onPress={() => handleRemove(item.product_id, item.weight_grams)}
+              onPress={() => handleRemove(item.id)}
               style={styles.deleteBtn}
+              disabled={isRemoving}
             />
             <StepperControl
               value={item.quantity}
-              onValueChange={(newQty) => {
-                if (newQty <= 0) {
-                  handleRemove(item.product_id, item.weight_grams);
-                } else {
-                  handleQuantityChange(item.product_id, item.weight_grams, newQty - item.quantity, item.quantity);
-                }
-              }}
+              onValueChange={(newQty) => handleQuantityChange(item.id, newQty)}
               min={1}
               max={99}
             />
@@ -127,6 +180,14 @@ export default function CartScreen() {
       </AnimatedPressable>
     );
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
+        <ActivityIndicator size="large" color={appColors.brand} />
+      </View>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -141,8 +202,15 @@ export default function CartScreen() {
       <FlashList
         data={items}
         renderItem={renderItem}
-        keyExtractor={(item) => `${item.product_id}-${item.weight_grams}`}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={refetch}
+            tintColor={appColors.brand}
+          />
+        }
       />
       <LinearGradient
         colors={[appColors.surface + '00', appColors.surface]}
@@ -165,6 +233,7 @@ export default function CartScreen() {
       </View>
       <EditCartItemSheet
         item={editingItem}
+        weightOptions={editingProductWeightOptions}
         onDismiss={handleDismissSheet}
         onUpdate={handleUpdateItem}
       />
@@ -174,6 +243,7 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: spacing.lg, paddingBottom: 140 },
   cartItem: { borderRadius: borderRadius.lg, padding: spacing.lg, flexDirection: 'row', marginBottom: 12, borderWidth: 1 },
   thumbnailContainer: { marginRight: spacing.sm },
@@ -183,9 +253,6 @@ const styles = StyleSheet.create({
   itemWeight: { marginBottom: spacing.xs },
   rightSection: { alignItems: 'flex-end' },
   deleteBtn: { margin: 0, marginBottom: spacing.xs },
-  quantityContainer: { flexDirection: 'row', alignItems: 'center' },
-  quantityBadge: { borderRadius: borderRadius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 32, alignItems: 'center' },
-  quantity: { fontFamily: fontFamily.semiBold },
   footerGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 30, zIndex: 1 },
   footer: { padding: spacing.lg, borderTopWidth: 1 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },

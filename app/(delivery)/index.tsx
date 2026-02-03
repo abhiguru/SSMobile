@@ -35,9 +35,8 @@ export default function DeliveryScreen() {
   const theme = useAppTheme();
   const { appColors } = theme;
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
-  // Filter to show only in-house deliveries (exclude Porter deliveries)
   const activeDeliveries = orders.filter(
-    (o) => o.status === 'out_for_delivery' && o.delivery_type !== 'porter'
+    (o) => o.status === 'out_for_delivery'
   );
 
   const renderOrder = ({ item, index }: { item: Order; index: number }) => (

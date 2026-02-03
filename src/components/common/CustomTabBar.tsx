@@ -13,7 +13,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const { appColors } = useAppTheme();
 
   return (
-    <View style={[styles.bar, { height: TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm), paddingBottom: Math.max(insets.bottom, spacing.sm), backgroundColor: appColors.surface, borderTopColor: appColors.border }]}>
+    <View style={[styles.bar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom, backgroundColor: appColors.surface, borderTopColor: appColors.border }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;

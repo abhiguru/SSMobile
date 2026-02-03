@@ -58,6 +58,20 @@ const authSlice = createSlice({
           state.role = action.payload.role;
         }
       )
+      // updateProfile
+      .addMatcher(
+        apiSlice.endpoints.updateProfile.matchFulfilled,
+        (state, action) => {
+          if (state.user) {
+            if (action.payload.name !== undefined) {
+              state.user.name = action.payload.name;
+            }
+            if (action.payload.language !== undefined) {
+              state.user.language = action.payload.language;
+            }
+          }
+        }
+      )
       // logout
       .addMatcher(
         apiSlice.endpoints.logout.matchFulfilled,

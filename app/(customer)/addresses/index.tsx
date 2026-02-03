@@ -74,7 +74,7 @@ export default function AddressesScreen() {
       ) : (
         <>
           <FlashList data={addresses} renderItem={renderAddress} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
-          <FAB icon="plus" style={[styles.fab, { backgroundColor: appColors.brand }]} onPress={handleAddAddress} />
+          <FAB icon="plus" style={[styles.fab, { backgroundColor: appColors.brand }]} color={appColors.text.inverse} onPress={handleAddAddress} />
         </>
       )}
 

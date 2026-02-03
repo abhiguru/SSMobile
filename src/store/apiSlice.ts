@@ -1,5 +1,4 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   authenticatedFetch,
   sendOtp as sendOtpApi,
@@ -10,16 +9,26 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest, ServerCartItem, AddToCartRequest, CartSummary, OrderSummary, OrderStatusHistoryEntry, ProfileWithAddresses, DeleteAddressResponse } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
-
-const FAVORITES_KEY = '@masala_favorites';
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const base64Url = token.split('.')[1];
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64 + '==='.slice(0, (4 - (base64.length % 4)) % 4);
   return JSON.parse(atob(padded));
+}
+
+function parseRpcError(errData: unknown): string {
+  if (typeof errData === 'string') return errData;
+  if (errData && typeof errData === 'object') {
+    const msg = (errData as Record<string, unknown>).message;
+    if (typeof msg === 'string') {
+      const match = msg.match(/^([A-Z_]+):\s*(.+)$/);
+      return match ? match[1] : msg;
+    }
+  }
+  return 'Unknown error';
 }
 
 // Custom baseQuery that wraps our existing authenticatedFetch (which handles
@@ -68,7 +77,7 @@ const baseQuery = async (args: {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users', 'UserAddresses', 'DeletionRequests'],
+  tagTypes: ['Products', 'Categories', 'Orders', 'Order', 'Addresses', 'AppSettings', 'Favorites', 'ProductImages', 'DeliveryStaff', 'Users', 'UserAddresses', 'DeletionRequests', 'Cart'],
   endpoints: (builder) => ({
     // ── Products ──────────────────────────────────────────────
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
@@ -357,30 +366,27 @@ export const apiSlice = createApi({
     // ── Favorites ─────────────────────────────────────────────
     getFavorites: builder.query<string[], void>({
       queryFn: async () => {
-        console.log('[Favorites:getFavorites] queryFn START');
+        console.log('[Favorites:getFavorites] queryFn START (RPC)');
         try {
-          const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
-          console.log('[Favorites:getFavorites] backend response status:', response.status);
+          const response = await authenticatedFetch('/rest/v1/rpc/get_favorite_ids', {
+            method: 'POST',
+          });
+          console.log('[Favorites:getFavorites] RPC response status:', response.status);
           if (response.ok) {
-            const data = await response.json();
-            const ids = data.map((f: { product_id: string }) => f.product_id);
-            console.log('[Favorites:getFavorites] backend returned', ids.length, 'ids:', ids);
-            await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
+            const ids = await response.json();
+            console.log('[Favorites:getFavorites] RPC returned', ids.length, 'ids');
             return { data: ids };
           }
-          console.log('[Favorites:getFavorites] backend not ok, falling back to AsyncStorage');
+          // 401/403 likely means not authenticated yet - return empty rather than error
+          if (response.status === 401 || response.status === 403) {
+            console.log('[Favorites:getFavorites] not authenticated, returning empty');
+            return { data: [] };
+          }
+          console.log('[Favorites:getFavorites] RPC error:', response.status);
+          return { error: { status: response.status, data: 'Failed to load favorites' } };
         } catch (err) {
-          console.log('[Favorites:getFavorites] backend fetch error:', err, '— falling back to AsyncStorage');
-        }
-        // Fallback to local storage
-        try {
-          const stored = await AsyncStorage.getItem(FAVORITES_KEY);
-          const parsed = stored ? JSON.parse(stored) : [];
-          console.log('[Favorites:getFavorites] AsyncStorage returned', parsed.length, 'ids:', parsed);
-          return { data: parsed };
-        } catch {
-          console.log('[Favorites:getFavorites] AsyncStorage read failed, returning []');
-          return { data: [] };
+          console.log('[Favorites:getFavorites] RPC fetch error:', err);
+          return { error: { status: 'FETCH_ERROR', data: 'Network error' } };
         }
       },
       providesTags: ['Favorites'],
@@ -514,6 +520,69 @@ export const apiSlice = createApi({
         { type: 'Order', id: orderId },
         'Orders',
       ],
+    }),
+
+    // ── Orders RPC ──────────────────────────────────────────
+    getOrdersRpc: builder.query<OrderSummary[], { status?: OrderStatus; limit?: number; offset?: number } | void>({
+      queryFn: async (params) => {
+        const body = params ? {
+          p_status: params.status || null,
+          p_limit: params.limit || 20,
+          p_offset: params.offset || 0,
+        } : {};
+        const response = await authenticatedFetch('/rest/v1/rpc/get_orders', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        if (response.ok) {
+          return { data: await response.json() };
+        }
+        return { error: { status: response.status, data: 'Failed to load orders' } };
+      },
+      providesTags: ['Orders'],
+    }),
+
+    getOrderRpc: builder.query<Order, string>({
+      queryFn: async (orderId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_order', {
+          method: 'POST',
+          body: JSON.stringify({ p_order_id: orderId }),
+        });
+        if (response.ok) {
+          return { data: await response.json() };
+        }
+        return { error: { status: response.status, data: 'Failed to load order' } };
+      },
+      providesTags: (_r, _e, id) => [{ type: 'Order', id }],
+    }),
+
+    cancelOrder: builder.mutation<Order, { orderId: string; reason?: string }>({
+      queryFn: async ({ orderId, reason }) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/cancel_order', {
+          method: 'POST',
+          body: JSON.stringify({ p_order_id: orderId, p_reason: reason || null }),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: err.message || 'Failed to cancel order' } };
+        }
+        return { data: await response.json() };
+      },
+      invalidatesTags: (_r, _e, { orderId }) => ['Orders', { type: 'Order', id: orderId }],
+    }),
+
+    getOrderStatusHistory: builder.query<OrderStatusHistoryEntry[], string>({
+      queryFn: async (orderId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_order_status_history', {
+          method: 'POST',
+          body: JSON.stringify({ p_order_id: orderId }),
+        });
+        if (response.ok) {
+          return { data: await response.json() };
+        }
+        return { data: [] };
+      },
+      providesTags: (_r, _e, id) => [{ type: 'Order', id }],
     }),
 
     // ── User Addresses (Admin) ────────────────────────────────
@@ -666,11 +735,22 @@ export const apiSlice = createApi({
       invalidatesTags: ['DeliveryStaff'],
     }),
 
-    // ── Addresses ────────────────────────────────────────────
+    // ── Addresses (RPC) ────────────────────────────────────────
     getAddresses: builder.query<Address[], void>({
-      query: () => ({
-        url: '/rest/v1/user_addresses?select=*&order=is_default.desc,created_at.desc',
-      }),
+      queryFn: async () => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_addresses', {
+          method: 'POST',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { data };
+        }
+        if (response.status === 401 || response.status === 403) {
+          return { data: [] };
+        }
+        const errData = await response.json().catch(() => ({}));
+        return { error: { status: response.status, data: parseRpcError(errData) } };
+      },
       providesTags: (result) =>
         result
           ? [
@@ -684,19 +764,30 @@ export const apiSlice = createApi({
       Address,
       Omit<Address, 'id' | 'user_id' | 'created_at' | 'updated_at'>
     >({
-      queryFn: async (address, { getState }) => {
-        const state = getState() as { auth: { user: { id: string } | null } };
-        const userId = state.auth.user?.id;
-        if (!userId) return { error: { status: 401, data: 'Not authenticated' } };
-        const response = await authenticatedFetch('/rest/v1/user_addresses', {
+      queryFn: async (address) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/add_address', {
           method: 'POST',
-          headers: { Prefer: 'return=representation' },
-          body: JSON.stringify({ ...address, user_id: userId }),
+          body: JSON.stringify({
+            p_full_name: address.full_name,
+            p_phone: address.phone,
+            p_address_line1: address.address_line1,
+            p_address_line2: address.address_line2 || null,
+            p_city: address.city,
+            p_state: address.state || null,
+            p_pincode: address.pincode,
+            p_label: address.label || null,
+            p_is_default: address.is_default || false,
+            p_lat: address.lat || null,
+            p_lng: address.lng || null,
+            p_formatted_address: address.formatted_address || null,
+          }),
         });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: parseRpcError(errData) } };
+        }
         const data = await response.json();
-        if (!response.ok) return { error: { status: response.status, data } };
-        const result = Array.isArray(data) ? data[0] : data;
-        return { data: result as Address };
+        return { data };
       },
       invalidatesTags: [{ type: 'Addresses', id: 'LIST' }],
     }),
@@ -705,79 +796,160 @@ export const apiSlice = createApi({
       Address,
       { id: string; updates: Partial<Address> }
     >({
-      query: ({ id, updates }) => ({
-        url: `/rest/v1/user_addresses?id=eq.${id}`,
-        method: 'PATCH',
-        headers: { Prefer: 'return=representation' },
-        body: updates,
-      }),
-      transformResponse: (response: Address | Address[]) =>
-        Array.isArray(response) ? response[0] : response,
+      queryFn: async ({ id, updates }) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/update_address', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_address_id: id,
+            p_full_name: updates.full_name,
+            p_phone: updates.phone,
+            p_address_line1: updates.address_line1,
+            p_address_line2: updates.address_line2,
+            p_city: updates.city,
+            p_state: updates.state,
+            p_pincode: updates.pincode,
+            p_label: updates.label,
+            p_is_default: updates.is_default,
+            p_lat: updates.lat,
+            p_lng: updates.lng,
+            p_formatted_address: updates.formatted_address,
+          }),
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: parseRpcError(errData) } };
+        }
+        const data = await response.json();
+        return { data };
+      },
       invalidatesTags: (_result, _error, { id }) => [
         { type: 'Addresses', id },
         { type: 'Addresses', id: 'LIST' },
       ],
     }),
 
-    deleteAddress: builder.mutation<null, string>({
-      query: (id) => ({
-        url: `/rest/v1/user_addresses?id=eq.${id}`,
-        method: 'DELETE',
-      }),
+    deleteAddress: builder.mutation<DeleteAddressResponse, string>({
+      queryFn: async (id) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/delete_address', {
+          method: 'POST',
+          body: JSON.stringify({ p_address_id: id }),
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: parseRpcError(errData) } };
+        }
+        const data = await response.json();
+        return { data };
+      },
       invalidatesTags: [{ type: 'Addresses', id: 'LIST' }],
     }),
 
-    setDefaultAddress: builder.mutation<null, string>({
-      queryFn: async (id, { getState }) => {
-        try {
-          // Find current default from cache
-          const state = getState() as { api: ReturnType<typeof apiSlice.reducer> };
-          const cachedAddresses = apiSlice.endpoints.getAddresses.select()(
-            state as never
-          )?.data;
-          const currentDefault = cachedAddresses?.find((a) => a.is_default);
-
-          // Remove default from current default address
-          if (currentDefault && currentDefault.id !== id) {
-            await authenticatedFetch(
-              `/rest/v1/user_addresses?id=eq.${currentDefault.id}`,
-              {
-                method: 'PATCH',
-                body: JSON.stringify({ is_default: false }),
-              }
-            );
-          }
-
-          // Set new default
-          const response = await authenticatedFetch(
-            `/rest/v1/user_addresses?id=eq.${id}`,
-            {
-              method: 'PATCH',
-              headers: { Prefer: 'return=representation' },
-              body: JSON.stringify({ is_default: true }),
-            }
-          );
-
-          if (!response.ok) {
-            return {
-              error: {
-                status: response.status,
-                data: 'Failed to set default address',
-              },
-            };
-          }
-
-          return { data: null };
-        } catch (error) {
-          return {
-            error: {
-              status: 'FETCH_ERROR',
-              data: 'Failed to set default address',
-            },
-          };
+    setDefaultAddress: builder.mutation<Address, string>({
+      queryFn: async (id) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/set_default_address', {
+          method: 'POST',
+          body: JSON.stringify({ p_address_id: id }),
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: parseRpcError(errData) } };
         }
+        const data = await response.json();
+        return { data };
       },
       invalidatesTags: [{ type: 'Addresses', id: 'LIST' }],
+    }),
+
+    // ── Cart (Server-side) ────────────────────────────────────
+    getCart: builder.query<ServerCartItem[], void>({
+      queryFn: async () => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_cart', {
+          method: 'POST',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { data };
+        }
+        if (response.status === 401 || response.status === 403) {
+          return { data: [] };
+        }
+        return { error: { status: response.status, data: 'Failed to load cart' } };
+      },
+      providesTags: ['Cart'],
+    }),
+
+    addToCart: builder.mutation<ServerCartItem, AddToCartRequest>({
+      queryFn: async (params) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/add_to_cart', {
+          method: 'POST',
+          body: JSON.stringify(params),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: err.message || 'Failed to add to cart' } };
+        }
+        const data = await response.json();
+        return { data };
+      },
+      invalidatesTags: ['Cart'],
+    }),
+
+    updateCartQuantity: builder.mutation<ServerCartItem, { cart_item_id: string; quantity: number }>({
+      queryFn: async ({ cart_item_id, quantity }) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/update_cart_quantity', {
+          method: 'POST',
+          body: JSON.stringify({ p_cart_item_id: cart_item_id, p_quantity: quantity }),
+        });
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to update quantity' } };
+        }
+        const data = await response.json();
+        return { data };
+      },
+      invalidatesTags: ['Cart'],
+    }),
+
+    removeFromCart: builder.mutation<{ success: boolean; removed_id: string }, string>({
+      queryFn: async (cartItemId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/remove_from_cart', {
+          method: 'POST',
+          body: JSON.stringify({ p_cart_item_id: cartItemId }),
+        });
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to remove item' } };
+        }
+        const data = await response.json();
+        return { data };
+      },
+      invalidatesTags: ['Cart'],
+    }),
+
+    clearServerCart: builder.mutation<{ success: boolean; items_removed: number }, void>({
+      queryFn: async () => {
+        const response = await authenticatedFetch('/rest/v1/rpc/clear_cart', {
+          method: 'POST',
+        });
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to clear cart' } };
+        }
+        const data = await response.json();
+        return { data };
+      },
+      invalidatesTags: ['Cart'],
+    }),
+
+    getCartSummary: builder.query<CartSummary, void>({
+      queryFn: async () => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_cart_summary', {
+          method: 'POST',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { data };
+        }
+        return { data: { item_count: 0, subtotal_paise: 0 } };
+      },
+      providesTags: ['Cart'],
     }),
 
     // ── App Settings ─────────────────────────────────────────
@@ -915,32 +1087,38 @@ export const apiSlice = createApi({
       },
     }),
 
-    updateProfile: builder.mutation<User, { name: string }>({
-      queryFn: async ({ name }, { getState }) => {
-        try {
-          const state = getState() as { auth: { user: User | null } };
-          const userId = state.auth.user?.id;
-          if (!userId) {
-            return { error: { status: 'CUSTOM_ERROR' as const, data: 'Not authenticated' } };
-          }
-          const response = await authenticatedFetch(
-            `/rest/v1/users?id=eq.${userId}`,
-            {
-              method: 'PATCH',
-              body: JSON.stringify({ name }),
-              headers: { Prefer: 'return=representation' },
-            },
-          );
-          if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { error: { status: response.status, data: data.message || 'Failed to update profile' } };
-          }
-          const rows = await response.json();
-          const updated = Array.isArray(rows) ? rows[0] : rows;
-          return { data: updated as User };
-        } catch {
-          return { error: { status: 'FETCH_ERROR' as const, data: 'Network error' } };
+    // ── Profile (RPC) ─────────────────────────────────────────
+    getProfile: builder.query<ProfileWithAddresses, void>({
+      queryFn: async () => {
+        const response = await authenticatedFetch('/rest/v1/rpc/get_profile', {
+          method: 'POST',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { data };
         }
+        const errData = await response.json().catch(() => ({}));
+        return { error: { status: response.status, data: parseRpcError(errData) } };
+      },
+      providesTags: [{ type: 'Addresses', id: 'LIST' }],
+    }),
+
+    updateProfile: builder.mutation<{ name?: string; language?: 'en' | 'gu' }, { name?: string; language?: 'en' | 'gu' }>({
+      queryFn: async (params) => {
+        const body: Record<string, unknown> = {};
+        if (params.name !== undefined) body.p_name = params.name;
+        if (params.language !== undefined) body.p_language = params.language;
+
+        const response = await authenticatedFetch('/rest/v1/rpc/update_profile', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          return { error: { status: response.status, data: parseRpcError(errData) } };
+        }
+        const data = await response.json();
+        return { data: { name: data.name, language: data.language } };
       },
     }),
 
@@ -988,93 +1166,42 @@ const injectedApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     syncFavorites: builder.mutation<string[], void>({
       queryFn: async () => {
-        console.log('[Favorites:syncFavorites] queryFn START');
+        console.log('[Favorites:syncFavorites] queryFn START (RPC)');
         try {
-          // Read local favorites from AsyncStorage (always in sync with cache)
-          const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
-          const localFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
-          console.log('[Favorites:syncFavorites] local:', localFavorites);
-
-          const response = await authenticatedFetch('/rest/v1/favorites?select=product_id');
-          console.log('[Favorites:syncFavorites] backend response status:', response.status);
+          const response = await authenticatedFetch('/rest/v1/rpc/get_favorite_ids', {
+            method: 'POST',
+          });
+          console.log('[Favorites:syncFavorites] RPC response status:', response.status);
           if (!response.ok) {
-            console.log('[Favorites:syncFavorites] backend not ok, returning local');
-            return { data: localFavorites };
+            console.log('[Favorites:syncFavorites] RPC not ok, returning empty');
+            return { data: [] };
           }
 
-          const backendData = await response.json();
-          const backendFavorites: string[] = backendData.map((f: { product_id: string }) => f.product_id);
-          console.log('[Favorites:syncFavorites] backend:', backendFavorites);
-
-          // Merge local and backend favorites (union)
-          const mergedFavorites = [...new Set([...localFavorites, ...backendFavorites])];
-          console.log('[Favorites:syncFavorites] merged:', mergedFavorites);
-
-          // Add any local-only favorites to backend
-          const localOnly = localFavorites.filter((id) => !backendFavorites.includes(id));
-          if (localOnly.length > 0) {
-            console.log('[Favorites:syncFavorites] POSTing local-only to backend:', localOnly);
-          }
-          for (const productId of localOnly) {
-            await authenticatedFetch('/rest/v1/favorites', {
-              method: 'POST',
-              body: JSON.stringify({ product_id: productId }),
-            });
-          }
-
-          await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedFavorites));
-          console.log('[Favorites:syncFavorites] DONE — invalidating Favorites tag');
-          return { data: mergedFavorites };
+          const ids = await response.json();
+          console.log('[Favorites:syncFavorites] RPC returned', ids.length, 'ids');
+          return { data: ids };
         } catch (err) {
-          console.log('[Favorites:syncFavorites] ERROR:', err, '— falling back to AsyncStorage');
-          const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
-          return { data: storedJson ? JSON.parse(storedJson) : [] };
+          console.log('[Favorites:syncFavorites] ERROR:', err);
+          return { data: [] };
         }
       },
-      // Invalidate instead of patching — avoids race with in-flight getFavorites query
       invalidatesTags: ['Favorites'],
     }),
 
-    toggleFavorite: builder.mutation<string[], string>({
+    toggleFavorite: builder.mutation<{ action: 'added' | 'removed'; product_id: string }, string>({
       queryFn: async (productId) => {
-        console.log('[Favorites:toggleFavorite] queryFn START productId:', productId);
-        // Read pre-toggle state from AsyncStorage to determine add vs remove
-        const storedJson = await AsyncStorage.getItem(FAVORITES_KEY);
-        const currentFavorites: string[] = storedJson ? JSON.parse(storedJson) : [];
-        const isCurrentlyFavorited = currentFavorites.includes(productId);
-        console.log('[Favorites:toggleFavorite] AsyncStorage had', currentFavorites.length, 'favs, isCurrentlyFavorited:', isCurrentlyFavorited);
-
-        // Compute post-toggle state
-        const updatedFavorites = isCurrentlyFavorited
-          ? currentFavorites.filter((id) => id !== productId)
-          : [...currentFavorites, productId];
-
-        if (!isCurrentlyFavorited) {
-          try {
-            console.log('[Favorites:toggleFavorite] POSTing add to backend');
-            const resp = await authenticatedFetch('/rest/v1/favorites', {
-              method: 'POST',
-              body: JSON.stringify({ product_id: productId }),
-            });
-            console.log('[Favorites:toggleFavorite] POST response:', resp.status);
-          } catch (err) {
-            console.log('[Favorites:toggleFavorite] POST failed:', err);
-          }
-        } else {
-          try {
-            console.log('[Favorites:toggleFavorite] DELETEing from backend');
-            const resp = await authenticatedFetch(`/rest/v1/favorites?product_id=eq.${productId}`, {
-              method: 'DELETE',
-            });
-            console.log('[Favorites:toggleFavorite] DELETE response:', resp.status);
-          } catch (err) {
-            console.log('[Favorites:toggleFavorite] DELETE failed:', err);
-          }
+        console.log('[Favorites:toggleFavorite] queryFn START (RPC) productId:', productId);
+        const response = await authenticatedFetch('/rest/v1/rpc/toggle_favorite', {
+          method: 'POST',
+          body: JSON.stringify({ p_product_id: productId }),
+        });
+        console.log('[Favorites:toggleFavorite] RPC response status:', response.status);
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to toggle favorite' } };
         }
-
-        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
-        console.log('[Favorites:toggleFavorite] queryFn DONE — updated:', updatedFavorites);
-        return { data: updatedFavorites };
+        const data = await response.json();
+        console.log('[Favorites:toggleFavorite] RPC returned:', data);
+        return { data };
       },
       async onQueryStarted(productId, { dispatch, queryFulfilled }) {
         console.log('[Favorites:toggleFavorite] onQueryStarted — optimistic patch for:', productId);
@@ -1098,6 +1225,47 @@ const injectedApi = apiSlice.injectEndpoints({
           patchResult.undo();
         }
       },
+    }),
+
+    isFavorite: builder.query<boolean, string>({
+      queryFn: async (productId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/is_favorite', {
+          method: 'POST',
+          body: JSON.stringify({ p_product_id: productId }),
+        });
+        if (response.ok) {
+          return { data: await response.json() };
+        }
+        return { data: false };
+      },
+    }),
+
+    addFavorite: builder.mutation<{ product_id: string }, string>({
+      queryFn: async (productId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/add_favorite', {
+          method: 'POST',
+          body: JSON.stringify({ p_product_id: productId }),
+        });
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to add favorite' } };
+        }
+        return { data: await response.json() };
+      },
+      invalidatesTags: ['Favorites'],
+    }),
+
+    removeFavorite: builder.mutation<{ product_id: string }, string>({
+      queryFn: async (productId) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/remove_favorite', {
+          method: 'POST',
+          body: JSON.stringify({ p_product_id: productId }),
+        });
+        if (!response.ok) {
+          return { error: { status: response.status, data: 'Failed to remove favorite' } };
+        }
+        return { data: await response.json() };
+      },
+      invalidatesTags: ['Favorites'],
     }),
   }),
 });
@@ -1124,6 +1292,11 @@ export const {
   useUpdateOrderItemsMutation,
   useVerifyDeliveryOtpMutation,
   useDispatchOrderMutation,
+  // Orders RPC
+  useGetOrdersRpcQuery,
+  useGetOrderRpcQuery,
+  useCancelOrderMutation,
+  useGetOrderStatusHistoryQuery,
   // Users
   useGetUsersQuery,
   useGetAdminUserAddressesQuery,
@@ -1141,11 +1314,19 @@ export const {
   useUpdateAddressMutation,
   useDeleteAddressMutation,
   useSetDefaultAddressMutation,
+  // Cart
+  useGetCartQuery,
+  useAddToCartMutation,
+  useUpdateCartQuantityMutation,
+  useRemoveFromCartMutation,
+  useClearServerCartMutation,
+  useGetCartSummaryQuery,
   useGetAppSettingsQuery,
   useSendOtpMutation,
   useVerifyOtpMutation,
   useCheckSessionMutation,
   useLogoutMutation,
+  useGetProfileQuery,
   useUpdateProfileMutation,
   useRequestAccountDeletionMutation,
   useGetDeletionRequestsQuery,
@@ -1155,4 +1336,7 @@ export const {
 export const {
   useSyncFavoritesMutation,
   useToggleFavoriteMutation,
+  useIsFavoriteQuery,
+  useAddFavoriteMutation,
+  useRemoveFavoriteMutation,
 } = injectedApi;

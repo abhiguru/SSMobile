@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text } from 'react-native-paper';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,22 +11,23 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
 import { EmptyState } from '../../src/components/common/EmptyState';
-
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
+import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
 import { Product } from '../../src/types';
 import { getPerKgPaise, resolveImageSource } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme';
-import { hapticMedium } from '../../src/utils/haptics';
+import { hapticLight, hapticMedium } from '../../src/utils/haptics';
 
 export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { appColors, appGradients } = useAppTheme();
+  const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
   const favQuery = useGetFavoritesQuery();
   const { data: favoriteIds = [] } = favQuery;
-  const [toggleFav] = useToggleFavoriteMutation();
+  const [toggleFav, { isLoading: isTogglingFav, originalArgs: togglingFavId }] = useToggleFavoriteMutation();
   const { data: products = [] } = useGetProductsQuery();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
@@ -84,12 +85,28 @@ export default function FavoritesScreen() {
               </Text>
             )}
           </View>
-          <AnimatedPressable
-            onPress={() => handleUnfavorite(item.id)}
-            style={styles.removeBtn}
-          >
-            <MaterialCommunityIcons name="heart-off" size={20} color={appColors.negative} />
-          </AnimatedPressable>
+          <View style={styles.actionButtons}>
+            <AnimatedPressable
+              onPress={() => {
+                hapticLight();
+                setQuickAddProduct(item);
+              }}
+              style={styles.actionBtn}
+            >
+              <MaterialCommunityIcons name="cart-plus" size={22} color={appColors.brand} />
+            </AnimatedPressable>
+            <AnimatedPressable
+              onPress={() => handleUnfavorite(item.id)}
+              style={styles.actionBtn}
+              disabled={isTogglingFav && togglingFavId === item.id}
+            >
+              {isTogglingFav && togglingFavId === item.id ? (
+                <ActivityIndicator size={18} color={appColors.negative} />
+              ) : (
+                <MaterialCommunityIcons name="heart-off" size={20} color={appColors.negative} />
+              )}
+            </AnimatedPressable>
+          </View>
         </AnimatedPressable>
       </Animated.View>
     );
@@ -107,6 +124,10 @@ export default function FavoritesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
       />
+      <QuickAddSheet
+        product={quickAddProduct}
+        onDismiss={() => setQuickAddProduct(null)}
+      />
     </View>
   );
 }
@@ -120,5 +141,6 @@ const styles = StyleSheet.create({
   heartOverlay: { position: 'absolute', top: spacing.xs, left: spacing.xs, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center' },
   productInfo: { flex: 1, marginLeft: 12, justifyContent: 'center', paddingVertical: spacing.sm },
   productName: { fontFamily: fontFamily.regular, marginBottom: spacing.xs },
-  removeBtn: { padding: spacing.md },
+  actionButtons: { flexDirection: 'row', alignItems: 'center' },
+  actionBtn: { padding: spacing.sm },
 });

@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
-import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
+import { useLogoutMutation, useRequestAccountDeletionMutation, useUpdateProfileMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import { spacing, borderRadius, fontFamily, fontSize } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -23,11 +23,14 @@ export default function AdminSettingsScreen() {
   const router = useRouter();
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
+  const [updateProfile] = useUpdateProfileMutation();
   const { showToast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [nameDialogVisible, setNameDialogVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
   const { appColors } = useAppTheme();
   const { mode, setMode } = useThemeMode();
 
@@ -53,18 +56,49 @@ export default function AdminSettingsScreen() {
 
   const handleLanguageToggle = async (lang: string) => { await changeLanguage(lang); };
 
+  const handleEditName = () => {
+    setEditName(user?.name || '');
+    setNameDialogVisible(true);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      showToast({ message: t('profile.nameEmpty'), type: 'error' });
+      return;
+    }
+    try {
+      await updateProfile({ name: trimmed }).unwrap();
+      setNameDialogVisible(false);
+      showToast({ message: t('profile.nameSaved'), type: 'success' });
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       <View style={[styles.section, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
         <SectionHeader title="Account" />
+        <Pressable
+          onPress={handleEditName}
+          style={({ pressed }) => [styles.kvRow, pressed && { backgroundColor: appColors.pressedSurface }]}
+        >
+          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>{t('profile.name')}</Text>
+          <View style={styles.kvValueRow}>
+            <Text style={[styles.kvValue, { color: appColors.text.primary }]}>{user?.name || t('profile.guest')}</Text>
+            <MaterialCommunityIcons name="pencil-outline" size={16} color={appColors.text.secondary} style={styles.editIcon} />
+          </View>
+        </Pressable>
+        <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
         <View style={styles.kvRow}>
-          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>Phone</Text>
+          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>{t('profile.phone')}</Text>
           <Text style={[styles.kvValue, { color: appColors.text.primary }]}>{user?.phone || '-'}</Text>
         </View>
         <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
         <View style={styles.kvRow}>
-          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>Role</Text>
-          <Text style={[styles.kvValue, { color: appColors.text.primary }]}>Admin</Text>
+          <Text style={[styles.kvLabel, { color: appColors.text.secondary }]}>{t('admin.userRole')}</Text>
+          <Text style={[styles.kvValue, { color: appColors.text.primary }]}>{t('admin.roleAdmin')}</Text>
         </View>
         <View style={[styles.kvDivider, { backgroundColor: appColors.border }]} />
         <Pressable
@@ -133,6 +167,28 @@ export default function AdminSettingsScreen() {
       >
         <Text variant="bodyMedium">{t('profile.deleteAccountConfirmMessage')}</Text>
       </FioriDialog>
+
+      <FioriDialog
+        visible={nameDialogVisible}
+        onDismiss={() => setNameDialogVisible(false)}
+        title={t('profile.editName')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setNameDialogVisible(false), variant: 'text' },
+          { label: t('common.save'), onPress: handleSaveName, variant: 'primary' },
+        ]}
+      >
+        <TextInput
+          mode="outlined"
+          label={t('profile.name')}
+          placeholder={t('profile.enterYourName')}
+          value={editName}
+          onChangeText={setEditName}
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleSaveName}
+          style={{ backgroundColor: appColors.surface }}
+        />
+      </FioriDialog>
     </View>
   );
 }
@@ -161,6 +217,13 @@ const styles = StyleSheet.create({
   kvValue: {
     fontSize: 17,
     fontFamily: fontFamily.regular,
+  },
+  kvValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editIcon: {
+    marginLeft: spacing.xs,
   },
   kvDivider: {
     height: 1,

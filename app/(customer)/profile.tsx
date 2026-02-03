@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, List, Divider } from 'react-native-paper';
+import { Text, List, Divider, TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useAppSelector } from '../../src/store';
-import { useLogoutMutation, useRequestAccountDeletionMutation } from '../../src/store/apiSlice';
+import { useLogoutMutation, useRequestAccountDeletionMutation, useUpdateProfileMutation } from '../../src/store/apiSlice';
 import { changeLanguage } from '../../src/i18n';
 import { spacing, elevation, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -25,11 +25,14 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
+  const [updateProfile] = useUpdateProfileMutation();
   const { showToast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [nameDialogVisible, setNameDialogVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
   const { appColors, appGradients } = useAppTheme();
   const { mode, setMode } = useThemeMode();
 
@@ -53,8 +56,34 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEditName = () => {
+    setEditName(user?.name || '');
+    setNameDialogVisible(true);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      showToast({ message: t('profile.nameEmpty'), type: 'error' });
+      return;
+    }
+    try {
+      await updateProfile({ name: trimmed }).unwrap();
+      setNameDialogVisible(false);
+      showToast({ message: t('profile.nameSaved'), type: 'success' });
+    } catch {
+      showToast({ message: t('common.error'), type: 'error' });
+    }
+  };
+
   const handleLanguageToggle = async (lang: string) => {
     await changeLanguage(lang);
+    // Sync to backend (fail silently - local pref is primary)
+    try {
+      await updateProfile({ language: lang as 'en' | 'gu' }).unwrap();
+    } catch {
+      // Local preference already saved
+    }
   };
 
   const menuItems = [
@@ -76,7 +105,10 @@ export default function ProfileScreen() {
         <View style={[styles.avatarContainer, { backgroundColor: appColors.surface, borderColor: appColors.surface }]}>
           <MaterialCommunityIcons name="account" size={48} color={appColors.brand} />
         </View>
-        <Text variant="titleMedium" style={[styles.name, { color: appColors.text.inverse }]}>{user?.name || t('profile.guest')}</Text>
+        <AnimatedPressable onPress={handleEditName} style={styles.nameRow}>
+          <Text variant="titleMedium" style={[styles.name, { color: appColors.text.inverse }]}>{user?.name || t('profile.guest')}</Text>
+          <MaterialCommunityIcons name="pencil-outline" size={16} color="rgba(255,255,255,0.85)" style={styles.nameEditIcon} />
+        </AnimatedPressable>
         <Text variant="bodyMedium" style={styles.phone}>{user?.phone || ''}</Text>
       </LinearGradient>
 
@@ -157,6 +189,28 @@ export default function ProfileScreen() {
       >
         <Text variant="bodyMedium">{t('profile.deleteAccountConfirmMessage')}</Text>
       </FioriDialog>
+
+      <FioriDialog
+        visible={nameDialogVisible}
+        onDismiss={() => setNameDialogVisible(false)}
+        title={t('profile.editName')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setNameDialogVisible(false), variant: 'text' },
+          { label: t('common.save'), onPress: handleSaveName, variant: 'primary' },
+        ]}
+      >
+        <TextInput
+          mode="outlined"
+          label={t('profile.name')}
+          placeholder={t('profile.enterYourName')}
+          value={editName}
+          onChangeText={setEditName}
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleSaveName}
+          style={{ backgroundColor: appColors.surface }}
+        />
+      </FioriDialog>
     </ScrollView>
   );
 }
@@ -166,7 +220,9 @@ const styles = StyleSheet.create({
   contentContainer: { paddingBottom: spacing.xxl },
   header: { paddingTop: spacing.xxl, paddingBottom: spacing.xl, alignItems: 'center' },
   avatarContainer: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 3, marginBottom: spacing.sm, ...elevation.level3 },
-  name: { fontFamily: fontFamily.semiBold, marginBottom: spacing.xs },
+  nameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
+  name: { fontFamily: fontFamily.semiBold },
+  nameEditIcon: { marginLeft: 6 },
   phone: { color: 'rgba(255,255,255,0.85)' },
   section: { marginBottom: spacing.md, paddingVertical: spacing.sm },
   menuIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.sm },

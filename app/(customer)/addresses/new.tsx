@@ -17,7 +17,6 @@ import { PlacesAutocomplete } from '../../../src/components/common/PlacesAutocom
 import { InlineMapPicker } from '../../../src/components/common/InlineMapPicker';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { FioriSwitch } from '../../../src/components/common/FioriSwitch';
-import { useToast } from '../../../src/components/common/Toast';
 
 export default function NewAddressScreen() {
   const { t } = useTranslation();
@@ -26,7 +25,6 @@ export default function NewAddressScreen() {
   const { appColors } = useAppTheme();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [addAddress, { isLoading }] = useAddAddressMutation();
-  const { showToast } = useToast();
   const user = useAppSelector((state) => state.auth.user);
 
   const { control, handleSubmit, setError, setValue, watch } = useForm<AddressFormData>({
@@ -47,7 +45,6 @@ export default function NewAddressScreen() {
       router.back();
     } catch (err) {
       console.error('[NewAddress] addAddress error:', err);
-      showToast({ message: t('addresses.errors.saveFailed'), type: 'error' });
     }
   };
 

@@ -11,6 +11,24 @@ export interface User {
   created_at?: string;
 }
 
+// Users API response types
+export interface UsersResponse {
+  data: User[];
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+export interface GetUsersParams {
+  search?: string;
+  role?: UserRole;
+  limit?: number;
+  offset?: number;
+}
+
 export interface AccountDeletionRequest {
   id: string;
   user_id: string;
@@ -23,16 +41,6 @@ export interface AccountDeletionRequest {
 }
 
 // Product types
-export interface WeightOption {
-  id: string;
-  product_id: string;
-  weight_grams: number;
-  weight_label?: string;
-  price_paise: number;
-  is_available?: boolean;
-  display_order?: number;
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -45,7 +53,6 @@ export interface Product {
   is_active?: boolean;
   display_order?: number;
   price_per_kg_paise: number;
-  weight_options: WeightOption[];
 }
 
 export interface Category {
@@ -66,23 +73,32 @@ export interface CartItem {
   product: Product;
 }
 
-// Server-side cart types (RPC-based)
+// Server-side cart types (RPC-based) - flat structure from get_cart RPC
 export interface ServerCartItem {
-  id: string;                    // cart_item_id
+  id: string;                           // cart_item_id
   product_id: string;
-  weight_option_id: string;
   quantity: number;
   created_at: string;
   updated_at: string;
-  // Joined data from RPC
-  product: Product;
-  weight_option: WeightOption;
+  // Flat product data from RPC
+  product_name: string;
+  product_name_gu: string;
+  product_image_url: string | null;
+  product_is_available: boolean;
+  product_is_active: boolean;
+  price_per_kg_paise: number;
+  // Flat weight data from RPC
+  weight_grams: number;
+  weight_label: string;                 // e.g., "500 g" or "1.5 kg"
+  unit_price_paise: number;
+  line_total_paise: number;
 }
 
+// AddToCartRequest uses weight_grams directly
 export interface AddToCartRequest {
   p_product_id: string;
-  p_weight_option_id: string;
-  p_quantity: number;
+  p_weight_grams: number;
+  p_quantity?: number;
 }
 
 export interface CartSummary {
@@ -149,7 +165,6 @@ export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string;
-  weight_option_id: string;
   quantity: number;
   unit_price_paise: number;
   total_paise: number;
@@ -182,6 +197,7 @@ export interface Order {
   notes?: string;
   admin_notes?: string;
   delivery_staff_id?: string;
+  estimated_delivery_at?: string;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -286,6 +302,7 @@ export interface OrderSummary {
   item_count: number;
   created_at: string;
   delivery_otp?: string;
+  estimated_delivery_at?: string;
 }
 
 // Status history entry (from get_order_status_history RPC)
@@ -297,3 +314,6 @@ export interface OrderStatusHistoryEntry {
   notes?: string;
   created_at: string;
 }
+
+// Re-export delivery types
+export * from './delivery';

@@ -17,7 +17,6 @@ import { PlacesAutocomplete } from '../../../src/components/common/PlacesAutocom
 import { UseCurrentLocationButton } from '../../../src/components/common/UseCurrentLocationButton';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { FioriSwitch } from '../../../src/components/common/FioriSwitch';
-import { useToast } from '../../../src/components/common/Toast';
 
 export default function EditAddressScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,7 +27,6 @@ export default function EditAddressScreen() {
   const { data: addresses = [] } = useGetAddressesQuery();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [updateAddress, { isLoading }] = useUpdateAddressMutation();
-  const { showToast } = useToast();
   const address = addresses.find((a) => a.id === id);
 
   const { control, handleSubmit, setError, reset, setValue } = useForm<AddressFormData>({
@@ -49,7 +47,7 @@ export default function EditAddressScreen() {
     try {
       await updateAddress({ id, updates: { label: data.label?.trim() || undefined, full_name: data.full_name.trim(), phone: `+91${phoneNumber}`, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default, lat: data.lat ?? null, lng: data.lng ?? null, formatted_address: data.formatted_address ?? null } }).unwrap();
       router.back();
-    } catch { showToast({ message: t('addresses.errors.saveFailed'), type: 'error' }); }
+    } catch { /* Error handling without toast */ }
   };
 
   if (!address) return <View style={styles.centered}><ActivityIndicator size="large" color={appColors.brand} /></View>;

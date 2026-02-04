@@ -20,7 +20,6 @@ import { spacing, borderRadius, elevation, fontFamily } from '../../../src/const
 import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { FioriChip } from '../../../src/components/common/FioriChip';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
-import { useToast } from '../../../src/components/common/Toast';
 import { hapticSelection } from '../../../src/utils/haptics';
 
 type SortKey = 'az' | 'za' | 'available' | 'unavailable' | 'priceLow' | 'priceHigh';
@@ -86,7 +85,6 @@ export default function AdminProductsScreen() {
   const { data: products = [], isLoading, isFetching, refetch } = useGetProductsQuery({ includeUnavailable: true });
   const [toggleAvailability] = useToggleProductAvailabilityMutation();
   const [deactivateProduct] = useDeactivateProductMutation();
-  const { showToast } = useToast();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('az');
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
@@ -99,9 +97,8 @@ export default function AdminProductsScreen() {
     setDeleteTarget(null);
     try {
       await deactivateProduct(id).unwrap();
-      showToast({ message: t('admin.productDeleted'), type: 'success' });
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
   };
 
@@ -176,9 +173,6 @@ export default function AdminProductsScreen() {
             </View>
             <View style={styles.productInfo}>
               <Text variant="titleSmall" style={[styles.productName, { color: appColors.text.primary }]}>{isGujarati ? item.name_gu : item.name}</Text>
-              {item.weight_options.length > 0 && (
-                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{t('admin.weightOptions', { count: item.weight_options.length })}</Text>
-              )}
             </View>
             <View style={styles.toggleContainer}>
               <Text variant="labelSmall" style={[styles.toggleLabel, { color: item.is_available ? appColors.positive : appColors.neutral }]}>
@@ -220,7 +214,19 @@ export default function AdminProductsScreen() {
           })}
         </ScrollView>
       </View>
-      <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
+      {sortedProducts.length === 0 && !isLoading ? (
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="package-variant" size={64} color={appColors.neutral} />
+          <Text variant="titleMedium" style={[styles.emptyTitle, { color: appColors.text.primary }]}>
+            {t('admin.noProductsTitle')}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.emptySubtitle, { color: appColors.text.secondary }]}>
+            {t('admin.noProductsSubtitle')}
+          </Text>
+        </View>
+      ) : (
+        <FlashList key={sortKey} data={sortedProducts} renderItem={renderProduct} keyExtractor={(item) => item.id} contentContainerStyle={styles.listContent} refreshing={isFetching} onRefresh={refetch} />
+      )}
       <Pressable
         style={[styles.fab, { backgroundColor: appColors.brand }]}
         onPress={() => router.push('/(admin)/products/edit')}
@@ -262,4 +268,7 @@ const styles = StyleSheet.create({
   swipeDeleteLabel: { fontFamily: fontFamily.semiBold, marginTop: 2, fontSize: 11, letterSpacing: 0.3 },
   skeletonCardLayout: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md, ...elevation.level1 },
   fab: { position: 'absolute', bottom: spacing.xl, right: spacing.xl, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', ...elevation.level3 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl },
+  emptyTitle: { fontFamily: fontFamily.semiBold, marginTop: spacing.lg, textAlign: 'center' },
+  emptySubtitle: { marginTop: spacing.sm, textAlign: 'center' },
 });

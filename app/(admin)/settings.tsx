@@ -13,7 +13,6 @@ import { AppButton } from '../../src/components/common/AppButton';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
 import { SegmentedControl } from '../../src/components/common/SegmentedControl';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
-import { useToast } from '../../src/components/common/Toast';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 import { useThemeMode } from '../../src/theme';
 import type { ThemeMode } from '../../src/theme';
@@ -24,7 +23,6 @@ export default function AdminSettingsScreen() {
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
   const [updateProfile] = useUpdateProfileMutation();
-  const { showToast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
@@ -46,11 +44,10 @@ export default function AdminSettingsScreen() {
     setDeleteDialogVisible(false);
     try {
       await requestAccountDeletion().unwrap();
-      showToast({ message: t('profile.deleteAccountSuccess'), type: 'success' });
       router.replace('/(auth)/login');
       setTimeout(() => logout(), 100);
     } catch {
-      showToast({ message: t('profile.deleteAccountFailed'), type: 'error' });
+      // Error handling without toast
     }
   };
 
@@ -64,15 +61,13 @@ export default function AdminSettingsScreen() {
   const handleSaveName = async () => {
     const trimmed = editName.trim();
     if (!trimmed) {
-      showToast({ message: t('profile.nameEmpty'), type: 'error' });
       return;
     }
     try {
       await updateProfile({ name: trimmed }).unwrap();
       setNameDialogVisible(false);
-      showToast({ message: t('profile.nameSaved'), type: 'success' });
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
   };
 

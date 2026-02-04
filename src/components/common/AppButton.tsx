@@ -21,6 +21,7 @@ interface AppButtonProps {
   style?: StyleProp<ViewStyle>;
   status?: ButtonStatus;
   children: React.ReactNode;
+  accessibilityLabel?: string;
 }
 
 const SIZE_STYLES: Record<ButtonSize, { paddingVertical: number; paddingHorizontal: number; iconSize: number; minHeight: number }> = {
@@ -40,6 +41,7 @@ export function AppButton({
   style: containerStyle,
   status = 'idle',
   children,
+  accessibilityLabel,
 }: AppButtonProps) {
   const { appColors } = useAppTheme();
 
@@ -89,6 +91,9 @@ export function AppButton({
       disabled={isDisabled}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: isDisabled }}
       style={[
         styles.button,
         {

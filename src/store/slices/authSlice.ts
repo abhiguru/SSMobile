@@ -28,12 +28,14 @@ const authSlice = createSlice({
       .addMatcher(
         apiSlice.endpoints.checkSession.matchPending,
         (state) => {
+          console.log('[authSlice] checkSession PENDING — setting isLoading=true');
           state.isLoading = true;
         }
       )
       .addMatcher(
         apiSlice.endpoints.checkSession.matchFulfilled,
         (state, action) => {
+          console.log('[authSlice] checkSession FULFILLED — user:', action.payload.user?.id, 'role:', action.payload.role);
           state.isLoading = false;
           state.isAuthenticated = true;
           state.user = action.payload.user;
@@ -43,7 +45,8 @@ const authSlice = createSlice({
       )
       .addMatcher(
         apiSlice.endpoints.checkSession.matchRejected,
-        (state) => {
+        (state, action) => {
+          console.log('[authSlice] checkSession REJECTED — error:', action.error?.message, '— setting isAuthenticated=false');
           state.isLoading = false;
           state.isAuthenticated = false;
         }
@@ -75,9 +78,21 @@ const authSlice = createSlice({
       // logout
       .addMatcher(
         apiSlice.endpoints.logout.matchFulfilled,
-        () => ({ ...initialState, isLoading: false })
+        () => {
+          console.log('[authSlice] logout FULFILLED — resetting to initial state');
+          return { ...initialState, isLoading: false };
+        }
       );
   },
 });
+
+// Stable selectors to avoid re-renders from inline arrow functions
+// Type-safe without circular dependency by inferring from auth slice state
+type StateWithAuth = { auth: AuthState };
+export const selectAuthUser = (state: StateWithAuth) => state.auth.user;
+export const selectAuthToken = (state: StateWithAuth) => state.auth.token;
+export const selectAuthRole = (state: StateWithAuth) => state.auth.role;
+export const selectIsAuthenticated = (state: StateWithAuth) => state.auth.isAuthenticated;
+export const selectAuthIsLoading = (state: StateWithAuth) => state.auth.isLoading;
 
 export default authSlice.reducer;

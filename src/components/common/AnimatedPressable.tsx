@@ -1,4 +1,4 @@
-import { Pressable, PressableProps } from 'react-native';
+import { Pressable, PressableProps, AccessibilityProps } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
 
 const AnimatedPressableView = Animated.createAnimatedComponent(Pressable);
 
-interface AnimatedPressableComponentProps extends PressableProps {
+interface AnimatedPressableComponentProps extends PressableProps, AccessibilityProps {
   scaleDown?: number;
 }
 

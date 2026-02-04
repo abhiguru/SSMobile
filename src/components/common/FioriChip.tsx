@@ -1,4 +1,4 @@
-import { StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, Pressable, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { spacing, borderRadius, fontFamily } from '../../constants/theme';
@@ -10,6 +10,10 @@ interface FioriChipProps {
   onPress?: () => void;
   showCheckmark?: boolean;
   variant?: 'brand' | 'positive' | 'informative';
+  accessibilityLabel?: string;
+  count?: number;
+  countBgColor?: string;
+  countTextColor?: string;
 }
 
 export function FioriChip({
@@ -18,6 +22,10 @@ export function FioriChip({
   onPress,
   showCheckmark = false,
   variant = 'brand',
+  accessibilityLabel,
+  count,
+  countBgColor,
+  countTextColor,
 }: FioriChipProps) {
   const { appColors } = useAppTheme();
 
@@ -28,10 +36,14 @@ export function FioriChip({
   } as const;
 
   const selectedBg = variantColors[variant];
+  const showCount = count !== undefined && count > 0;
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || label}
+      accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.chip,
         selected
@@ -56,6 +68,27 @@ export function FioriChip({
       >
         {label}
       </Text>
+      {showCount && (
+        <View
+          style={[
+            styles.countBadge,
+            {
+              backgroundColor: countBgColor ?? (selected ? appColors.text.inverse : appColors.neutralLight),
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.countText,
+              {
+                color: countTextColor ?? (selected ? selectedBg : appColors.text.secondary),
+              },
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -69,6 +102,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.pill,
+    gap: spacing.xs,
   },
   checkmark: {
     marginRight: spacing.xs,
@@ -76,5 +110,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontFamily: fontFamily.semiBold,
+  },
+  countBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  countText: {
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
   },
 });

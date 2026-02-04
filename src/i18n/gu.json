@@ -1,6 +1,12 @@
 {
   "common": {
     "loading": "લોડ થઈ રહ્યું છે...",
+    "loadingProducts": "તાજા મસાલા શોધી રહ્યા છીએ...",
+    "loadingCart": "તમારી કાર્ટ લોડ થઈ રહી છે...",
+    "loadingOrders": "તમારા ઓર્ડર્સ મેળવી રહ્યા છીએ...",
+    "loadingFavorites": "તમારા મનપસંદ લોડ થઈ રહ્યા છે...",
+    "loadingAddress": "સરનામાં લોડ થઈ રહ્યા છે...",
+    "loadingCheckout": "ચેકઆઉટ તૈયાર કરી રહ્યા છીએ...",
     "error": "કંઈક ખોટું થયું",
     "retry": "ફરી પ્રયાસ કરો",
     "cancel": "રદ કરો",
@@ -15,7 +21,9 @@
     "noResults": "કોઈ પરિણામ મળ્યા નથી",
     "items": "આઇટમ્સ",
     "pincode": "પિનકોડ",
-    "closePreview": "પ્રીવ્યૂ બંધ કરો"
+    "closePreview": "પ્રીવ્યૂ બંધ કરો",
+    "continue": "આગળ વધો",
+    "change": "બદલો"
   },
   "auth": {
     "login": "લોગિન",
@@ -50,9 +58,17 @@
     "outOfStock": "સ્ટોકમાં નથી",
     "details": "ઉત્પાદન વિગતો",
     "weight": "વજન",
-    "resetWeight": "રીસેટ",
+    "resetWeight": "સાફ કરો",
     "perKg": "/કિલો",
-    "noWeightOptions": "કોઈ વજન વિકલ્પ ઉપલબ્ધ નથી"
+    "noWeightOptions": "કોઈ વજન વિકલ્પ ઉપલબ્ધ નથી",
+    "selectedWeight": "પસંદ કરેલ",
+    "minWeight": "ન્યૂનતમ 10 ગ્રામ જરૂરી",
+    "weightGrams": "{{value}} ગ્રામ",
+    "weightKg": "{{value}} કિલો",
+    "weightTrial": "ટ્રાયલ",
+    "weightSample": "સેમ્પલ",
+    "weightWeekly": "સાપ્તાહિક",
+    "weightMonthly": "માસિક"
   },
   "cart": {
     "title": "કાર્ટ",
@@ -64,7 +80,10 @@
     "itemRemoved": "કાર્ટમાંથી આઇટમ દૂર કરવામાં આવી",
     "updateItem": "અપડેટ કરો",
     "itemUpdated": "કાર્ટ અપડેટ થયું!",
-    "weightChangeNotSupported": "વજન બદલવા માટે, આઇટમ દૂર કરો અને ફરી ઉમેરો"
+    "weightChangeNotSupported": "વજન બદલવા માટે, આઇટમ દૂર કરો અને ફરી ઉમેરો",
+    "continueShopping": "ખરીદી ચાલુ રાખો",
+    "moveToFavorites": "મનપસંદમાં ખસેડો",
+    "movedToFavorites": "મનપસંદમાં ખસેડ્યું"
   },
   "checkout": {
     "title": "ચેકઆઉટ",
@@ -92,7 +111,10 @@
     "step_address": "સરનામું",
     "step_review": "સમીક્ષા",
     "step_confirm": "પુષ્ટિ",
-    "noSavedAddresses": "ઓર્ડર આપવા માટે ડિલિવરી સરનામું ઉમેરો"
+    "noSavedAddresses": "ઓર્ડર આપવા માટે ડિલિવરી સરનામું ઉમેરો",
+    "estimatedDelivery": "અંદાજિત ડિલિવરી: {{min}}-{{max}} દિવસ",
+    "toggleCartSummary": "કાર્ટ સારાંશ ટોગલ કરો",
+    "changeAddress": "સરનામું બદલો"
   },
   "orders": {
     "title": "મારા ઓર્ડર્સ",
@@ -105,6 +127,8 @@
     "total": "કુલ",
     "trackOrder": "ઓર્ડર ટ્રેક કરો",
     "reorder": "ફરી ઓર્ડર કરો",
+    "reorderSuccess": "આઇટમ્સ કાર્ટમાં ઉમેર્યા!",
+    "reorderFailed": "ફરી ઓર્ડર કરવામાં નિષ્ફળ. કૃપા કરી ફરી પ્રયાસ કરો.",
     "deliveryOtp": "ડિલિવરી OTP",
     "shareOtpHint": "ડિલિવરી વ્યક્તિ સાથે આ કોડ શેર કરો",
     "cancelOrder": "ઓર્ડર રદ કરો",
@@ -115,12 +139,14 @@
     "orderCancelled": "ઓર્ડર રદ થયો",
     "cancelFailed": "ઓર્ડર રદ કરવામાં નિષ્ફળ",
     "statusHistory": "ઓર્ડર ટાઈમલાઈન",
-    "filterOrders": "ફિલ્ટર"
+    "filterOrders": "ફિલ્ટર",
+    "estimatedDelivery": "અંદાજિત ડિલિવરી: {{date}}"
   },
   "favorites": {
     "title": "મનપસંદ",
     "empty": "હજુ કોઈ મનપસંદ નથી",
-    "addFavorites": "તમારા મનપસંદમાં આઇટમ ઉમેરો"
+    "addFavorites": "તમારા મનપસંદમાં આઇટમ ઉમેરો",
+    "browseProducts": "ઉત્પાદનો જુઓ"
   },
   "profile": {
     "title": "પ્રોફાઇલ",
@@ -128,6 +154,10 @@
     "phone": "ફોન",
     "language": "ભાષા",
     "notifications": "સૂચનાઓ",
+    "orderNotifications": "ઓર્ડર અપડેટ્સ",
+    "orderNotificationsDesc": "જ્યારે તમારા ઓર્ડરની સ્થિતિ બદલાય ત્યારે સૂચના મેળવો",
+    "promoNotifications": "પ્રમોશન અને ઓફર્સ",
+    "promoNotificationsDesc": "ડીલ અને ખાસ ઓફર્સ વિશે અપડેટ્સ મેળવો",
     "aboutUs": "અમારા વિશે",
     "help": "મદદ અને સપોર્ટ",
     "savedAddresses": "સાચવેલા સરનામાં",
@@ -357,6 +387,12 @@
     "adminNotesPlaceholder": "આ ઓર્ડર વિશે નોંધ ઉમેરો...",
     "notesSaved": "નોંધ સાચવી",
     "notesSaveFailed": "નોંધ સાચવવામાં નિષ્ફળ",
+    "estimatedDeliveryDate": "અંદાજિત ડિલિવરી સમય",
+    "estimatedDeliveryHint": "આ ઓર્ડર ક્યારે ડિલિવર થશે તે પસંદ કરો",
+    "inHours": "{{count}} કલાકમાં",
+    "tomorrow": "આવતીકાલે",
+    "skipDate": "છોડો",
+    "confirmOrder": "ઓર્ડર પુષ્ટિ કરો",
     "editItems": "આઇટમ સંપાદિત કરો",
     "addItem": "આઇટમ ઉમેરો",
     "removeItem": "દૂર કરો",
@@ -378,7 +414,25 @@
     "customer": "ગ્રાહક",
     "viewHistory": "ઇતિહાસ",
     "userOrderHistory": "{{name}} ના ઓર્ડર્સ",
-    "noCustomerInfo": "ગ્રાહક માહિતી ઉપલબ્ધ નથી"
+    "noCustomerInfo": "ગ્રાહક માહિતી ઉપલબ્ધ નથી",
+    "noOrdersTitle": "હજુ કોઈ ઓર્ડર નથી",
+    "noOrdersSubtitle": "જ્યારે ગ્રાહકો ઓર્ડર આપશે ત્યારે અહીં દેખાશે",
+    "noOrdersFilterTitle": "કોઈ ઓર્ડર મળતા નથી",
+    "noOrdersFilterSubtitle": "ફિલ્ટર્સ બદલવાનો પ્રયાસ કરો",
+    "clearFilters": "ફિલ્ટર્સ સાફ કરો",
+    "noProductsTitle": "હજુ કોઈ ઉત્પાદન નથી",
+    "noProductsSubtitle": "શરૂ કરવા માટે તમારું પ્રથમ ઉત્પાદન ઉમેરો",
+    "showMoreAddresses": "{{count}} વધુ બતાવો",
+    "showLessAddresses": "ઓછું બતાવો",
+    "allRoles": "બધા",
+    "showingUsers": "{{total}} માંથી {{count}} યુઝર્સ બતાવી રહ્યા છીએ",
+    "loadMore": "વધુ લોડ કરો",
+    "errors": {
+      "cannotChangeOwnRole": "તમે તમારી પોતાની ભૂમિકા બદલી શકતા નથી",
+      "staffHasActiveDelivery": "સક્રિય ડિલિવરી હોય ત્યારે ભૂમિકા બદલી શકાતી નથી",
+      "userNotFound": "યુઝર મળ્યા નથી",
+      "invalidRole": "અમાન્ય ભૂમિકા"
+    }
   },
   "delivery": {
     "deliveries": "ડિલિવરીઓ",
@@ -400,7 +454,41 @@
     "callCustomer": "ગ્રાહકને કૉલ કરો",
     "completeDelivery": "ડિલિવરી પૂર્ણ કરો",
     "noHistory": "કોઈ ડિલિવરી ઇતિહાસ નથી",
-    "deliverTo": "ડિલિવરી સ્થળ"
+    "deliverTo": "ડિલિવરી સ્થળ",
+    "mapView": "નકશો",
+    "allDeliveries": "બધી ડિલિવરીઓ",
+    "navigateTo": "નેવિગેટ કરો",
+    "markFailed": "નિષ્ફળ તરીકે ચિહ્નિત કરો",
+    "selectReason": "કારણ પસંદ કરો",
+    "additionalNotes": "વધારાની નોંધ (વૈકલ્પિક)",
+    "submitFailure": "સબમિટ કરો",
+    "arrivedNotification": "આગમનની જાણ કરો",
+    "arrivalNotified": "ગ્રાહકને તમારા આગમનની જાણ કરવામાં આવી",
+    "deliveryMarkedFailed": "ડિલિવરી નિષ્ફળ તરીકે ચિહ્નિત",
+    "locationSharing": "સ્થાન શેરિંગ",
+    "sharingActive": "તમારું સ્થાન ગ્રાહકોને દેખાય છે",
+    "sharingInactive": "તમારું સ્થાન શેર કરવા સક્ષમ કરો",
+    "reasons": {
+      "customerNotAvailable": "ગ્રાહક ઉપલબ્ધ નથી",
+      "wrongAddress": "ખોટું સરનામું",
+      "customerRefused": "ગ્રાહકે ડિલિવરી નકારી",
+      "unableToContact": "ગ્રાહકનો સંપર્ક કરી શકાયો નહીં",
+      "other": "અન્ય"
+    },
+    "errors": {
+      "invalidOtp": "અમાન્ય OTP. કૃપા કરી તપાસો અને ફરી પ્રયાસ કરો.",
+      "otpExpired": "OTP સમાપ્ત થઈ ગયો છે. કૃપા કરી સપોર્ટનો સંપર્ક કરો.",
+      "notAssigned": "આ ઓર્ડર તમને સોંપવામાં આવ્યો નથી.",
+      "invalidStatus": "વર્તમાન સ્થિતિમાં ઓર્ડર અપડેટ કરી શકાતો નથી."
+    },
+    "tracking": {
+      "deliveryPersonLocation": "ડિલિવરી વ્યક્તિ",
+      "eta": "અંદાજિત સમય: {{minutes}} મિનિટ",
+      "lastUpdated": "{{time}} પહેલા અપડેટ",
+      "justNow": "હમણાં જ",
+      "onTheWay": "તમારી તરફ આવી રહ્યા છે",
+      "call": "કૉલ કરો"
+    }
   },
   "status": {
     "placed": "ઓર્ડર મૂકવામાં આવ્યો",
@@ -409,5 +497,15 @@
     "delivered": "ડિલિવર થયું",
     "cancelled": "રદ કરવામાં આવ્યું",
     "delivery_failed": "ડિલિવરી નિષ્ફળ"
+  },
+  "accessibility": {
+    "toggleSearch": "શોધ ટૉગલ કરો",
+    "goToCart": "કાર્ટ પર જાઓ",
+    "addFavorite": "મનપસંદમાં ઉમેરો",
+    "removeFavorite": "મનપસંદમાંથી દૂર કરો",
+    "quickAdd": "ઝડપથી કાર્ટમાં ઉમેરો",
+    "removeItem": "આઇટમ દૂર કરો",
+    "editItem": "આઇટમ સંપાદિત કરો",
+    "addWeight": "વજન ઉમેરો"
   }
 }

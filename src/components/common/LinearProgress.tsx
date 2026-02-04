@@ -45,9 +45,10 @@ export function LinearProgress({
     }
   }, [progress, indeterminate, animatedWidth, translateX]);
 
-  const determinateStyle = useAnimatedStyle(() => ({
-    width: `${animatedWidth.value * 100}%` as any,
-  }));
+  const determinateStyle = useAnimatedStyle(() => {
+    // Using string interpolation for percentage width - Reanimated handles this correctly
+    return { width: `${animatedWidth.value * 100}%` };
+  });
 
   const indeterminateStyle = useAnimatedStyle(() => ({
     width: '30%',

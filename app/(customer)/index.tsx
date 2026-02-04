@@ -5,6 +5,7 @@ import {
   StyleSheet,
   FlatList,
   PanResponder,
+  AccessibilityInfo,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter, useNavigation } from 'expo-router';
@@ -20,10 +21,10 @@ import type { SharedValue } from 'react-native-reanimated';
 
 import { useGetProductsQuery, useGetCategoriesQuery, useGetFavoritesQuery, useToggleFavoriteMutation, useGetCartSummaryQuery } from '../../src/store/apiSlice';
 import type { Product } from '../../src/types';
-import { getPerKgPaise, resolveImageSource } from '../../src/constants';
+import { getPerKgPaise, resolveImageSource, toGujaratiNumerals } from '../../src/constants';
 import { getStoredTokens } from '../../src/services/supabase';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
-import { useAppTheme } from '../../src/theme';
+import { useAppTheme, useThemeMode } from '../../src/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
@@ -39,7 +40,8 @@ type ListItem =
 
 const HEADER_HEIGHT = 28;
 const ITEM_HEIGHT = 76; // card(64) + marginBottom(8) + border(2) + small rounding
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const ALPHABET_EN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const ALPHABET_GU = 'અઆઇઈઉઊએઐઓઔકખગઘચછજઝટઠડઢણતથદધનપફબભમયરલવશષસહળ'.split('');
 
 const FisheyeLetter = memo(({
   letter,
@@ -95,6 +97,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { appColors } = useAppTheme();
+  const { isDark } = useThemeMode();
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -110,6 +113,7 @@ export default function HomeScreen() {
   const { data: favorites = [] } = useGetFavoritesQuery();
   const [toggleFav, { isLoading: isTogglingFav, originalArgs: togglingFavId }] = useToggleFavoriteMutation();
   const { data: cartSummary } = useGetCartSummaryQuery();
+
   const cartCount = cartSummary?.item_count ?? 0;
 
   const isLoading = productsLoading;
@@ -126,10 +130,26 @@ export default function HomeScreen() {
   useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const isGujarati = i18n.language === 'gu';
+  const alphabet = isGujarati ? ALPHABET_GU : ALPHABET_EN;
+
+  // #1: Search debounce (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // #49: Reduce motion support
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => sub?.remove();
+  }, []);
 
   const toggleSearch = useCallback(() => {
     setSearchOpen((prev) => {
@@ -142,14 +162,26 @@ export default function HomeScreen() {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          <Pressable onPress={toggleSearch} hitSlop={8} style={styles.headerBtn}>
+          <Pressable
+            onPress={toggleSearch}
+            hitSlop={8}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('accessibility.toggleSearch')}
+          >
             <MaterialCommunityIcons
               name={searchOpen ? 'close' : 'magnify'}
               size={24}
               color={appColors.text.primary}
             />
           </Pressable>
-          <Pressable onPress={() => router.push('/(customer)/cart')} hitSlop={8} style={styles.headerBtn}>
+          <Pressable
+            onPress={() => router.push('/(customer)/cart')}
+            hitSlop={8}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('accessibility.goToCart')}
+          >
             <MaterialCommunityIcons name="cart-outline" size={24} color={appColors.text.primary} />
             {cartCount > 0 && (
               <Badge
@@ -167,10 +199,12 @@ export default function HomeScreen() {
 
   const flatListRef = useRef<FlatList<ListItem>>(null);
 
+  // #1 & #40: Use debounced search and search both name and name_gu (bilingual)
   const filteredProducts = useMemo(() => {
     let result = products;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase().trim();
+      // Search both English and Gujarati names for better discovery
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
@@ -183,7 +217,7 @@ export default function HomeScreen() {
     const displayName = (p: Product) =>
       (isGujarati ? p.name_gu || p.name : p.name).toLowerCase();
     return [...result].sort((a, b) => displayName(a).localeCompare(displayName(b)));
-  }, [products, searchQuery, selectedCategory, isGujarati]);
+  }, [products, debouncedSearch, selectedCategory, isGujarati]);
 
   const sections = useMemo(() => {
     const grouped: Record<string, Product[]> = {};
@@ -238,6 +272,12 @@ export default function HomeScreen() {
   const railHeight = useRef(0);
   const lastScrolledIdx = useRef(-1);
 
+  // Filtered alphabet - only letters with products
+  const visibleLetters = useMemo(() =>
+    alphabet.filter(l => activeLetters.has(l)),
+    [alphabet, activeLetters]
+  );
+
   const railPanResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onStartShouldSetPanResponderCapture: () => true,
@@ -248,45 +288,38 @@ export default function HomeScreen() {
     onPanResponderGrant: (evt) => {
       const y = evt.nativeEvent.locationY;
       const h = railHeight.current;
-      console.log('[Rail] GRANT y=', y, 'railHeight=', h);
-      if (h === 0) return;
-      const idx = Math.min(25, Math.max(0, Math.floor((y / h) * 26)));
-      const letter = ALPHABET[idx];
-      console.log('[Rail] idx=', idx, 'letter=', letter, 'hasProducts=', activeLetters.has(letter));
+      if (h === 0 || visibleLetters.length === 0) return;
+      const len = visibleLetters.length;
+      const idx = Math.min(len - 1, Math.max(0, Math.floor((y / h) * len)));
+      const letter = visibleLetters[idx];
       activeLetterIdx.value = idx;
       lastScrolledIdx.current = idx;
-      if (activeLetters.has(letter)) {
-        hapticLight();
-        handleLetterPress(letter);
-      }
+      hapticLight();
+      handleLetterPress(letter);
     },
     onPanResponderMove: (evt) => {
       const y = evt.nativeEvent.locationY;
       const h = railHeight.current;
-      if (h === 0) return;
-      const idx = Math.min(25, Math.max(0, Math.floor((y / h) * 26)));
+      if (h === 0 || visibleLetters.length === 0) return;
+      const len = visibleLetters.length;
+      const idx = Math.min(len - 1, Math.max(0, Math.floor((y / h) * len)));
       activeLetterIdx.value = idx;
       if (idx !== lastScrolledIdx.current) {
-        const letter = ALPHABET[idx];
-        console.log('[Rail] MOVE letter=', letter, 'hasProducts=', activeLetters.has(letter));
+        const letter = visibleLetters[idx];
         lastScrolledIdx.current = idx;
-        if (activeLetters.has(letter)) {
-          hapticLight();
-          handleLetterPress(letter);
-        }
+        hapticLight();
+        handleLetterPress(letter);
       }
     },
     onPanResponderRelease: () => {
-      console.log('[Rail] RELEASE');
       activeLetterIdx.value = -1;
       lastScrolledIdx.current = -1;
     },
     onPanResponderTerminate: () => {
-      console.log('[Rail] TERMINATED (gesture stolen)');
       activeLetterIdx.value = -1;
       lastScrolledIdx.current = -1;
     },
-  }), [activeLetters, handleLetterPress, activeLetterIdx]);
+  }), [visibleLetters, handleLetterPress, activeLetterIdx]);
 
   const onRailLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
     railHeight.current = e.nativeEvent.layout.height;
@@ -304,7 +337,7 @@ export default function HomeScreen() {
     toggleFav(productId);
   }, [toggleFav]);
 
-  const renderCategory = ({ item }: { item: typeof categories[0] }) => {
+  const renderCategory = useCallback(({ item }: { item: typeof categories[0] }) => {
     const isSelected = selectedCategory === item.id;
     return (
       <View style={styles.categoryChipWrapper}>
@@ -316,11 +349,12 @@ export default function HomeScreen() {
         />
       </View>
     );
-  };
+  }, [selectedCategory, isGujarati]);
 
   const renderListItem = useCallback(({ item, index }: { item: ListItem; index: number }) => {
     if (item.type === 'header') {
       return (
+        // #45: Sticky header with subtle shadow effect
         <View style={[styles.sectionHeader, { backgroundColor: appColors.shell }]}>
           <Text style={[styles.sectionHeaderText, { color: appColors.text.secondary }]}>{item.letter}</Text>
         </View>
@@ -330,32 +364,51 @@ export default function HomeScreen() {
     const product = item.product;
     const isFav = favorites.includes(product.id);
     const imgSource = resolveImageSource(product.image_url, accessToken, { width: 128, height: 128, quality: 70 });
+    const isUnavailable = !product.is_available;
+
+    // #49: Skip animations if reduce motion is enabled
+    const enteringAnimation = reduceMotion ? undefined : FadeInUp.delay(Math.min(index, 10) * 50).duration(400);
 
     return (
-      <Animated.View entering={FadeInUp.delay(Math.min(index, 10) * 50).duration(400)}>
+      <Animated.View entering={enteringAnimation}>
         <AnimatedPressable
           onPress={() => router.push(`/(customer)/product/${product.id}`)}
-          style={[styles.productCard, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level2]}
+          style={[
+            styles.productCard,
+            { backgroundColor: appColors.surface, borderColor: appColors.border },
+            elevation.level2,
+            isUnavailable && { opacity: 0.6 },
+          ]}
         >
-          {imgSource ? (
-            <Image
-              source={imgSource}
-              style={styles.productImage}
-              contentFit="cover"
-              transition={200}
-            />
-          ) : (
-            <View style={[styles.productImage, styles.productImagePlaceholder, { backgroundColor: appColors.brandLight }]}>
-              <MaterialCommunityIcons name="leaf" size={26} color={appColors.brand} />
-            </View>
-          )}
+          {/* #41: Product image with dark mode border */}
+          <View style={[styles.productImageContainer, isDark && styles.productImageDarkMode]}>
+            {imgSource ? (
+              <Image
+                source={imgSource}
+                style={[styles.productImage, isDark && { borderColor: appColors.border, borderWidth: 1 }]}
+                contentFit="cover"
+                transition={reduceMotion ? 0 : 200}
+              />
+            ) : (
+              <View style={[styles.productImage, styles.productImagePlaceholder, { backgroundColor: appColors.brandLight }]}>
+                <MaterialCommunityIcons name="leaf" size={26} color={appColors.brand} />
+              </View>
+            )}
+            {/* #14: Out of Stock overlay */}
+            {isUnavailable && (
+              <View style={[styles.outOfStockOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                <Text style={styles.outOfStockText}>{t('product.outOfStock')}</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.productInfo}>
             <Text variant="titleSmall" numberOfLines={2} style={[styles.productName, { color: appColors.text.primary }]}>
               {isGujarati ? product.name_gu : product.name}
             </Text>
+            {/* #18: Price prominence - larger font for price */}
             {getPerKgPaise(product) > 0 && (
-              <Text variant="labelMedium" style={[styles.productPrice, { color: appColors.brand }]}>
-                ₹{(getPerKgPaise(product) / 100).toFixed(0)}/kg
+              <Text variant="titleSmall" style={[styles.productPrice, { color: appColors.brand }]}>
+                ₹{isGujarati ? toGujaratiNumerals((getPerKgPaise(product) / 100).toFixed(0)) : (getPerKgPaise(product) / 100).toFixed(0)}{t('product.perKg')}
               </Text>
             )}
           </View>
@@ -363,6 +416,8 @@ export default function HomeScreen() {
             onPress={() => handleToggleFavorite(product.id)}
             style={styles.favoriteBtn}
             disabled={isTogglingFav && togglingFavId === product.id}
+            accessibilityRole="button"
+            accessibilityLabel={isFav ? t('accessibility.removeFavorite', { name: product.name }) : t('accessibility.addFavorite', { name: product.name })}
           >
             {isTogglingFav && togglingFavId === product.id ? (
               <ActivityIndicator size={18} color={appColors.neutral} />
@@ -381,13 +436,16 @@ export default function HomeScreen() {
               setQuickAddProduct(product);
             }}
             style={styles.quickAddBtn}
+            disabled={isUnavailable}
+            accessibilityRole="button"
+            accessibilityLabel={t('accessibility.quickAdd', { name: product.name })}
           >
-            <MaterialCommunityIcons name="cart-plus" size={22} color={appColors.brand} />
+            <MaterialCommunityIcons name="cart-plus" size={22} color={isUnavailable ? appColors.neutral : appColors.brand} />
           </AnimatedPressable>
         </AnimatedPressable>
       </Animated.View>
     );
-  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken, appColors, isTogglingFav, togglingFavId]);
+  }, [favorites, isGujarati, router, handleToggleFavorite, setQuickAddProduct, accessToken, appColors, isTogglingFav, togglingFavId, reduceMotion, isDark, t]);
 
   const getListItemKey = useCallback((item: ListItem) => {
     return item.type === 'header' ? `header-${item.letter}` : item.product.id;
@@ -448,12 +506,13 @@ export default function HomeScreen() {
             contentContainerStyle={styles.categoriesList}
           />
 
-          {searchQuery.trim() && filteredProducts.length === 0 ? (
+          {debouncedSearch.trim() && filteredProducts.length === 0 ? (
             <View style={styles.noResults}>
               <MaterialCommunityIcons name="magnify-close" size={48} color={appColors.neutral} />
               <Text variant="bodyLarge" style={[styles.noResultsText, { color: appColors.neutral }]}>{t('common.noResults')}</Text>
             </View>
           ) : (
+            /* #42: Keyboard dismiss on scroll */
             <FlatList
               ref={flatListRef}
               data={flatData}
@@ -463,6 +522,20 @@ export default function HomeScreen() {
               stickyHeaderIndices={stickyIndices}
               refreshing={refreshing}
               onRefresh={handleRefresh}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              getItemLayout={(_, index) => {
+                // Pre-calculate item positions for scroll performance
+                // Headers use HEADER_HEIGHT, products use ITEM_HEIGHT
+                const item = flatData[index];
+                const length = item?.type === 'header' ? HEADER_HEIGHT : ITEM_HEIGHT;
+                // Calculate offset by summing heights of all previous items
+                let offset = 0;
+                for (let i = 0; i < index; i++) {
+                  offset += flatData[i]?.type === 'header' ? HEADER_HEIGHT : ITEM_HEIGHT;
+                }
+                return { length, offset, index };
+              }}
             />
           )}
         </View>
@@ -471,13 +544,13 @@ export default function HomeScreen() {
           onLayout={onRailLayout}
           {...railPanResponder.panHandlers}
         >
-          {ALPHABET.map((letter, i) => (
+          {visibleLetters.map((letter, i) => (
             <FisheyeLetter
               key={letter}
               letter={letter}
               index={i}
               activeIdx={activeLetterIdx}
-              hasProducts={activeLetters.has(letter)}
+              hasProducts={true}
             />
           ))}
         </View>
@@ -550,13 +623,15 @@ const styles = StyleSheet.create({
   },
   alphabetBar: {
     width: 32,
-    justifyContent: 'center',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   alphabetLetterBtn: {
-    paddingVertical: 2,
-    paddingHorizontal: 4,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   alphabetLetter: {
     fontSize: 13,
@@ -585,6 +660,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  productImageContainer: {
+    position: 'relative',
+  },
+  // #41: Dark mode image container
+  productImageDarkMode: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
   productImage: {
     width: 64,
     height: 64,
@@ -594,6 +677,19 @@ const styles = StyleSheet.create({
   productImagePlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopLeftRadius: borderRadius.lg,
+    borderBottomLeftRadius: borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockText: {
+    color: '#fff',
+    fontSize: 8,
+    fontFamily: fontFamily.bold,
+    textTransform: 'uppercase',
   },
   favoriteBtn: {
     width: 40,

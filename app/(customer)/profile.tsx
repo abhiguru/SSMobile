@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, List, Divider, TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAppSelector } from '../../src/store';
 import { useLogoutMutation, useRequestAccountDeletionMutation, useUpdateProfileMutation } from '../../src/store/apiSlice';
+
+const NOTIFICATION_PREF_KEY = '@notification_prefs';
 import { changeLanguage } from '../../src/i18n';
 import { spacing, elevation, fontFamily } from '../../src/constants/theme';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -15,7 +18,7 @@ import { AppButton } from '../../src/components/common/AppButton';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
 import { SegmentedControl } from '../../src/components/common/SegmentedControl';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
-import { useToast } from '../../src/components/common/Toast';
+import { FioriSwitch } from '../../src/components/common/FioriSwitch';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 import { useThemeMode } from '../../src/theme';
 import type { ThemeMode } from '../../src/theme';
@@ -26,15 +29,41 @@ export default function ProfileScreen() {
   const [logout] = useLogoutMutation();
   const [requestAccountDeletion] = useRequestAccountDeletionMutation();
   const [updateProfile] = useUpdateProfileMutation();
-  const { showToast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const isGujarati = i18n.language === 'gu';
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [nameDialogVisible, setNameDialogVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
+  // #20: Notification preferences
+  const [orderNotifications, setOrderNotifications] = useState(true);
+  const [promoNotifications, setPromoNotifications] = useState(false);
   const { appColors, appGradients } = useAppTheme();
   const { mode, setMode } = useThemeMode();
+
+  // #20: Load notification preferences on mount
+  useEffect(() => {
+    AsyncStorage.getItem(NOTIFICATION_PREF_KEY).then((value) => {
+      if (value) {
+        try {
+          const prefs = JSON.parse(value);
+          setOrderNotifications(prefs.orderNotifications ?? true);
+          setPromoNotifications(prefs.promoNotifications ?? false);
+        } catch {}
+      }
+    });
+  }, []);
+
+  // #20: Save notification preferences
+  const handleOrderNotificationsChange = async (value: boolean) => {
+    setOrderNotifications(value);
+    await AsyncStorage.setItem(NOTIFICATION_PREF_KEY, JSON.stringify({ orderNotifications: value, promoNotifications }));
+  };
+
+  const handlePromoNotificationsChange = async (value: boolean) => {
+    setPromoNotifications(value);
+    await AsyncStorage.setItem(NOTIFICATION_PREF_KEY, JSON.stringify({ orderNotifications, promoNotifications: value }));
+  };
 
   const handleLogout = () => {
     setLogoutDialogVisible(true);
@@ -48,11 +77,10 @@ export default function ProfileScreen() {
     setDeleteDialogVisible(false);
     try {
       await requestAccountDeletion().unwrap();
-      showToast({ message: t('profile.deleteAccountSuccess'), type: 'success' });
       router.replace('/(auth)/login');
       setTimeout(() => logout(), 100);
     } catch {
-      showToast({ message: t('profile.deleteAccountFailed'), type: 'error' });
+      // Error handling without toast
     }
   };
 
@@ -64,15 +92,13 @@ export default function ProfileScreen() {
   const handleSaveName = async () => {
     const trimmed = editName.trim();
     if (!trimmed) {
-      showToast({ message: t('profile.nameEmpty'), type: 'error' });
       return;
     }
     try {
       await updateProfile({ name: trimmed }).unwrap();
       setNameDialogVisible(false);
-      showToast({ message: t('profile.nameSaved'), type: 'success' });
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
   };
 
@@ -86,9 +112,9 @@ export default function ProfileScreen() {
     }
   };
 
+  // #20: Removed placeholder notification menu item - now has dedicated section
   const menuItems = [
     { icon: 'map-marker' as const, bg: appColors.informativeLight, iconColor: appColors.informative, title: t('profile.savedAddresses'), onPress: () => router.push('/(customer)/addresses') },
-    { icon: 'bell-outline' as const, bg: appColors.criticalLight, iconColor: appColors.critical, title: t('profile.notifications'), onPress: () => {} },
     { icon: 'information' as const, bg: appColors.positiveLight, iconColor: appColors.positive, title: t('profile.aboutUs'), onPress: () => {} },
     { icon: 'help-circle' as const, bg: appColors.brandLight + '33', iconColor: appColors.brand, title: t('profile.help'), onPress: () => {} },
     { icon: 'delete-outline' as const, bg: appColors.negativeLight, iconColor: appColors.negative, title: t('profile.deleteAccount'), onPress: handleDeleteAccount },
@@ -137,6 +163,25 @@ export default function ProfileScreen() {
             ]}
             selectedKey={mode}
             onSelect={(key) => setMode(key as ThemeMode)}
+          />
+        </View>
+      </View>
+
+      {/* #20: Notification Settings */}
+      <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+        <SectionHeader title={t('profile.notifications')} />
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <FioriSwitch
+            label={t('profile.orderNotifications')}
+            description={t('profile.orderNotificationsDesc')}
+            value={orderNotifications}
+            onValueChange={handleOrderNotificationsChange}
+          />
+          <FioriSwitch
+            label={t('profile.promoNotifications')}
+            description={t('profile.promoNotificationsDesc')}
+            value={promoNotifications}
+            onValueChange={handlePromoNotificationsChange}
           />
         </View>
       </View>

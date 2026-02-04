@@ -1,10 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { Switch } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 import {
@@ -15,15 +16,37 @@ import { DeliveryStaff } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriBottomSheet } from '../../src/components/common/FioriBottomSheet';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
-import { useToast } from '../../src/components/common/Toast';
+import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
+
+function StaffSkeleton() {
+  return (
+    <View style={{ padding: spacing.lg }}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <View style={styles.skeletonHeader}>
+            <SkeletonBox width={44} height={44} borderRadius={22} />
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <SkeletonText lines={1} width="50%" />
+              <SkeletonText lines={1} width="35%" style={{ marginTop: spacing.xs }} />
+            </View>
+            <SkeletonBox width={50} height={30} borderRadius={borderRadius.md} />
+          </View>
+          <View style={styles.skeletonFooter}>
+            <SkeletonBox width={80} height={24} borderRadius={borderRadius.sm} />
+            <SkeletonBox width={24} height={24} borderRadius={borderRadius.xs} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function StaffScreen() {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
-  const { data: staffList = [], isLoading, isError, refetch } = useGetAllDeliveryStaffQuery();
+  const { data: staffList = [], isLoading, isFetching, isError, refetch } = useGetAllDeliveryStaffQuery();
   const [updateStaff, { isLoading: isUpdating }] = useUpdateDeliveryStaffMutation();
 
-  const { showToast } = useToast();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingStaff, setEditingStaff] = useState<DeliveryStaff | null>(null);
   const [formName, setFormName] = useState('');
@@ -76,13 +99,12 @@ export default function StaffScreen() {
     const willDeactivate = staff.is_active !== false;
 
     if (willDeactivate && staff.current_order_id) {
-      showToast({ message: t('admin.staffCannotDeactivate'), type: 'error' });
       return;
     }
 
     setToggleTarget(staff);
     setToggleDialogVisible(true);
-  }, [showToast, t]);
+  }, [t]);
 
   const confirmToggleActive = useCallback(async () => {
     if (!toggleTarget) return;
@@ -95,88 +117,90 @@ export default function StaffScreen() {
       }).unwrap();
     } catch (err: unknown) {
       const errorData = (err as { data?: string })?.data || '';
-      showToast({ message: mapErrorCode(errorData, t), type: 'error' });
+      console.log('[Staff] toggle error:', mapErrorCode(errorData, t));
     }
     setToggleTarget(null);
-  }, [toggleTarget, updateStaff, showToast, t]);
+  }, [toggleTarget, updateStaff, t]);
 
-  const renderStaffCard = useCallback(({ item }: { item: DeliveryStaff }) => {
+  const renderStaffCard = useCallback(({ item, index }: { item: DeliveryStaff; index: number }) => {
     const isActive = item.is_active !== false;
     const isDelivering = isActive && item.current_order_id;
 
     return (
-      <Pressable
-        style={[styles.card, { backgroundColor: appColors.surface }, !isActive && styles.cardInactive]}
-        onPress={() => openEditSheet(item)}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.cardIdentity}>
-            <View style={[styles.avatar, { backgroundColor: isActive ? appColors.brandTint : appColors.neutralLight }]}>
-              <MaterialCommunityIcons
-                name="account"
-                size={24}
-                color={isActive ? appColors.brand : appColors.neutral}
-              />
-            </View>
-            <View style={styles.cardInfo}>
-              <Text
-                variant="bodyLarge"
-                style={[styles.staffName, { color: appColors.text.primary }, !isActive && { color: appColors.text.secondary }]}
-              >
-                {item.name}
-              </Text>
-              <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
-                {item.phone}
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={isActive}
-            onValueChange={() => handleToggleActive(item)}
-            trackColor={{ false: appColors.border, true: appColors.brand }}
-            thumbColor={appColors.surface}
-          />
-        </View>
-
-        <View style={[styles.cardFooter, { borderTopColor: appColors.border }]}>
-          {isActive ? (
-            isDelivering ? (
-              <View style={[styles.deliveringBadge, { backgroundColor: appColors.criticalLight }]}>
-                <MaterialCommunityIcons name="truck-delivery" size={14} color={appColors.critical} />
-                <Text style={[styles.deliveringText, { color: appColors.critical }]}>
-                  {t('admin.staffDeliveringOrder', {
-                    orderId: (item.current_order_id || '').slice(-6).toUpperCase(),
-                  })}
+      <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
+        <Pressable
+          style={[styles.card, { backgroundColor: appColors.surface }, !isActive && styles.cardInactive]}
+          onPress={() => openEditSheet(item)}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIdentity}>
+              <View style={[styles.avatar, { backgroundColor: isActive ? appColors.brandTint : appColors.neutralLight }]}>
+                <MaterialCommunityIcons
+                  name="account"
+                  size={24}
+                  color={isActive ? appColors.brand : appColors.neutral}
+                />
+              </View>
+              <View style={styles.cardInfo}>
+                <Text
+                  variant="bodyLarge"
+                  style={[styles.staffName, { color: appColors.text.primary }, !isActive && { color: appColors.text.secondary }]}
+                >
+                  {item.name}
+                </Text>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
+                  {item.phone}
                 </Text>
               </View>
-            ) : (
-              <View style={[styles.freeBadge, { backgroundColor: appColors.positiveLight }]}>
-                <MaterialCommunityIcons name="check-circle" size={14} color={appColors.positive} />
-                <Text style={[styles.freeText, { color: appColors.positive }]}>{t('admin.staffFree')}</Text>
-              </View>
-            )
-          ) : (
-            <View style={[styles.inactiveBadge, { backgroundColor: appColors.neutralLight }]}>
-              <MaterialCommunityIcons name="account-off" size={14} color={appColors.neutral} />
-              <Text style={[styles.inactiveText, { color: appColors.neutral }]}>{t('admin.staffInactive')}</Text>
             </View>
-          )}
-          <Pressable
-            style={styles.editButton}
-            onPress={() => openEditSheet(item)}
-            hitSlop={8}
-          >
-            <MaterialCommunityIcons name="pencil" size={18} color={appColors.text.secondary} />
-          </Pressable>
-        </View>
-      </Pressable>
+            <Switch
+              value={isActive}
+              onValueChange={() => handleToggleActive(item)}
+              trackColor={{ false: appColors.border, true: appColors.brand }}
+              thumbColor={appColors.surface}
+            />
+          </View>
+
+          <View style={[styles.cardFooter, { borderTopColor: appColors.border }]}>
+            {isActive ? (
+              isDelivering ? (
+                <View style={[styles.deliveringBadge, { backgroundColor: appColors.criticalLight }]}>
+                  <MaterialCommunityIcons name="truck-delivery" size={14} color={appColors.critical} />
+                  <Text style={[styles.deliveringText, { color: appColors.critical }]}>
+                    {t('admin.staffDeliveringOrder', {
+                      orderId: (item.current_order_id || '').slice(-6).toUpperCase(),
+                    })}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.freeBadge, { backgroundColor: appColors.positiveLight }]}>
+                  <MaterialCommunityIcons name="check-circle" size={14} color={appColors.positive} />
+                  <Text style={[styles.freeText, { color: appColors.positive }]}>{t('admin.staffFree')}</Text>
+                </View>
+              )
+            ) : (
+              <View style={[styles.inactiveBadge, { backgroundColor: appColors.neutralLight }]}>
+                <MaterialCommunityIcons name="account-off" size={14} color={appColors.neutral} />
+                <Text style={[styles.inactiveText, { color: appColors.neutral }]}>{t('admin.staffInactive')}</Text>
+              </View>
+            )}
+            <Pressable
+              style={styles.editButton}
+              onPress={() => openEditSheet(item)}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={18} color={appColors.text.secondary} />
+            </Pressable>
+          </View>
+        </Pressable>
+      </Animated.View>
     );
   }, [openEditSheet, handleToggleActive, t, appColors]);
 
-  if (isLoading) {
+  if (isLoading && staffList.length === 0) {
     return (
-      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
-        <ActivityIndicator size="large" color={appColors.brand} />
+      <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+        <StaffSkeleton />
       </View>
     );
   }
@@ -210,6 +234,8 @@ export default function StaffScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          refreshing={isFetching}
+          onRefresh={refetch}
         />
       )}
 
@@ -403,5 +429,22 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  skeletonCard: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...elevation.level1,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  skeletonFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
   },
 });

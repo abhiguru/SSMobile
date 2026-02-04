@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Do not create markdown files** (or any `.md` files) unless explicitly instructed to do so.
 - **Do not operate outside the `mobile/` directory.** The backend is maintained by a separate team. If a backend change is needed, mention it in the chat conversation — do not read, edit, or create files in the backend directory.
+- **Backend specs should be high-level.** When noting requirements for the backend team, describe what's needed (inputs, outputs, behavior) without implementation details like SQL or code.
 
 ## Project Overview
 

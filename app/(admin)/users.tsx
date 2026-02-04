@@ -1,11 +1,12 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, RadioButton, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, RadioButton } from 'react-native-paper';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { spacing, borderRadius, fontFamily, fontSize, elevation } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 import {
@@ -18,16 +19,42 @@ import {
   useGetDeletionRequestsQuery,
   useProcessAccountDeletionMutation,
 } from '../../src/store/apiSlice';
-import { User, UserRole, AdminAddress } from '../../src/types';
+import { User, UserRole, AdminAddress, GetUsersParams } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriSearchBar } from '../../src/components/common/FioriSearchBar';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
-import { useToast } from '../../src/components/common/Toast';
+import { FioriChip } from '../../src/components/common/FioriChip';
 import { MapPinPicker } from '../../src/components/common/MapPinPicker';
 import { PlacesAutocomplete, type PlaceDetails } from '../../src/components/common/PlacesAutocomplete';
 
+const PAGE_SIZE = 20;
+
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
 
+function UsersSkeleton({ appColors }: { appColors: { shell: string } }) {
+  return (
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+      <View style={styles.skeletonSearchBar}>
+        <SkeletonBox width="100%" height={44} borderRadius={borderRadius.lg} />
+      </View>
+      <View style={{ padding: spacing.md }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <View key={i} style={styles.skeletonCard}>
+            <View style={styles.skeletonCardRow}>
+              <SkeletonBox width={40} height={40} borderRadius={20} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <SkeletonText lines={1} width="45%" />
+                <SkeletonText lines={1} width="30%" style={{ marginTop: spacing.xs }} />
+              </View>
+              <SkeletonBox width={70} height={24} borderRadius={borderRadius.sm} />
+              <SkeletonBox width={40} height={24} borderRadius={borderRadius.md} style={{ marginLeft: spacing.sm }} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'admin.roleCustomer',
@@ -36,6 +63,23 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ALL_ROLES: UserRole[] = ['customer', 'admin', 'delivery_staff'];
+
+// Role filter options (null means "all")
+type RoleFilter = UserRole | null;
+const ROLE_FILTERS: { value: RoleFilter; labelKey: string }[] = [
+  { value: null, labelKey: 'admin.allRoles' },
+  { value: 'customer', labelKey: 'admin.roleCustomer' },
+  { value: 'admin', labelKey: 'admin.roleAdmin' },
+  { value: 'delivery_staff', labelKey: 'admin.roleDeliveryStaff' },
+];
+
+// Error code mappings
+const ERROR_CODE_MESSAGES: Record<string, string> = {
+  CANNOT_CHANGE_OWN_ROLE: 'admin.errors.cannotChangeOwnRole',
+  STAFF_HAS_ACTIVE_DELIVERY: 'admin.errors.staffHasActiveDelivery',
+  USER_NOT_FOUND: 'admin.errors.userNotFound',
+  INVALID_ROLE: 'admin.errors.invalidRole',
+};
 
 const ADDR_STEP_SIZE = 32;
 const ADDR_STEPS = [
@@ -49,12 +93,23 @@ function UserCardAddresses({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
   const { data: addresses } = useGetAdminUserAddressesQuery(userId);
+  const [expanded, setExpanded] = useState(false);
 
-  if (!addresses || addresses.length === 0) return null;
+  // Sort addresses so default is first
+  const sortedAddresses = useMemo(() => {
+    if (!addresses) return [];
+    return [...addresses].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+  }, [addresses]);
+
+  if (!sortedAddresses || sortedAddresses.length === 0) return null;
+
+  const hasMultiple = sortedAddresses.length > 1;
+  const displayAddresses = expanded ? sortedAddresses : sortedAddresses.slice(0, 1);
+  const hiddenCount = sortedAddresses.length - 1;
 
   return (
     <View style={[styles.addressSection, { borderTopColor: appColors.border }]}>
-      {addresses.map((addr) => {
+      {displayAddresses.map((addr) => {
         const parts = [addr.address_line1, addr.city, addr.pincode].filter(Boolean);
         const summary = addr.label ? `${addr.label}: ${parts.join(', ')}` : parts.join(', ');
         const isDefault = addr.is_default;
@@ -82,13 +137,28 @@ function UserCardAddresses({ userId }: { userId: string }) {
           </View>
         );
       })}
+      {hasMultiple && (
+        <Pressable
+          style={styles.showMoreRow}
+          onPress={() => setExpanded(!expanded)}
+          hitSlop={8}
+        >
+          <MaterialCommunityIcons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={appColors.brand}
+          />
+          <Text variant="labelSmall" style={[styles.showMoreText, { color: appColors.brand }]}>
+            {expanded ? t('admin.showLessAddresses') : t('admin.showMoreAddresses', { count: hiddenCount })}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
 
 export default function UsersScreen() {
   const { t } = useTranslation();
-  const { showToast } = useToast();
   const { appColors } = useAppTheme();
 
   const ROLE_BADGE_STYLES: Record<UserRole, { bg: string; text: string }> = {
@@ -101,12 +171,29 @@ export default function UsersScreen() {
 
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: users = [], isLoading, isFetching, isError, refetch } = useGetUsersQuery(
-    debouncedSearch || undefined,
+  // Build query params
+  const queryParams: GetUsersParams = useMemo(() => {
+    const params: GetUsersParams = { limit: PAGE_SIZE, offset: currentOffset };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (roleFilter) params.role = roleFilter;
+    return params;
+  }, [debouncedSearch, roleFilter, currentOffset]);
+
+  const { data: usersResponse, isLoading, isFetching, isError, refetch } = useGetUsersQuery(
+    queryParams,
     { pollingInterval: 30_000 },
   );
+
+  // Extract users from response
+  const users = usersResponse?.data ?? [];
+  const pagination = usersResponse?.pagination;
+
   const { data: deletionRequests = [] } = useGetDeletionRequestsQuery(undefined, {
     pollingInterval: 30_000,
   });
@@ -162,6 +249,29 @@ export default function UsersScreen() {
   const addrSA2 = useAnimatedStyle(() => ({ transform: [{ scale: addrS2.value }] }));
   const addrStepAnimStyles = [addrSA0, addrSA1, addrSA2];
 
+  // Update allUsers when query results change
+  // Single effect to avoid race conditions between data updates and filter resets
+  useEffect(() => {
+    // Skip if still fetching after filter change - avoid stale cached data
+    if (isFetching) return;
+
+    // Check if we have response data
+    if (!usersResponse?.data) return;
+
+    if (currentOffset === 0) {
+      // First page or filter changed - replace all
+      setAllUsers(usersResponse.data);
+    } else {
+      // Loading more - append, avoiding duplicates
+      setAllUsers((prev) => {
+        const existingIds = new Set(prev.map((u) => u.id));
+        const newUsers = usersResponse.data.filter((u) => !existingIds.has(u.id));
+        return [...prev, ...newUsers];
+      });
+    }
+    setIsLoadingMore(false);
+  }, [usersResponse, isFetching, currentOffset]);
+
   const animateAddrStep = useCallback((step: number) => {
     addrStepScales[step].value = withSpring(1.2, { damping: 8, stiffness: 400 });
     setTimeout(() => {
@@ -177,9 +287,27 @@ export default function UsersScreen() {
     setSearchText(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      setCurrentOffset(0); // Reset pagination when search changes
       setDebouncedSearch(text.trim());
     }, 300);
   }, []);
+
+  const handleRoleFilterChange = useCallback((role: RoleFilter) => {
+    setCurrentOffset(0); // Reset pagination - this triggers new query via queryParams
+    setRoleFilter(role);
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    if (pagination?.hasMore && !isFetching && !isLoadingMore) {
+      setIsLoadingMore(true);
+      setCurrentOffset((prev) => prev + PAGE_SIZE);
+    }
+  }, [pagination?.hasMore, isFetching, isLoadingMore]);
+
+  const getErrorMessage = useCallback((errorCode: string): string => {
+    const key = ERROR_CODE_MESSAGES[errorCode];
+    return key ? t(key) : t('admin.userSaveFailed');
+  }, [t]);
 
   const openEditSheet = useCallback((user: User) => {
     setSelectedUser(user);
@@ -314,11 +442,11 @@ export default function UsersScreen() {
         try {
           await deleteAdminAddress({ address_id: addr.id, _userId: userId }).unwrap();
         } catch {
-          showToast({ message: t('admin.addressDeleteFailed'), type: 'error' });
+          // Error handling without toast
         }
       },
     });
-  }, [selectedUser, deleteAdminAddress, showToast, t]);
+  }, [selectedUser, deleteAdminAddress, t]);
 
   const handleSave = useCallback(() => {
     if (!selectedUser) return;
@@ -347,8 +475,10 @@ export default function UsersScreen() {
       try {
         await updateRole(payload).unwrap();
         closeSheet();
-      } catch {
-        setFormError(t('admin.userSaveFailed'));
+      } catch (err: unknown) {
+        // Extract error code from response
+        const errorCode = (err as { data?: string })?.data ?? '';
+        setFormError(getErrorMessage(errorCode));
       }
     };
 
@@ -384,70 +514,96 @@ export default function UsersScreen() {
         try {
           await updateRole({ user_id: userId, is_active: !isActive }).unwrap();
         } catch {
-          showToast({ message: t('admin.blockFailed'), type: 'error' });
+          // Error handling without toast
         }
       },
     });
-  }, [updateRole, showToast, t]);
+  }, [updateRole, t]);
 
-  const renderUserCard = useCallback(({ item }: { item: User }) => {
+  const renderUserCard = useCallback(({ item, index }: { item: User; index: number }) => {
     const role = item.role || 'customer';
     const isActive = item.is_active !== false;
     const badgeStyle = ROLE_BADGE_STYLES[role];
     const hasPendingDeletion = pendingDeletionUserIds.has(item.id);
 
     return (
-      <Pressable style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }, !isActive && styles.cardBlocked]} onPress={() => openEditSheet(item)}>
-        <View style={styles.cardRow}>
-          <View style={styles.avatarContainer}>
-            <MaterialCommunityIcons name="account-circle" size={40} color={isActive ? appColors.neutral : appColors.critical} />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text variant="bodyLarge" style={[styles.userName, { color: appColors.text.primary }]}>
-              {item.name || '—'}
-            </Text>
-            <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
-              {item.phone || ''}
-            </Text>
-          </View>
-          {!isActive ? (
-            <View style={[styles.roleBadge, { backgroundColor: appColors.negativeLight }]}>
-              <Text style={[styles.roleBadgeText, { color: appColors.negative }]}>
-                {t('admin.blocked')}
+      <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
+        <Pressable style={[styles.card, { backgroundColor: appColors.surface, borderColor: appColors.border }, !isActive && styles.cardBlocked]} onPress={() => openEditSheet(item)}>
+          <View style={styles.cardRow}>
+            <View style={styles.avatarContainer}>
+              <MaterialCommunityIcons name="account-circle" size={40} color={isActive ? appColors.neutral : appColors.critical} />
+            </View>
+            <View style={styles.cardInfo}>
+              <Text variant="bodyLarge" style={[styles.userName, { color: appColors.text.primary }]}>
+                {item.name || '—'}
+              </Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginTop: 2 }}>
+                {item.phone || ''}
               </Text>
             </View>
-          ) : (
-            <View style={[styles.roleBadge, { backgroundColor: badgeStyle.bg }]}>
-              <Text style={[styles.roleBadgeText, { color: badgeStyle.text }]}>
-                {t(ROLE_LABELS[role])}
-              </Text>
+            {!isActive ? (
+              <View style={[styles.roleBadge, { backgroundColor: appColors.negativeLight }]}>
+                <Text style={[styles.roleBadgeText, { color: appColors.negative }]}>
+                  {t('admin.blocked')}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.roleBadge, { backgroundColor: badgeStyle.bg }]}>
+                <Text style={[styles.roleBadgeText, { color: badgeStyle.text }]}>
+                  {t(ROLE_LABELS[role])}
+                </Text>
+              </View>
+            )}
+            <Switch
+              value={isActive}
+              onValueChange={() => handleToggleActive(item)}
+              trackColor={{ false: appColors.critical, true: appColors.positive }}
+              ios_backgroundColor={appColors.critical}
+              style={styles.activeSwitch}
+            />
+          </View>
+          {hasPendingDeletion && (
+            <View style={[styles.deletionBadgeRow, { borderTopColor: appColors.border }]}>
+              <MaterialCommunityIcons name="alert-circle" size={16} color={appColors.negative} />
+              <Text style={[styles.deletionBadgeText, { color: appColors.negative }]}>{t('admin.deletionRequested')}</Text>
             </View>
           )}
-          <Switch
-            value={isActive}
-            onValueChange={() => handleToggleActive(item)}
-            trackColor={{ false: appColors.critical, true: appColors.positive }}
-            ios_backgroundColor={appColors.critical}
-            style={styles.activeSwitch}
-          />
-        </View>
-        {hasPendingDeletion && (
-          <View style={[styles.deletionBadgeRow, { borderTopColor: appColors.border }]}>
-            <MaterialCommunityIcons name="alert-circle" size={16} color={appColors.negative} />
-            <Text style={[styles.deletionBadgeText, { color: appColors.negative }]}>{t('admin.deletionRequested')}</Text>
-          </View>
-        )}
-        <UserCardAddresses userId={item.id} />
-      </Pressable>
+          <UserCardAddresses userId={item.id} />
+        </Pressable>
+      </Animated.View>
     );
   }, [openEditSheet, handleToggleActive, pendingDeletionUserIds, t, appColors]);
 
-  if (isLoading) {
+  // List footer component for load more (must be before early returns)
+  const ListFooter = useMemo(() => {
+    if (!pagination) return null;
+
     return (
-      <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
-        <ActivityIndicator size="large" color={appColors.brand} />
+      <View style={styles.listFooter}>
+        {/* User count */}
+        <Text variant="bodySmall" style={[styles.userCount, { color: appColors.text.secondary }]}>
+          {t('admin.showingUsers', { count: allUsers.length, total: pagination.total })}
+        </Text>
+
+        {/* Load more button */}
+        {pagination.hasMore && (
+          <AppButton
+            variant="outline"
+            size="sm"
+            onPress={handleLoadMore}
+            loading={isLoadingMore}
+            disabled={isLoadingMore}
+            style={styles.loadMoreBtn}
+          >
+            {t('admin.loadMore')}
+          </AppButton>
+        )}
       </View>
     );
+  }, [pagination, allUsers.length, isLoadingMore, handleLoadMore, t, appColors]);
+
+  if (isLoading && users.length === 0) {
+    return <UsersSkeleton appColors={appColors} />;
   }
 
   if (isError) {
@@ -474,20 +630,42 @@ export default function UsersScreen() {
         />
       </View>
 
-      {users.length === 0 ? (
+      {/* Role filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterChipsContainer}
+        style={styles.filterChipsScroll}
+      >
+        {ROLE_FILTERS.map((filter) => (
+          <FioriChip
+            key={filter.value ?? 'all'}
+            label={t(filter.labelKey)}
+            selected={roleFilter === filter.value}
+            onPress={() => handleRoleFilterChange(filter.value)}
+          />
+        ))}
+      </ScrollView>
+
+      {allUsers.length === 0 && !isLoading ? (
         <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
           <MaterialCommunityIcons name="account-search" size={64} color={appColors.neutral} />
           <Text variant="headlineSmall" style={[styles.emptyTitle, { color: appColors.text.primary }]}>{t('admin.noUsers')}</Text>
         </View>
       ) : (
         <FlashList
-          data={users}
+          data={allUsers}
           renderItem={renderUserCard}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          refreshing={isFetching}
-          onRefresh={refetch}
+          ListFooterComponent={ListFooter}
+          refreshing={isFetching && currentOffset === 0}
+          onRefresh={() => {
+            setCurrentOffset(0);
+            setAllUsers([]);
+            refetch();
+          }}
         />
       )}
 
@@ -581,9 +759,8 @@ export default function UsersScreen() {
                                 setDialog(null);
                                 try {
                                   await processAccountDeletion({ requestId: req.id, action: 'rejected' }).unwrap();
-                                  showToast({ message: t('admin.deletionRejected'), type: 'success' });
                                 } catch {
-                                  showToast({ message: t('admin.deletionProcessFailed'), type: 'error' });
+                                  // Error handling without toast
                                 }
                               },
                             });
@@ -610,10 +787,9 @@ export default function UsersScreen() {
                                 setDialog(null);
                                 try {
                                   await processAccountDeletion({ requestId: req.id, action: 'approved' }).unwrap();
-                                  showToast({ message: t('admin.deletionApproved'), type: 'success' });
                                   closeSheet();
                                 } catch {
-                                  showToast({ message: t('admin.deletionProcessFailed'), type: 'error' });
+                                  // Error handling without toast
                                 }
                               },
                             });
@@ -1060,7 +1236,26 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: spacing.md,
-    paddingBottom: 0,
+    paddingBottom: spacing.sm,
+  },
+  filterChipsScroll: {
+    flexGrow: 0,
+  },
+  filterChipsContainer: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  listFooter: {
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  userCount: {
+    textAlign: 'center',
+  },
+  loadMoreBtn: {
+    minWidth: 120,
   },
   listContent: {
     padding: spacing.md,
@@ -1347,5 +1542,28 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  skeletonSearchBar: {
+    padding: spacing.md,
+    paddingBottom: 0,
+  },
+  skeletonCard: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...elevation.level1,
+  },
+  skeletonCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  showMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  showMoreText: {
+    fontFamily: fontFamily.semiBold,
   },
 });

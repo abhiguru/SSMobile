@@ -28,8 +28,48 @@ export default function DeliveryLayout() {
         headerShadowVisible: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t('delivery.currentDeliveries'), tabBarLabel: 'Deliveries', tabBarIcon: ({ color, size, focused }) => <MaterialCommunityIcons name={focused ? 'truck-delivery' : 'truck-delivery-outline'} color={color} size={size} /> }} />
-      <Tabs.Screen name="history" options={{ title: t('delivery.history'), tabBarLabel: 'History', tabBarIcon: ({ color, size, focused }) => <MaterialCommunityIcons name={focused ? 'history' : 'history'} color={color} size={size} /> }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: t('delivery.currentDeliveries'),
+          tabBarLabel: t('delivery.deliveries'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'truck-delivery' : 'truck-delivery-outline'}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: t('delivery.mapView'),
+          tabBarLabel: t('delivery.mapView'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'map' : 'map-outline'}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: t('delivery.history'),
+          tabBarLabel: t('delivery.history'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'history' : 'history'}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
       <Tabs.Screen name="[id]" options={{ href: null }} />
     </Tabs>
   );

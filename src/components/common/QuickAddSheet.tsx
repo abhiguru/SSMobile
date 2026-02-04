@@ -1,28 +1,27 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { FioriBottomSheet } from './FioriBottomSheet';
 import { AppButton } from './AppButton';
-import { StepperControl } from './StepperControl';
 import { PriceText } from './PriceText';
 import { formatPrice } from '../../constants';
 import { spacing, borderRadius, fontFamily } from '../../constants/theme';
 import { useAppTheme } from '../../theme/useAppTheme';
-import { useToast } from './Toast';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
+import { formatWeight } from '../../utils/formatters';
 import { useAddToCartMutation } from '../../store/apiSlice';
-import type { Product, WeightOption } from '../../types';
+import type { Product } from '../../types';
 
-function formatWeight(grams: number, label?: string): string {
-  if (label) return label;
-  if (grams >= 1000) {
-    const kg = grams / 1000;
-    return Number.isInteger(kg) ? `${kg} kg` : `${kg.toFixed(1)} kg`;
-  }
-  return `${grams}g`;
-}
+const PRESET_WEIGHTS = [
+  { grams: 10 },
+  { grams: 100 },
+  { grams: 500 },
+  { grams: 1000 },
+];
+
+const MAX_CUSTOM_WEIGHT_GRAMS = 25000; // 25kg max
 
 interface QuickAddSheetProps {
   product: Product | null;
@@ -32,60 +31,76 @@ interface QuickAddSheetProps {
 export function QuickAddSheet({ product, onDismiss }: QuickAddSheetProps) {
   const { t, i18n } = useTranslation();
   const { appColors } = useAppTheme();
-  const { showToast } = useToast();
   const isGujarati = i18n.language === 'gu';
 
   const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
 
-  const [selectedWeightOption, setSelectedWeightOption] = useState<WeightOption | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  // Memoized weight formatter with translations and Gujarati numerals
+  const formatWeightDisplay = useCallback((grams: number) => {
+    return formatWeight(grams, { useGujarati: isGujarati, t });
+  }, [t, isGujarati]);
 
-  // Filter to available weight options, sorted by display_order
-  const availableWeightOptions = useMemo(() => {
-    if (!product?.weight_options) return [];
-    return product.weight_options
-      .filter((wo) => wo.is_available !== false)
-      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-  }, [product?.weight_options]);
+  const [accumulatedGrams, setAccumulatedGrams] = useState(0);
 
   useEffect(() => {
-    if (product && availableWeightOptions.length > 0) {
-      setSelectedWeightOption(availableWeightOptions[0]);
-      setQuantity(1);
-    } else {
-      setSelectedWeightOption(null);
-      setQuantity(1);
+    if (product) {
+      setAccumulatedGrams(0);
     }
-  }, [product, availableWeightOptions]);
+  }, [product]);
+
+  // Calculate price for custom weight
+  const customWeightPrice = useMemo(() => {
+    if (!product || accumulatedGrams === 0) return 0;
+    return Math.round(product.price_per_kg_paise * accumulatedGrams / 1000);
+  }, [product, accumulatedGrams]);
+
+  // Calculate incremental price for each preset button
+  const getPresetPrice = useCallback((grams: number) => {
+    if (!product) return 0;
+    return Math.round(product.price_per_kg_paise * grams / 1000);
+  }, [product]);
+
+  const handleAddWeight = useCallback((grams: number) => {
+    hapticLight();
+    setAccumulatedGrams((prev) => Math.min(prev + grams, MAX_CUSTOM_WEIGHT_GRAMS));
+  }, []);
+
+  const handleClearWeight = useCallback(() => {
+    hapticLight();
+    setAccumulatedGrams(0);
+  }, []);
 
   const handleAdd = useCallback(async () => {
-    if (!product || !selectedWeightOption) return;
+    if (!product) return;
+
+    if (accumulatedGrams < 10) {
+      hapticError();
+      return;
+    }
 
     try {
       await addToCart({
         p_product_id: product.id,
-        p_weight_option_id: selectedWeightOption.id,
-        p_quantity: quantity,
+        p_weight_grams: accumulatedGrams,
+        p_quantity: 1,
       }).unwrap();
 
-      hapticSuccess();
-      showToast({ message: t('product.addedToCart'), type: 'success' });
+      // Reset state and dismiss first
+      setAccumulatedGrams(0);
       onDismiss();
-    } catch {
+      hapticSuccess();
+    } catch (err) {
+      console.log('[QuickAddSheet] addToCart error:', err);
       hapticError();
-      showToast({ message: t('common.error'), type: 'error' });
     }
-  }, [addToCart, product, selectedWeightOption, quantity, showToast, t, onDismiss]);
-
-  const handleSelectWeight = useCallback((option: WeightOption) => {
-    hapticLight();
-    setSelectedWeightOption(option);
-  }, []);
+  }, [addToCart, product, accumulatedGrams, t, onDismiss]);
 
   if (!product) return null;
 
   const productName = isGujarati ? product.name_gu : product.name;
-  const computedPrice = selectedWeightOption ? selectedWeightOption.price_paise * quantity : 0;
+
+  // Determine if add button should be disabled
+  const isAddDisabled = accumulatedGrams < 10 || isAdding;
 
   return (
     <FioriBottomSheet visible={!!product} onDismiss={onDismiss} title={productName}>
@@ -93,67 +108,71 @@ export function QuickAddSheet({ product, onDismiss }: QuickAddSheetProps) {
         {t('product.selectWeight')}
       </Text>
 
-      {availableWeightOptions.length === 0 ? (
-        <Text variant="bodyMedium" style={{ color: appColors.text.secondary, marginBottom: spacing.lg }}>
-          {t('product.noWeightOptions')}
-        </Text>
-      ) : (
-        <View style={styles.weightOptions}>
-          {availableWeightOptions.map((option) => {
-            const isSelected = selectedWeightOption?.id === option.id;
-            return (
-              <Pressable
-                key={option.id}
-                onPress={() => handleSelectWeight(option)}
-                style={[
-                  styles.weightOption,
-                  {
-                    borderColor: isSelected ? appColors.brand : appColors.border,
-                    backgroundColor: isSelected ? appColors.brandTint : appColors.surface,
-                  },
-                ]}
-              >
-                <Text
-                  variant="titleSmall"
-                  style={[
-                    styles.weightOptionLabel,
-                    { color: isSelected ? appColors.brand : appColors.text.primary },
-                  ]}
-                >
-                  {formatWeight(option.weight_grams, option.weight_label)}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={{ color: isSelected ? appColors.brand : appColors.text.secondary }}
-                >
-                  {formatPrice(option.price_paise)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+      {/* Custom weight preset buttons */}
+      <View style={styles.weightOptions}>
+        {PRESET_WEIGHTS.map((preset) => (
+          <Pressable
+            key={preset.grams}
+            onPress={() => handleAddWeight(preset.grams)}
+            disabled={accumulatedGrams + preset.grams > MAX_CUSTOM_WEIGHT_GRAMS}
+            style={[
+              styles.weightOption,
+              {
+                borderColor: appColors.brand,
+                backgroundColor: appColors.brandTint,
+                opacity: accumulatedGrams + preset.grams > MAX_CUSTOM_WEIGHT_GRAMS ? 0.5 : 1,
+              },
+            ]}
+          >
+            <Text
+              variant="titleSmall"
+              style={[styles.weightOptionLabel, { color: appColors.brand }]}
+            >
+              {formatWeightDisplay(preset.grams)}
+            </Text>
+            <Text variant="bodySmall" style={{ color: appColors.brand }}>
+              +{formatPrice(getPresetPrice(preset.grams), isGujarati)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
-      <View style={styles.quantitySection}>
-        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.primary }]}>
-          {t('product.quantity')}
-        </Text>
-        <StepperControl
-          value={quantity}
-          onValueChange={setQuantity}
-          min={1}
-          max={99}
-        />
+      {/* Selected weight summary */}
+      <View style={styles.customWeightSummary}>
+        <View style={styles.customWeightRow}>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>
+            {t('product.selectedWeight')}:
+          </Text>
+          <View style={styles.customWeightValue}>
+            <Text variant="titleMedium" style={[styles.accumulatedWeight, { color: appColors.text.primary }]}>
+              {formatWeightDisplay(accumulatedGrams)}
+            </Text>
+            {accumulatedGrams > 0 && (
+              <IconButton
+                icon="close-circle"
+                iconColor={appColors.text.secondary}
+                size={20}
+                onPress={handleClearWeight}
+                style={styles.clearButton}
+              />
+            )}
+          </View>
+        </View>
+        {accumulatedGrams > 0 && accumulatedGrams < 10 && (
+          <Text variant="bodySmall" style={{ color: appColors.negative, marginTop: spacing.xs }}>
+            {t('product.minWeight')}
+          </Text>
+        )}
       </View>
 
       <View style={styles.footer}>
-        <PriceText paise={computedPrice} variant="headlineSmall" />
+        <PriceText paise={customWeightPrice} variant="headlineSmall" />
         <View style={styles.addBtn}>
           <AppButton
             variant="primary"
             size="lg"
             fullWidth
-            disabled={!selectedWeightOption || isAdding}
+            disabled={isAddDisabled}
             loading={isAdding}
             onPress={handleAdd}
           >
@@ -188,8 +207,24 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     marginBottom: 2,
   },
-  quantitySection: {
+  customWeightSummary: {
     marginBottom: spacing.lg,
+  },
+  customWeightRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  customWeightValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  accumulatedWeight: {
+    fontFamily: fontFamily.semiBold,
+  },
+  clearButton: {
+    margin: 0,
+    marginLeft: spacing.xs,
   },
   footer: {
     flexDirection: 'row',

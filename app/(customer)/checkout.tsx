@@ -35,7 +35,6 @@ import { Address } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriChip } from '../../src/components/common/FioriChip';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
-import { useToast } from '../../src/components/common/Toast';
 import { Toolbar } from '../../src/components/common/Toolbar';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
@@ -47,7 +46,6 @@ export default function CheckoutScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { showToast } = useToast();
   const { appColors, appGradients } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
 
@@ -69,6 +67,7 @@ export default function CheckoutScreen() {
 
   const [notes, setNotes] = useState('');
   const [notesExpanded, setNotesExpanded] = useState(false); // Notes collapsed by default
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double-tap
 
   // Navigate to address list to change address
   const handleChangeAddress = () => {
@@ -95,7 +94,6 @@ export default function CheckoutScreen() {
 
   const handleAddAddress = () => {
     if (!user?.name?.trim()) {
-      showToast({ message: t('addresses.errors.nameRequired'), type: 'error' });
       router.push('/(customer)/profile');
       return;
     }
@@ -103,6 +101,9 @@ export default function CheckoutScreen() {
   };
 
   const handlePlaceOrder = async () => {
+    // Prevent double-tap
+    if (isSubmitting) return;
+
     console.log('[checkout] handlePlaceOrder called');
     console.log('[checkout] selectedAddressId:', selectedAddressId);
     console.log('[checkout] selectedAddress:', selectedAddress ? `${selectedAddress.label || selectedAddress.full_name} (${selectedAddress.pincode})` : 'NONE');
@@ -112,21 +113,21 @@ export default function CheckoutScreen() {
     if (!selectedAddressId || !selectedAddress) {
       console.log('[checkout] BLOCKED: no address selected');
       hapticError();
-      showToast({ message: t('checkout.selectAddress'), type: 'error' });
       return;
     }
     if (!minOrderMet) {
       console.log('[checkout] BLOCKED: min order not met');
       hapticError();
-      showToast({ message: t('checkout.minOrderNotMet', { amount: formatPrice(appSettings.min_order_paise) }), type: 'error' });
       return;
     }
     if (!isPincodeServiceable(selectedAddress.pincode, appSettings)) {
       console.log('[checkout] BLOCKED: pincode not serviceable:', selectedAddress.pincode, 'allowed:', appSettings.serviceable_pincodes);
       hapticError();
-      showToast({ message: t('checkout.pincodeNotServiceable'), type: 'error' });
       return;
     }
+
+    // Set submitting state immediately to prevent double-tap
+    setIsSubmitting(true);
 
     // Build order items from server cart (use weight_grams from flat structure)
     const orderItems = items.map((item) => ({
@@ -144,7 +145,6 @@ export default function CheckoutScreen() {
       // Clear server cart after successful order
       await clearServerCart().unwrap();
       hapticSuccess();
-      showToast({ message: t('checkout.orderPlaced'), type: 'success' });
       router.replace('/(customer)/orders');
     } catch (error) {
       console.log('[checkout] FAILED — raw error:', JSON.stringify(error));
@@ -152,15 +152,8 @@ export default function CheckoutScreen() {
       const status = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: unknown }).status : 'unknown';
       const errorData = typeof error === 'object' && error !== null && 'data' in error ? (error as { data: unknown }).data : null;
       console.log('[checkout] error status:', status, 'error data:', errorData);
-
-      let message = '';
-      const errorCode = typeof errorData === 'string' ? errorData : '';
-      if (errorCode === 'CHECKOUT_001') message = t('checkout.missingAddress');
-      else if (errorCode === 'CHECKOUT_002') message = t('checkout.pincodeNotServiceable');
-      else if (errorCode === 'CHECKOUT_003') message = t('checkout.minOrderNotMet', { amount: formatPrice(appSettings.min_order_paise) });
-      else if (errorCode) message = errorCode;
-
-      showToast({ message: message || t('common.error'), type: 'error' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -346,8 +339,8 @@ export default function CheckoutScreen() {
             variant="primary"
             size="lg"
             fullWidth
-            loading={ordersLoading}
-            disabled={ordersLoading || !selectedAddressId || !minOrderMet}
+            loading={isSubmitting || ordersLoading}
+            disabled={isSubmitting || ordersLoading || !selectedAddressId || !minOrderMet}
             onPress={handlePlaceOrder}
           >
             {t('checkout.placeOrder')}

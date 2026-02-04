@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetProductsQuery, useGetFavoritesQuery, useToggleFavoriteMutation } from '../../src/store/apiSlice';
+import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { QuickAddSheet } from '../../src/components/common/QuickAddSheet';
@@ -20,15 +21,35 @@ import { spacing, borderRadius, elevation, fontFamily } from '../../src/constant
 import { useAppTheme } from '../../src/theme';
 import { hapticLight, hapticMedium } from '../../src/utils/haptics';
 
+// #16: Skeleton loader for favorites
+function FavoritesSkeleton() {
+  const { appColors } = useAppTheme();
+  return (
+    <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+      <View style={styles.listContent}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <View key={i} style={[styles.skeletonCard, { backgroundColor: appColors.surface }]}>
+            <SkeletonBox width={80} height={80} borderRadius={borderRadius.lg} />
+            <View style={styles.skeletonInfo}>
+              <SkeletonText lines={2} width="70%" />
+              <SkeletonBox width={60} height={20} borderRadius={borderRadius.sm} style={{ marginTop: spacing.sm }} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function FavoritesScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { appColors, appGradients } = useAppTheme();
   const [quickAddProduct, setQuickAddProduct] = useState<Product | null>(null);
   const favQuery = useGetFavoritesQuery();
-  const { data: favoriteIds = [] } = favQuery;
+  const { data: favoriteIds = [], isLoading: favoritesLoading, isFetching: favoritesFetching, refetch: refetchFavorites } = favQuery;
   const [toggleFav, { isLoading: isTogglingFav, originalArgs: togglingFavId }] = useToggleFavoriteMutation();
-  const { data: products = [] } = useGetProductsQuery();
+  const { data: products = [], isLoading: productsLoading, refetch: refetchProducts } = useGetProductsQuery();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   useEffect(() => { getStoredTokens().then(({ accessToken: t }) => setAccessToken(t)); }, []);
 
@@ -50,6 +71,17 @@ export default function FavoritesScreen() {
     hapticMedium();
     toggleFav(productId);
   }, [toggleFav]);
+
+  // #26 & #44: Pull-to-refresh handler with haptic feedback
+  const handleRefresh = useCallback(async () => {
+    hapticLight();
+    await Promise.all([refetchFavorites(), refetchProducts()]);
+  }, [refetchFavorites, refetchProducts]);
+
+  // Show loading skeleton on initial load
+  if ((favoritesLoading || productsLoading) && favorites.length === 0) {
+    return <FavoritesSkeleton />;
+  }
 
   const renderProduct = ({ item, index }: { item: Product; index: number }) => {
     const imgSource = resolveImageSource(item.image_url, accessToken);
@@ -112,17 +144,34 @@ export default function FavoritesScreen() {
     );
   };
 
+  // #19: Empty favorites with action button
   if (favorites.length === 0) {
-    return <EmptyState icon="heart-off" title={t('favorites.empty')} subtitle={t('favorites.addFavorites')} />;
+    return (
+      <EmptyState
+        icon="heart-off"
+        title={t('favorites.empty')}
+        subtitle={t('favorites.addFavorites')}
+        actionLabel={t('favorites.browseProducts')}
+        onAction={() => router.push('/(customer)')}
+      />
+    );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: appColors.shell }]}>
+      {/* #26: Pull-to-refresh */}
       <FlashList
         data={favorites}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={favoritesFetching && !favoritesLoading}
+            onRefresh={handleRefresh}
+            tintColor={appColors.brand}
+          />
+        }
       />
       <QuickAddSheet
         product={quickAddProduct}
@@ -143,4 +192,7 @@ const styles = StyleSheet.create({
   productName: { fontFamily: fontFamily.regular, marginBottom: spacing.xs },
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: spacing.sm },
+  // #16: Skeleton styles
+  skeletonCard: { flexDirection: 'row', borderRadius: borderRadius.lg, marginBottom: 12, padding: spacing.sm },
+  skeletonInfo: { flex: 1, marginLeft: 12, justifyContent: 'center' },
 });

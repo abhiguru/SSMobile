@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { Text } from 'react-native-paper';
@@ -46,8 +46,14 @@ export default function AdminDashboard() {
   const { t } = useTranslation();
   const router = useRouter();
   const { appColors, appGradients } = useAppTheme();
-  const { data: orders = [] } = useGetOrdersQuery();
-  const { data: products = [] } = useGetProductsQuery({ includeUnavailable: true });
+  const { data: orders = [], isFetching: fetchingOrders, refetch: refetchOrders } = useGetOrdersQuery();
+  const { data: products = [], isFetching: fetchingProducts, refetch: refetchProducts } = useGetProductsQuery({ includeUnavailable: true });
+
+  const isRefreshing = fetchingOrders || fetchingProducts;
+  const handleRefresh = useCallback(() => {
+    refetchOrders();
+    refetchProducts();
+  }, [refetchOrders, refetchProducts]);
 
   const pendingOrders = orders.filter((o) => o.status === 'placed' || o.status === 'confirmed');
   const todayOrders = orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString());
@@ -64,7 +70,17 @@ export default function AdminDashboard() {
   const kpiValues = [pendingOrders.length, todayOrders.length, activeProducts.length, products.length];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: appColors.shell }]}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={appColors.brand}
+          colors={[appColors.brand]}
+        />
+      }
+    >
       <Animated.View entering={FadeInUp.duration(400)}>
         <LinearGradient
           colors={appGradients.brand as unknown as [string, string]}

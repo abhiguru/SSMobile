@@ -14,53 +14,76 @@ SplashScreen.preventAutoHideAsync();
 import { store, useAppSelector, useAppDispatch } from '../src/store';
 import i18n from '../src/i18n';
 import { ThemeProvider, useThemeMode } from '../src/theme';
-import { apiSlice, useCheckSessionMutation, useGetFavoritesQuery, useSyncFavoritesMutation } from '../src/store/apiSlice';
+import { apiSlice, useCheckSessionMutation, useGetFavoritesQuery } from '../src/store/apiSlice';
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
-import { ToastProvider } from '../src/components/common/Toast';
 import { registerForPushNotificationsAsync, addNotificationListener, addNotificationResponseListener } from '../src/services/notifications';
 import { registerPushToken } from '../src/services/supabase';
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
   const [checkSession] = useCheckSessionMutation();
-  const favQuery = useGetFavoritesQuery();
-  const [syncFavorites] = useSyncFavoritesMutation();
+  // Use RTK Query for favorites - remove syncFavorites mutation to avoid duplicate fetch
+  const favQuery = useGetFavoritesQuery(undefined, { skip: !isAuthenticated });
   const dispatch = useAppDispatch();
   const router = useRouter();
   const wasAuthenticated = useRef(false);
+  const pushRegistrationAttempted = useRef(false);
+  const sessionCheckCompleted = useRef(false);
 
   console.log('[Favorites:AppInit] render — isAuthenticated:', isAuthenticated,
-    'favStatus:', favQuery.status, 'favIds:', favQuery.data?.length ?? 'undefined');
+    'isLoading:', isLoading, 'favStatus:', favQuery.status, 'favIds:', favQuery.data?.length ?? 'undefined');
 
   // Initial app setup
   useEffect(() => {
     console.log('[Favorites:AppInit] mount effect — calling checkSession');
-    checkSession();
+    sessionCheckCompleted.current = false;
+    checkSession().finally(() => {
+      sessionCheckCompleted.current = true;
+      console.log('[AppInit] checkSession completed');
+    });
   }, [checkSession]);
 
   // Post-authentication setup
   useEffect(() => {
-    console.log('[Favorites:AppInit] auth effect — isAuthenticated:', isAuthenticated);
+    console.log('[AppInit:auth] effect — isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'wasAuthenticated.current:', wasAuthenticated.current, 'sessionCheckCompleted:', sessionCheckCompleted.current);
+
+    // Don't do anything while still loading or session check hasn't completed
+    if (isLoading || !sessionCheckCompleted.current) {
+      console.log('[AppInit:auth] still loading or session check pending, skipping');
+      return;
+    }
+
     if (isAuthenticated) {
       wasAuthenticated.current = true;
-      console.log('[Favorites:AppInit] calling syncFavorites');
-      syncFavorites();
+      // Favorites now automatically fetched via useGetFavoritesQuery with skip: !isAuthenticated
 
-      registerForPushNotificationsAsync().then((token) => {
-        console.log('[Push] registerForPushNotificationsAsync result:', token ? `token obtained (${token.substring(0, 30)}...)` : 'null (no token)');
-        if (token) {
-          registerPushToken(token).then((ok) => {
-            console.log('[Push] registerPushToken result:', ok ? 'SUCCESS' : 'FAILED');
+      // Defer push notification registration to avoid blocking UI
+      // Only attempt once per session to avoid repeated permission dialogs
+      if (!pushRegistrationAttempted.current) {
+        pushRegistrationAttempted.current = true;
+        // Use requestIdleCallback pattern - defer to after initial render settles
+        const timeoutId = setTimeout(() => {
+          registerForPushNotificationsAsync().then((token) => {
+            console.log('[Push] registerForPushNotificationsAsync result:', token ? `token obtained (${token.substring(0, 30)}...)` : 'null (no token)');
+            if (token) {
+              registerPushToken(token).then((ok) => {
+                console.log('[Push] registerPushToken result:', ok ? 'SUCCESS' : 'FAILED');
+              });
+            }
+          }).catch((err) => {
+            console.error('[Push] registration error:', err);
           });
-        }
-      }).catch((err) => {
-        console.error('[Push] registration error:', err);
-      });
+        }, 1000); // Defer by 1 second to let UI settle
+        return () => clearTimeout(timeoutId);
+      }
     } else if (wasAuthenticated.current) {
+      console.log('[AppInit:auth] ⚠️ LOGOUT TRIGGERED — wasAuthenticated was true but isAuthenticated is now false');
       wasAuthenticated.current = false;
       router.replace('/(auth)/login');
+    } else {
+      console.log('[AppInit:auth] not authenticated (no previous session)');
     }
-  }, [isAuthenticated, syncFavorites, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   // Notification listeners
   useEffect(() => {
@@ -112,16 +135,14 @@ function ThemedApp() {
     <PaperProvider theme={theme}>
       <I18nextProvider i18n={i18n}>
         <AppInitializer>
-          <ToastProvider>
-            <StatusBar style={isDark ? 'light' : 'dark'} />
-            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(customer)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(admin)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(delivery)" options={{ animation: 'fade' }} />
-            </Stack>
-          </ToastProvider>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(customer)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(admin)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(delivery)" options={{ animation: 'fade' }} />
+          </Stack>
         </AppInitializer>
       </I18nextProvider>
     </PaperProvider>

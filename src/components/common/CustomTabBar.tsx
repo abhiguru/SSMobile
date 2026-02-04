@@ -2,9 +2,12 @@ import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { spacing, elevation, fontFamily } from '../../constants/theme';
 import { useAppTheme } from '../../theme/useAppTheme';
+
+// Expo Router extends BottomTabNavigationOptions with href property
+type ExpoTabOptions = BottomTabNavigationOptions & { href?: string | null };
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
 
@@ -20,7 +23,8 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
         // Skip hidden tabs — check both href=null (Expo Router convention)
         // and missing tabBarIcon (screens without icons shouldn't appear)
-        if ((options as any).href === null || !options.tabBarIcon) return null;
+        const expoOptions = options as ExpoTabOptions;
+        if (expoOptions.href === null || !options.tabBarIcon) return null;
 
         const onPress = () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -53,7 +57,7 @@ function TabBarItem({
   onPress,
 }: {
   isFocused: boolean;
-  options: any;
+  options: ExpoTabOptions;
   onPress: () => void;
 }) {
   const { appColors } = useAppTheme();
@@ -80,7 +84,7 @@ function TabBarItem({
         style={[styles.tabLabel, { color: iconColor }]}
         numberOfLines={1}
       >
-        {options.tabBarLabel || options.title}
+        {typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title}
       </Text>
     </Pressable>
   );

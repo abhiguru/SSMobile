@@ -14,7 +14,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -46,22 +45,6 @@ export default function OtpScreen() {
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeX.value }],
   }));
-
-  // Digit scale animations (explicit calls to avoid hooks-in-loop)
-  const d0 = useSharedValue(1);
-  const d1 = useSharedValue(1);
-  const d2 = useSharedValue(1);
-  const d3 = useSharedValue(1);
-  const d4 = useSharedValue(1);
-  const d5 = useSharedValue(1);
-  const digitScales = [d0, d1, d2, d3, d4, d5];
-  const da0 = useAnimatedStyle(() => ({ transform: [{ scale: d0.value }] }));
-  const da1 = useAnimatedStyle(() => ({ transform: [{ scale: d1.value }] }));
-  const da2 = useAnimatedStyle(() => ({ transform: [{ scale: d2.value }] }));
-  const da3 = useAnimatedStyle(() => ({ transform: [{ scale: d3.value }] }));
-  const da4 = useAnimatedStyle(() => ({ transform: [{ scale: d4.value }] }));
-  const da5 = useAnimatedStyle(() => ({ transform: [{ scale: d5.value }] }));
-  const digitAnimStyles = [da0, da1, da2, da3, da4, da5];
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -95,6 +78,7 @@ export default function OtpScreen() {
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) {
+      // Handle paste/autofill of multiple digits
       const otpArray = value.slice(0, OTP_LENGTH).split('');
       const newOtp = [...otp];
       otpArray.forEach((char, i) => {
@@ -111,14 +95,6 @@ export default function OtpScreen() {
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-
-    // Scale pulse on digit entry
-    if (value) {
-      digitScales[index].value = withSequence(
-        withSpring(1.2, { damping: 8, stiffness: 400 }),
-        withSpring(1, { damping: 10, stiffness: 300 })
-      );
-    }
 
     if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
@@ -152,6 +128,16 @@ export default function OtpScreen() {
       // error is captured by the mutation hook
     }
   }, [verifyOtp, resetVerify, otp, pendingPhone, router]);
+
+  // Auto-verify when all digits are filled
+  useEffect(() => {
+    if (otp.every((d) => d !== '') && !isLoading) {
+      const timer = setTimeout(() => {
+        handleVerify();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [otp, isLoading, handleVerify]);
 
   const handleResend = async () => {
     if (!pendingPhone || countdown > 0) return;
@@ -191,21 +177,21 @@ export default function OtpScreen() {
 
           <Animated.View style={[styles.otpContainer, shakeStyle]}>
             {otp.map((digit, index) => (
-              <Animated.View key={index} style={digitAnimStyles[index]}>
-                <TextInput
-                  ref={(ref: any) => { inputRefs.current[index] = ref; }}
-                  mode="outlined"
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  value={digit}
-                  onChangeText={(value) => handleOtpChange(value, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  disabled={isLoading}
-                  style={[styles.otpInput, { backgroundColor: appColors.surface }, digit ? { backgroundColor: appColors.informativeLight } : undefined]}
-                  contentStyle={styles.otpInputContent}
-                  outlineStyle={digit ? { borderColor: appColors.brand, borderWidth: 2 } : undefined}
-                />
-              </Animated.View>
+              <TextInput
+                key={index}
+                ref={(ref: any) => { inputRefs.current[index] = ref; }}
+                mode="outlined"
+                keyboardType="number-pad"
+                textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                value={digit}
+                onChangeText={(value) => handleOtpChange(value.replace(/\D/g, ''), index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                disabled={isLoading}
+                style={[styles.otpInput, { backgroundColor: appColors.surface }, digit ? { backgroundColor: appColors.informativeLight } : undefined]}
+                contentStyle={styles.otpInputContent}
+                outlineStyle={digit ? { borderColor: appColors.brand, borderWidth: 2 } : undefined}
+              />
             ))}
           </Animated.View>
 

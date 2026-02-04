@@ -6,6 +6,7 @@ import { useAppTheme } from '../../theme/useAppTheme';
 
 interface FioriSwitchProps {
   label: string;
+  description?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
@@ -13,6 +14,7 @@ interface FioriSwitchProps {
 
 export function FioriSwitch({
   label,
+  description,
   value,
   onValueChange,
   disabled = false,
@@ -26,7 +28,12 @@ export function FioriSwitch({
 
   return (
     <View style={styles.cell}>
-      <Text style={[styles.label, { color: appColors.text.primary }, disabled && { color: appColors.text.disabled }]}>{label}</Text>
+      <View style={styles.labelContainer}>
+        <Text style={[styles.label, { color: appColors.text.primary }, disabled && { color: appColors.text.disabled }]}>{label}</Text>
+        {description && (
+          <Text style={[styles.description, { color: appColors.text.secondary }]}>{description}</Text>
+        )}
+      </View>
       <Switch
         value={value}
         onValueChange={handleChange}
@@ -44,13 +51,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 44,
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  label: {
+  labelContainer: {
     flex: 1,
+    marginRight: spacing.md,
+  },
+  label: {
     fontSize: fontSize.body,
     fontFamily: fontFamily.regular,
-    marginRight: spacing.md,
+  },
+  description: {
+    fontSize: fontSize.sm,
+    fontFamily: fontFamily.regular,
+    marginTop: 2,
   },
 });

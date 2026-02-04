@@ -27,7 +27,6 @@ import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { AppButton } from '../../../src/components/common/AppButton';
 import { Toolbar } from '../../../src/components/common/Toolbar';
 import { ProductImageManager } from '../../../src/components/common/ProductImageManager';
-import { useToast } from '../../../src/components/common/Toast';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
 
 const STEP_SIZE = 32;
@@ -42,7 +41,6 @@ export default function EditProductScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { showToast } = useToast();
   const { appColors } = useAppTheme();
   const isGujarati = i18n.language === 'gu';
   const { productId } = useLocalSearchParams<{ productId: string }>();
@@ -126,7 +124,6 @@ export default function EditProductScreen() {
       if (isCreateMode) {
         const defaultCategoryId = categories[0]?.id;
         if (!defaultCategoryId) {
-          showToast({ message: t('common.error'), type: 'error' });
           return;
         }
         await createProduct({
@@ -137,7 +134,6 @@ export default function EditProductScreen() {
           price_per_kg_paise: pricePaise,
           category_id: defaultCategoryId,
         }).unwrap();
-        showToast({ message: t('admin.productCreated'), type: 'success' });
         router.back();
       } else {
         if (!product) return;
@@ -151,11 +147,10 @@ export default function EditProductScreen() {
             price_per_kg_paise: isNaN(pricePaise) ? product.price_per_kg_paise : pricePaise,
           },
         }).unwrap();
-        showToast({ message: t('admin.productUpdated'), type: 'success' });
         router.back();
       }
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
   };
 
@@ -164,10 +159,9 @@ export default function EditProductScreen() {
     setDeleteDialogVisible(false);
     try {
       await deactivateProduct(productId).unwrap();
-      showToast({ message: t('admin.productDeleted'), type: 'success' });
       router.back();
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
   };
 

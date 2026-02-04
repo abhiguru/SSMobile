@@ -232,6 +232,22 @@ export const animationConfig = {
   snappy: { damping: 15, stiffness: 300 },
 } as const;
 
+// ─── Card Style Constants ───────────────────────────────────────────────────
+export const cardStyles = {
+  standard: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    ...elevation.level1,
+  },
+  elevated: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    ...elevation.level2,
+  },
+} as const;
+
 // ─── Letter Spacing Tokens ──────────────────────────────────────────────────
 export const letterSpacing = {
   tight: -0.5,

@@ -37,7 +37,7 @@ export function FioriBottomSheet({
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      translateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic) });
     }
   }, [visible, translateY]);
 

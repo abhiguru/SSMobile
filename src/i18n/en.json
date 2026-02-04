@@ -1,6 +1,12 @@
 {
   "common": {
     "loading": "Loading...",
+    "loadingProducts": "Finding fresh spices...",
+    "loadingCart": "Loading your cart...",
+    "loadingOrders": "Fetching your orders...",
+    "loadingFavorites": "Loading your favorites...",
+    "loadingAddress": "Loading addresses...",
+    "loadingCheckout": "Preparing checkout...",
     "error": "Something went wrong",
     "retry": "Retry",
     "cancel": "Cancel",
@@ -15,7 +21,9 @@
     "noResults": "No results found",
     "items": "items",
     "pincode": "Pincode",
-    "closePreview": "Close preview"
+    "closePreview": "Close preview",
+    "continue": "Continue",
+    "change": "Change"
   },
   "auth": {
     "login": "Login",
@@ -50,9 +58,17 @@
     "outOfStock": "Out of Stock",
     "details": "Product Details",
     "weight": "Weight",
-    "resetWeight": "Reset",
+    "resetWeight": "Clear",
     "perKg": "/kg",
-    "noWeightOptions": "No weight options available"
+    "noWeightOptions": "No weight options available",
+    "selectedWeight": "Selected",
+    "minWeight": "Minimum 10g required",
+    "weightGrams": "{{value}}g",
+    "weightKg": "{{value}} kg",
+    "weightTrial": "Trial",
+    "weightSample": "Sample",
+    "weightWeekly": "Weekly",
+    "weightMonthly": "Monthly"
   },
   "cart": {
     "title": "Cart",
@@ -64,7 +80,10 @@
     "itemRemoved": "Item removed from cart",
     "updateItem": "Update",
     "itemUpdated": "Cart updated!",
-    "weightChangeNotSupported": "To change weight, remove the item and add it again"
+    "weightChangeNotSupported": "To change weight, remove the item and add it again",
+    "continueShopping": "Continue Shopping",
+    "moveToFavorites": "Move to Favorites",
+    "movedToFavorites": "Moved to favorites"
   },
   "checkout": {
     "title": "Checkout",
@@ -92,7 +111,10 @@
     "step_address": "Address",
     "step_review": "Review",
     "step_confirm": "Confirm",
-    "noSavedAddresses": "Add a delivery address to place your order"
+    "noSavedAddresses": "Add a delivery address to place your order",
+    "estimatedDelivery": "Estimated delivery: {{min}}-{{max}} days",
+    "toggleCartSummary": "Toggle cart summary",
+    "changeAddress": "Change Address"
   },
   "orders": {
     "title": "My Orders",
@@ -105,6 +127,8 @@
     "total": "Total",
     "trackOrder": "Track Order",
     "reorder": "Reorder",
+    "reorderSuccess": "Items added to cart!",
+    "reorderFailed": "Failed to reorder. Please try again.",
     "deliveryOtp": "Delivery OTP",
     "shareOtpHint": "Share this code with the delivery person",
     "cancelOrder": "Cancel Order",
@@ -115,12 +139,14 @@
     "orderCancelled": "Order cancelled",
     "cancelFailed": "Failed to cancel order",
     "statusHistory": "Order Timeline",
-    "filterOrders": "Filter"
+    "filterOrders": "Filter",
+    "estimatedDelivery": "Expected delivery: {{date}}"
   },
   "favorites": {
     "title": "Favorites",
     "empty": "No favorites yet",
-    "addFavorites": "Add items to your favorites"
+    "addFavorites": "Add items to your favorites",
+    "browseProducts": "Browse Products"
   },
   "profile": {
     "title": "Profile",
@@ -128,6 +154,10 @@
     "phone": "Phone",
     "language": "Language",
     "notifications": "Notifications",
+    "orderNotifications": "Order Updates",
+    "orderNotificationsDesc": "Get notified when your order status changes",
+    "promoNotifications": "Promotions & Offers",
+    "promoNotificationsDesc": "Receive updates about deals and special offers",
     "aboutUs": "About Us",
     "help": "Help & Support",
     "savedAddresses": "Saved Addresses",
@@ -357,6 +387,12 @@
     "adminNotesPlaceholder": "Add a note about this order...",
     "notesSaved": "Notes saved",
     "notesSaveFailed": "Failed to save notes",
+    "estimatedDeliveryDate": "Estimated Delivery Time",
+    "estimatedDeliveryHint": "Select when you expect this order to be delivered",
+    "inHours": "In {{count}} hours",
+    "tomorrow": "Tomorrow",
+    "skipDate": "Skip",
+    "confirmOrder": "Confirm Order",
     "editItems": "Edit Items",
     "addItem": "Add Item",
     "removeItem": "Remove",
@@ -378,7 +414,25 @@
     "customer": "Customer",
     "viewHistory": "History",
     "userOrderHistory": "{{name}}'s Orders",
-    "noCustomerInfo": "Customer info unavailable"
+    "noCustomerInfo": "Customer info unavailable",
+    "noOrdersTitle": "No orders yet",
+    "noOrdersSubtitle": "Orders will appear here when customers place them",
+    "noOrdersFilterTitle": "No orders match",
+    "noOrdersFilterSubtitle": "Try adjusting your filters",
+    "clearFilters": "Clear Filters",
+    "noProductsTitle": "No products yet",
+    "noProductsSubtitle": "Add your first product to get started",
+    "showMoreAddresses": "Show {{count}} more",
+    "showLessAddresses": "Show less",
+    "allRoles": "All",
+    "showingUsers": "Showing {{count}} of {{total}} users",
+    "loadMore": "Load More",
+    "errors": {
+      "cannotChangeOwnRole": "You cannot change your own role",
+      "staffHasActiveDelivery": "Cannot change role while staff has active deliveries",
+      "userNotFound": "User not found",
+      "invalidRole": "Invalid role specified"
+    }
   },
   "delivery": {
     "deliveries": "Deliveries",
@@ -400,7 +454,41 @@
     "callCustomer": "Call Customer",
     "completeDelivery": "Complete Delivery",
     "noHistory": "No delivery history",
-    "deliverTo": "Deliver to"
+    "deliverTo": "Deliver to",
+    "mapView": "Map",
+    "allDeliveries": "All Deliveries",
+    "navigateTo": "Navigate",
+    "markFailed": "Mark as Failed",
+    "selectReason": "Select Reason",
+    "additionalNotes": "Additional Notes (Optional)",
+    "submitFailure": "Submit",
+    "arrivedNotification": "Notify Arrival",
+    "arrivalNotified": "Customer notified of your arrival",
+    "deliveryMarkedFailed": "Delivery marked as failed",
+    "locationSharing": "Location Sharing",
+    "sharingActive": "Your location is visible to customers",
+    "sharingInactive": "Enable to share your location",
+    "reasons": {
+      "customerNotAvailable": "Customer not available",
+      "wrongAddress": "Wrong address",
+      "customerRefused": "Customer refused delivery",
+      "unableToContact": "Unable to contact customer",
+      "other": "Other"
+    },
+    "errors": {
+      "invalidOtp": "Invalid OTP. Please check and try again.",
+      "otpExpired": "OTP has expired. Please contact support.",
+      "notAssigned": "This order is not assigned to you.",
+      "invalidStatus": "Order cannot be updated in current status."
+    },
+    "tracking": {
+      "deliveryPersonLocation": "Delivery Person",
+      "eta": "ETA: {{minutes}} min",
+      "lastUpdated": "Updated {{time}} ago",
+      "justNow": "Just now",
+      "onTheWay": "On the way to you",
+      "call": "Call"
+    }
   },
   "status": {
     "placed": "Order Placed",
@@ -409,5 +497,15 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled",
     "delivery_failed": "Delivery Failed"
+  },
+  "accessibility": {
+    "toggleSearch": "Toggle search",
+    "goToCart": "Go to cart",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "quickAdd": "Quick add to cart",
+    "removeItem": "Remove item",
+    "editItem": "Edit item",
+    "addWeight": "Add weight"
   }
 }

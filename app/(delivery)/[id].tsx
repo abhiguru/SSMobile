@@ -12,13 +12,29 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { useGetOrderByIdQuery, useVerifyDeliveryOtpMutation } from '../../src/store/apiSlice';
+import {
+  useGetOrderByIdQuery,
+  useVerifyDeliveryOtpMutation,
+  useMarkDeliveryFailedMutation,
+  useNotifyArrivalMutation,
+} from '../../src/store/apiSlice';
 import { formatPrice, DELIVERY_OTP_LENGTH } from '../../src/constants';
-import { spacing, borderRadius, fontFamily, elevation } from '../../src/constants/theme';
+import { spacing, borderRadius, fontFamily } from '../../src/constants/theme';
 import { AppButton } from '../../src/components/common/AppButton';
-import { useToast } from '../../src/components/common/Toast';
-import { hapticSuccess, hapticError } from '../../src/utils/haptics';
+import { FailureReasonSheet } from '../../src/components/delivery/FailureReasonSheet';
+import { hapticSuccess, hapticError, hapticLight } from '../../src/utils/haptics';
 import { useAppTheme } from '../../src/theme/useAppTheme';
+import { FailureReason } from '../../src/types/delivery';
+
+// Error code mappings
+const ERROR_CODES: Record<string, string> = {
+  INVALID_OTP: 'delivery.errors.invalidOtp',
+  OTP_EXPIRED: 'delivery.errors.otpExpired',
+  NO_OTP: 'delivery.errors.otpExpired',
+  NOT_ASSIGNED: 'delivery.errors.notAssigned',
+  INVALID_STATUS: 'delivery.errors.invalidStatus',
+  DELIVERY_001: 'delivery.wrongDeliveryOtp',
+};
 
 export default function DeliveryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,11 +42,13 @@ export default function DeliveryDetailScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const { appColors } = theme;
-  const { showToast } = useToast();
   const { data: order, isLoading } = useGetOrderByIdQuery(id!, { skip: !id });
   const [verifyDeliveryOtp, { isLoading: verifying }] = useVerifyDeliveryOtpMutation();
+  const [markDeliveryFailed, { isLoading: markingFailed }] = useMarkDeliveryFailedMutation();
+  const [notifyArrival, { isLoading: notifying }] = useNotifyArrivalMutation();
   const [otp, setOtp] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState('');
+  const [showFailureSheet, setShowFailureSheet] = useState(false);
   const inputRefs = useRef<(RNTextInput | null)[]>([]);
 
   // Success scale animation
@@ -78,11 +96,25 @@ export default function DeliveryDetailScreen() {
     Linking.openURL(`tel:${order.shipping_phone}`);
   };
 
+  const handleNotifyArrival = async () => {
+    if (!id) return;
+    try {
+      hapticLight();
+      await notifyArrival(id).unwrap();
+      hapticSuccess();
+    } catch (error) {
+      hapticError();
+    }
+  };
+
   const handleVerifyOtp = async () => {
     if (!id) return;
     setOtpError('');
     const otpString = otp.join('');
-    if (otpString.length !== DELIVERY_OTP_LENGTH) { setOtpError(t('delivery.otpRequired')); return; }
+    if (otpString.length !== DELIVERY_OTP_LENGTH) {
+      setOtpError(t('delivery.otpRequired'));
+      return;
+    }
     try {
       await verifyDeliveryOtp({ orderId: id, otp: otpString }).unwrap();
       hapticSuccess();
@@ -90,33 +122,60 @@ export default function DeliveryDetailScreen() {
         withSpring(1.2, { damping: 8, stiffness: 400 }),
         withSpring(1, { damping: 10, stiffness: 300 })
       );
-      showToast({ message: t('delivery.deliveryComplete'), type: 'success' });
       setTimeout(() => router.replace('/(delivery)'), 1500);
     } catch (error) {
       hapticError();
-      const errorCode = typeof error === 'object' && error !== null && 'data' in error ? String((error as { data: unknown }).data) : '';
-      if (errorCode === 'DELIVERY_001') setOtpError(t('delivery.wrongDeliveryOtp'));
-      else setOtpError(errorCode || t('common.error'));
+      const errorCode = typeof error === 'object' && error !== null && 'data' in error
+        ? String((error as { data: unknown }).data)
+        : '';
+      const errorKey = ERROR_CODES[errorCode] || 'common.error';
+      setOtpError(t(errorKey));
+    }
+  };
+
+  const handleMarkFailed = async (reason: FailureReason, notes?: string) => {
+    if (!id) return;
+    try {
+      await markDeliveryFailed({ orderId: id, reason, notes }).unwrap();
+      hapticSuccess();
+      setShowFailureSheet(false);
+      setTimeout(() => router.replace('/(delivery)'), 1000);
+    } catch (error) {
+      hapticError();
     }
   };
 
   if (isLoading || !order) {
-    return (<View style={styles.centered}><ActivityIndicator size="large" color={theme.colors.primary} /></View>);
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
   }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]}>
       <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.headerRow}>
-          <Text variant="titleMedium" style={[styles.orderId, { color: appColors.text.primary }]}>#{order.id.slice(0, 8)}</Text>
-          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(order.total_paise)}</Text>
+          <Text variant="titleMedium" style={[styles.orderId, { color: appColors.text.primary }]}>
+            #{order.order_number || order.id.slice(0, 8)}
+          </Text>
+          <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>
+            {formatPrice(order.total_paise)}
+          </Text>
         </View>
       </View>
 
       <View style={[styles.section, { backgroundColor: appColors.surface }]}>
-        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('checkout.deliveryAddress')}</Text>
-        <Text variant="bodyMedium" style={[styles.address, { color: appColors.text.primary }]}>{order.delivery_address}</Text>
-        <Text variant="bodySmall" style={[styles.pincode, { color: appColors.text.secondary }]}>{t('common.pincode')}: {order.delivery_pincode}</Text>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>
+          {t('checkout.deliveryAddress')}
+        </Text>
+        <Text variant="bodyMedium" style={[styles.address, { color: appColors.text.primary }]}>
+          {order.delivery_address}
+        </Text>
+        <Text variant="bodySmall" style={[styles.pincode, { color: appColors.text.secondary }]}>
+          {t('common.pincode')}: {order.delivery_pincode}
+        </Text>
         <View style={styles.actionsRow}>
           <View style={{ flex: 1 }}>
             <AppButton variant="secondary" size="md" icon="map-marker" onPress={handleOpenMaps}>
@@ -131,15 +190,32 @@ export default function DeliveryDetailScreen() {
             </View>
           )}
         </View>
+        <AppButton
+          variant="outline"
+          size="md"
+          icon="bell-ring"
+          loading={notifying}
+          disabled={notifying}
+          onPress={handleNotifyArrival}
+          style={styles.arrivalButton}
+        >
+          {t('delivery.arrivedNotification')}
+        </AppButton>
       </View>
 
       <View style={[styles.section, { backgroundColor: appColors.surface }]}>
-        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('delivery.itemsToDeliver')}</Text>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>
+          {t('delivery.itemsToDeliver')}
+        </Text>
         {order.items.map((item) => (
           <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }]}>
             <View style={styles.itemInfo}>
-              <Text variant="bodyMedium" style={[styles.itemName, { color: appColors.text.primary }]}>{item.product_name}</Text>
-              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.weight_grams}g</Text>
+              <Text variant="bodyMedium" style={[styles.itemName, { color: appColors.text.primary }]}>
+                {item.product_name}
+              </Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>
+                {item.weight_label || `${item.weight_grams}g`}
+              </Text>
             </View>
             <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>x{item.quantity}</Text>
           </View>
@@ -148,8 +224,12 @@ export default function DeliveryDetailScreen() {
 
       {order.notes && (
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
-          <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>{t('checkout.orderNotes')}</Text>
-          <Text variant="bodyMedium" style={[styles.notes, { color: appColors.text.secondary }]}>{order.notes}</Text>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { color: appColors.text.secondary }]}>
+            {t('checkout.orderNotes')}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.notes, { color: appColors.text.secondary }]}>
+            {order.notes}
+          </Text>
         </View>
       )}
 
@@ -159,10 +239,14 @@ export default function DeliveryDetailScreen() {
           style={styles.otpCardHeader}
         >
           <MaterialCommunityIcons name="shield-check" size={20} color={appColors.text.inverse} />
-          <Text variant="titleSmall" style={[styles.otpHeaderText, { color: appColors.text.inverse }]}>{t('delivery.verifyDelivery')}</Text>
+          <Text variant="titleSmall" style={[styles.otpHeaderText, { color: appColors.text.inverse }]}>
+            {t('delivery.verifyDelivery')}
+          </Text>
         </LinearGradient>
         <Card.Content style={styles.otpCardContent}>
-          <Text variant="bodySmall" style={[styles.otpHint, { color: appColors.text.secondary }]}>{t('delivery.askCustomerForOtp')}</Text>
+          <Text variant="bodySmall" style={[styles.otpHint, { color: appColors.text.secondary }]}>
+            {t('delivery.askCustomerForOtp')}
+          </Text>
 
           <View style={styles.otpBoxes}>
             {otp.map((digit, index) => (
@@ -183,7 +267,11 @@ export default function DeliveryDetailScreen() {
             ))}
           </View>
 
-          {otpError ? (<Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 12, textAlign: 'center' }}>{otpError}</Text>) : null}
+          {otpError ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 12, textAlign: 'center' }}>
+              {otpError}
+            </Text>
+          ) : null}
 
           <Animated.View style={successStyle}>
             <AppButton
@@ -200,6 +288,26 @@ export default function DeliveryDetailScreen() {
           </Animated.View>
         </Card.Content>
       </Card>
+
+      {/* Mark as Failed Button */}
+      <View style={styles.failedContainer}>
+        <AppButton
+          variant="outline"
+          size="lg"
+          fullWidth
+          icon="close-circle-outline"
+          onPress={() => setShowFailureSheet(true)}
+        >
+          {t('delivery.markFailed')}
+        </AppButton>
+      </View>
+
+      <FailureReasonSheet
+        visible={showFailureSheet}
+        onDismiss={() => setShowFailureSheet(false)}
+        onSubmit={handleMarkFailed}
+        loading={markingFailed}
+      />
     </ScrollView>
   );
 }
@@ -214,11 +322,12 @@ const styles = StyleSheet.create({
   address: { lineHeight: 20 },
   pincode: { marginTop: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: 12, marginTop: spacing.lg },
+  arrivalButton: { marginTop: spacing.md },
   orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   itemName: { fontFamily: fontFamily.regular },
   notes: { fontStyle: 'italic' },
-  otpCard: { margin: spacing.lg, marginBottom: spacing.xl, overflow: 'hidden' },
+  otpCard: { margin: spacing.lg, marginBottom: spacing.md, overflow: 'hidden' },
   otpCardHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.sm },
   otpHeaderText: { fontFamily: fontFamily.semiBold },
   otpCardContent: { padding: spacing.lg },
@@ -226,4 +335,5 @@ const styles = StyleSheet.create({
   otpBoxes: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   otpBox: { width: 56, height: 64, borderRadius: borderRadius.md, textAlign: 'center' },
   otpBoxContent: { fontSize: 28, fontFamily: fontFamily.bold, textAlign: 'center' },
+  failedContainer: { paddingHorizontal: spacing.lg, marginBottom: spacing.xl },
 });

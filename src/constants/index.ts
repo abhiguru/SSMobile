@@ -53,10 +53,18 @@ export const TEST_OTP = '123456';
 // Currency
 export const PAISE_PER_RUPEE = 100;
 
+// Gujarati numeral conversion
+const GUJARATI_DIGITS = ['૦', '૧', '૨', '૩', '૪', '૫', '૬', '૭', '૮', '૯'];
+
+export const toGujaratiNumerals = (num: number | string): string => {
+  return String(num).replace(/[0-9]/g, (d) => GUJARATI_DIGITS[parseInt(d, 10)]);
+};
+
 // Format price from paise to rupee string
-export const formatPrice = (paise: number): string => {
+export const formatPrice = (paise: number, useGujarati?: boolean): string => {
   const rupees = paise / PAISE_PER_RUPEE;
-  return `₹${rupees.toFixed(2)}`;
+  const formatted = rupees.toFixed(2);
+  return `₹${useGujarati ? toGujaratiNumerals(formatted) : formatted}`;
 };
 
 // EAS project ID (used for push notifications)
@@ -109,17 +117,11 @@ export const ERROR_CODES = {
   DELIVERY_001: 'Wrong delivery OTP',
 } as const;
 
-// Derive per-kg price: use the explicit field if the backend provides it,
-// otherwise fall back to the first weight_option.
+// Derive per-kg price from the product's price_per_kg_paise field
 import type { Product, AppSettings } from '../types';
 
 export const getPerKgPaise = (product: Product): number => {
-  if (product.price_per_kg_paise) return product.price_per_kg_paise;
-  const wo = product.weight_options?.[0];
-  if (wo && wo.weight_grams > 0) {
-    return Math.round(wo.price_paise / wo.weight_grams * 1000);
-  }
-  return 0;
+  return product.price_per_kg_paise || 0;
 };
 
 // Shipping & pincode utilities (previously in settingsSlice)

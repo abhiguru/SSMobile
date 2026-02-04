@@ -18,7 +18,6 @@ import {
 import { getProductImageUrl } from '../../constants';
 import { spacing, borderRadius } from '../../constants/theme';
 import { useAppTheme } from '../../theme/useAppTheme';
-import { useToast } from './Toast';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const THUMB_SIZE = (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm * 3) / 4;
@@ -35,7 +34,6 @@ interface ProductImageManagerProps {
 export function ProductImageManager({ productId, disabled, onUploadingChange }: ProductImageManagerProps) {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
-  const { showToast } = useToast();
   const { data: images = [] } = useGetProductImagesQuery(productId);
   const [uploadImage, { isLoading: uploading }] = useUploadProductImageMutation();
   const [deleteImage] = useDeleteProductImageMutation();
@@ -71,7 +69,6 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
 
     if (remainingSlots <= 0) {
       console.log(TAG, 'ABORT — max images reached');
-      showToast({ message: t('admin.maxImagesReached'), type: 'error' });
       return;
     }
 
@@ -79,7 +76,6 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     console.log(TAG, 'permission status:', status);
     if (status !== 'granted') {
-      showToast({ message: 'Please allow photo access to upload images.', type: 'info' });
       return;
     }
 
@@ -107,13 +103,11 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
 
       if (fileSize > MAX_FILE_SIZE) {
         console.log(TAG, 'SKIP — file too large:', fileSize);
-        showToast({ message: t('admin.imageSizeError'), type: 'error' });
         return;
       }
 
       if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
         console.log(TAG, 'SKIP — unsupported mime type:', mimeType);
-        showToast({ message: t('admin.imageTypeError'), type: 'error' });
         return;
       }
 
@@ -137,13 +131,11 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
       const failed = results.filter((r) => r.status === 'rejected');
       if (failed.length > 0) {
         console.log(TAG, 'some uploads failed:', failed.length);
-        showToast({ message: t('admin.uploadFailed'), type: 'error' });
       } else {
         console.log(TAG, 'all uploads succeeded');
       }
     } catch (err) {
       console.log(TAG, 'upload FAILED — error:', JSON.stringify(err));
-      showToast({ message: t('admin.uploadFailed'), type: 'error' });
     }
   };
 
@@ -158,7 +150,7 @@ export function ProductImageManager({ productId, disabled, onUploadingChange }: 
     try {
       await deleteImage({ imageId, productId, storagePath }).unwrap();
     } catch {
-      showToast({ message: t('admin.deleteFailed'), type: 'error' });
+      // Error handling without toast
     }
   };
 

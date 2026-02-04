@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, DimensionValue } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,7 +15,7 @@ interface SkeletonBoxProps {
   width: number | string;
   height: number;
   borderRadius?: number;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function SkeletonBox({ width, height, borderRadius = br.md, style }: SkeletonBoxProps) {
@@ -38,7 +38,7 @@ export function SkeletonBox({ width, height, borderRadius = br.md, style }: Skel
     <View
       style={[
         {
-          width: width as any,
+          width: width as DimensionValue,
           height,
           borderRadius,
           backgroundColor: appColors.border,
@@ -62,7 +62,7 @@ export function SkeletonBox({ width, height, borderRadius = br.md, style }: Skel
 interface SkeletonTextProps {
   lines?: number;
   width?: number | string;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function SkeletonText({ lines = 1, width = '100%', style }: SkeletonTextProps) {

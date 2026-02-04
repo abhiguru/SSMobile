@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Linking, Pressable, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator, Portal, Modal } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInLeft } from 'react-native-reanimated';
 
 import {
   useGetOrderByIdQuery,
@@ -12,6 +13,7 @@ import {
   useUpdateOrderItemsMutation,
   useGetProductsQuery,
   useDispatchOrderMutation,
+  useGetOrderStatusHistoryQuery,
 } from '../../../src/store/apiSlice';
 import { formatPrice, getPerKgPaise, getOrderStatusColor } from '../../../src/constants';
 import { spacing, fontFamily, borderRadius } from '../../../src/constants/theme';
@@ -23,11 +25,19 @@ import { AppButton } from '../../../src/components/common/AppButton';
 import { DeliveryStaffPicker } from '../../../src/components/common/DeliveryStaffPicker';
 import { EditOrderItemSheet } from '../../../src/components/common/EditOrderItemSheet';
 import { AddOrderItemSheet, AddOrderItemResult } from '../../../src/components/common/AddOrderItemSheet';
-import { useToast } from '../../../src/components/common/Toast';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
 import { hapticSuccess, hapticError } from '../../../src/utils/haptics';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
+
+const TIMELINE_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  placed: 'clock-outline',
+  confirmed: 'check-circle-outline',
+  out_for_delivery: 'truck-delivery-outline',
+  delivered: 'package-variant-closed-check',
+  cancelled: 'close-circle-outline',
+  delivery_failed: 'alert-circle-outline',
+};
 
 interface EditableItem {
   product_id: string;
@@ -48,12 +58,12 @@ export default function AdminOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
-  const { showToast } = useToast();
   const { appColors } = useAppTheme();
-  const { data: order, isLoading, refetch } = useGetOrderByIdQuery(id!, {
+  const { data: order, isLoading, isFetching, refetch } = useGetOrderByIdQuery(id!, {
     skip: !id,
     pollingInterval: 15_000,
   });
+  const { data: statusHistory = [] } = useGetOrderStatusHistoryQuery(id!, { skip: !id });
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [dispatchOrder, { isLoading: dispatching }] = useDispatchOrderMutation();
 
@@ -65,6 +75,29 @@ export default function AdminOrderDetailScreen() {
   const [staffPickerVisible, setStaffPickerVisible] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState('');
+
+  // Estimated delivery time picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null); // hours value
+
+  type DeliveryOption = { hours: number; label: string; datetime: Date };
+
+  const getTomorrow = (): Date => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0); // 10:00 AM tomorrow
+    return tomorrow;
+  };
+
+  const getDeliveryOptions = (): DeliveryOption[] => {
+    const now = new Date();
+    return [
+      { hours: 2, label: t('admin.inHours', { count: 2 }), datetime: new Date(now.getTime() + 2 * 60 * 60 * 1000) },
+      { hours: 4, label: t('admin.inHours', { count: 4 }), datetime: new Date(now.getTime() + 4 * 60 * 60 * 1000) },
+      { hours: 6, label: t('admin.inHours', { count: 6 }), datetime: new Date(now.getTime() + 6 * 60 * 60 * 1000) },
+      { hours: 24, label: t('admin.tomorrow'), datetime: getTomorrow() },
+    ];
+  };
 
   // Edit items state
   const [editing, setEditing] = useState(false);
@@ -86,10 +119,8 @@ export default function AdminOrderDetailScreen() {
       await updateOrderNotes({ orderId: id, admin_notes: adminNotes }).unwrap();
       setSavedNotes(adminNotes);
       hapticSuccess();
-      showToast({ message: t('admin.notesSaved'), type: 'success' });
     } catch {
       hapticError();
-      showToast({ message: t('admin.notesSaveFailed'), type: 'error' });
     }
   };
 
@@ -122,7 +153,6 @@ export default function AdminOrderDetailScreen() {
       id: '',
       order_id: order?.id ?? '',
       product_id: editableItem.product_id,
-      weight_option_id: '',
       quantity: editableItem.quantity,
       unit_price_paise: editableItem.unit_price_paise,
       total_paise: editableItem.unit_price_paise * editableItem.quantity,
@@ -167,7 +197,6 @@ export default function AdminOrderDetailScreen() {
   const handleSaveItems = async () => {
     if (!id) return;
     if (editedItems.length === 0) {
-      showToast({ message: t('admin.noItems'), type: 'error' });
       return;
     }
     try {
@@ -180,12 +209,10 @@ export default function AdminOrderDetailScreen() {
         })),
       }).unwrap();
       hapticSuccess();
-      showToast({ message: t('admin.itemsSaved'), type: 'success' });
       setEditing(false);
       setEditedItems([]);
     } catch {
       hapticError();
-      showToast({ message: t('admin.itemsSaveFailed'), type: 'error' });
     }
   };
 
@@ -194,19 +221,34 @@ export default function AdminOrderDetailScreen() {
     0
   );
 
-  const handleStatusUpdate = (newStatus: OrderStatus) => {
+  const handleStatusUpdate = (newStatus: OrderStatus, estimatedDate?: string) => {
     const isDanger = newStatus === 'cancelled' || newStatus === 'delivery_failed';
+
+    // For confirmed status, show time picker first
+    if (newStatus === 'confirmed' && !estimatedDate && !showDatePicker) {
+      // Default to 2 hours from now
+      setSelectedOption(2);
+      setShowDatePicker(true);
+      return;
+    }
 
     const doUpdate = async () => {
       if (!id) return;
+      console.log('[AdminOrderDetail] doUpdate called');
+      console.log('[AdminOrderDetail] orderId:', id);
+      console.log('[AdminOrderDetail] newStatus:', newStatus);
+      console.log('[AdminOrderDetail] estimatedDate:', estimatedDate);
       try {
-        await updateOrderStatus({ orderId: id, status: newStatus }).unwrap();
+        await updateOrderStatus({
+          orderId: id,
+          status: newStatus,
+          estimated_delivery_at: estimatedDate,
+        }).unwrap();
         hapticSuccess();
-        showToast({ message: t(`status.${newStatus}`), type: 'success' });
       } catch (err: unknown) {
         hapticError();
         const errorData = (err as { data?: string })?.data;
-        showToast({ message: errorData || t('common.error'), type: 'error' });
+        console.log('[AdminOrderDetail] status update error:', errorData);
       }
     };
 
@@ -223,6 +265,23 @@ export default function AdminOrderDetailScreen() {
     }
   };
 
+  const handleConfirmWithDate = () => {
+    const selectedDatetime = getDeliveryOptions().find(o => o.hours === selectedOption)?.datetime;
+    const dateStr = selectedDatetime ? selectedDatetime.toISOString() : undefined;
+    console.log('[AdminOrderDetail] Confirming with ETA');
+    console.log('[AdminOrderDetail] selectedOption (hours):', selectedOption);
+    console.log('[AdminOrderDetail] selectedDatetime:', selectedDatetime);
+    console.log('[AdminOrderDetail] dateStr (ISO):', dateStr);
+    setShowDatePicker(false);
+    handleStatusUpdate('confirmed', dateStr);
+  };
+
+  const handleSkipDate = () => {
+    setShowDatePicker(false);
+    handleStatusUpdate('confirmed', undefined);
+  };
+
+
   const handleDispatchInHouse = () => {
     if (!id) return;
     setStaffPickerVisible(true);
@@ -233,13 +292,12 @@ export default function AdminOrderDetailScreen() {
     try {
       await dispatchOrder({ orderId: id, deliveryStaffId: staff.id }).unwrap();
       hapticSuccess();
-      showToast({ message: `Order dispatched to ${staff.name}`, type: 'success' });
       setStaffPickerVisible(false);
       refetch();
     } catch (err: unknown) {
       hapticError();
       const errorData = (err as { data?: string })?.data;
-      showToast({ message: errorData || 'Failed to dispatch order', type: 'error' });
+      console.log('[AdminOrderDetail] dispatch error:', errorData);
     }
   };
 
@@ -252,9 +310,16 @@ export default function AdminOrderDetailScreen() {
   const isConfirmed = order.status === 'confirmed';
   const isOutForDelivery = order.status === 'out_for_delivery';
 
+  const statusSteps = ['placed', 'confirmed', 'out_for_delivery', 'delivered'];
+  const currentStepIndex = statusSteps.indexOf(order.status);
+
   return (
     <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={[styles.container, { backgroundColor: appColors.shell }]}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={appColors.brand} colors={[appColors.brand]} />}
+    >
       <View style={[styles.section, { backgroundColor: appColors.surface }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
@@ -265,6 +330,55 @@ export default function AdminOrderDetailScreen() {
         </View>
         <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{new Date(order.created_at).toLocaleString()}</Text>
       </View>
+
+      {/* Order Progress Timeline */}
+      {order.status !== 'cancelled' && order.status !== 'delivery_failed' && (
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+          <SectionHeader title={t('orders.statusHistory')} style={{ paddingHorizontal: 0 }} />
+          <View style={styles.timeline}>
+            {statusSteps.map((step, index) => {
+              const isActive = index <= currentStepIndex;
+              const isCurrent = index === currentStepIndex;
+              const iconName = TIMELINE_ICONS[step] || 'circle';
+              const historyEntry = statusHistory.find((h) => h.status === step);
+              const timestamp = historyEntry
+                ? new Date(historyEntry.created_at).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })
+                : null;
+              return (
+                <Animated.View
+                  key={step}
+                  entering={FadeInLeft.delay(index * 150).duration(400)}
+                  style={styles.timelineStep}
+                >
+                  <View style={[styles.timelineDot, { backgroundColor: appColors.border }, isActive && { backgroundColor: isCurrent ? appColors.brand : appColors.positive }]}>
+                    <MaterialCommunityIcons
+                      name={iconName}
+                      size={16}
+                      color={isActive ? appColors.text.inverse : appColors.neutral}
+                    />
+                  </View>
+                  {index < statusSteps.length - 1 && (
+                    <View style={[styles.timelineLine, { backgroundColor: appColors.border }, index < currentStepIndex && { backgroundColor: appColors.positive }]} />
+                  )}
+                  <Text variant="labelSmall" style={[styles.timelineLabel, { color: appColors.neutral }, isActive && { color: appColors.text.primary, fontFamily: fontFamily.semiBold }]}>
+                    {t(`status.${step}`)}
+                  </Text>
+                  {timestamp && (
+                    <Text variant="labelSmall" style={[styles.timelineTimestamp, { color: appColors.text.secondary }]}>
+                      {timestamp}
+                    </Text>
+                  )}
+                </Animated.View>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Customer info */}
       <View style={[styles.section, { backgroundColor: appColors.surface }]}>
@@ -517,6 +631,74 @@ export default function AdminOrderDetailScreen() {
         loading={dispatching}
       />
 
+      {/* Estimated Delivery Date Picker Modal */}
+      <Portal>
+        <Modal
+          visible={showDatePicker}
+          onDismiss={() => setShowDatePicker(false)}
+          contentContainerStyle={[styles.datePickerModal, { backgroundColor: appColors.surface }]}
+        >
+          <Text variant="titleMedium" style={{ fontFamily: fontFamily.bold, marginBottom: spacing.sm, color: appColors.text.primary }}>
+            {t('admin.estimatedDeliveryDate')}
+          </Text>
+          <Text variant="bodySmall" style={{ color: appColors.text.secondary, marginBottom: spacing.lg }}>
+            {t('admin.estimatedDeliveryHint')}
+          </Text>
+
+          {/* Quick delivery time options */}
+          <View style={styles.dateOptionsContainer}>
+            {getDeliveryOptions().map((option) => {
+              const isSelected = selectedOption === option.hours;
+              return (
+                <Pressable
+                  key={option.hours}
+                  onPress={() => setSelectedOption(option.hours)}
+                  style={[
+                    styles.dateOptionChip,
+                    { borderColor: appColors.border, backgroundColor: isSelected ? appColors.brand : appColors.surface },
+                  ]}
+                >
+                  <Text variant="labelMedium" style={{ color: isSelected ? appColors.text.inverse : appColors.text.primary }}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {selectedOption !== null && (
+            <View style={[styles.selectedDatePreview, { backgroundColor: appColors.positiveLight }]}>
+              <MaterialCommunityIcons name="calendar-check" size={18} color={appColors.positive} />
+              <Text variant="bodyMedium" style={{ color: appColors.positive, marginLeft: spacing.sm, fontFamily: fontFamily.semiBold }}>
+                {getDeliveryOptions().find(o => o.hours === selectedOption)?.datetime.toLocaleString(undefined, {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                  hour: 'numeric', minute: '2-digit'
+                })}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.datePickerActions}>
+            <AppButton
+              variant="text"
+              size="md"
+              onPress={handleSkipDate}
+              style={{ flex: 1 }}
+            >
+              {t('admin.skipDate')}
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="md"
+              onPress={handleConfirmWithDate}
+              style={{ flex: 1 }}
+            >
+              {t('admin.confirmOrder')}
+            </AppButton>
+          </View>
+        </Modal>
+      </Portal>
+
       <EditOrderItemSheet
         item={editingItem}
         onDismiss={() => setEditingItem(null)}
@@ -554,6 +736,12 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerStripe: { width: 4, height: 24, borderRadius: 2, marginRight: spacing.sm },
   orderId: { fontFamily: fontFamily.bold },
+  timeline: { flexDirection: 'row', justifyContent: 'space-between' },
+  timelineStep: { alignItems: 'center', flex: 1 },
+  timelineDot: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  timelineLine: { position: 'absolute', left: '50%', top: 16, width: '100%', height: 2, zIndex: -1 },
+  timelineLabel: { marginTop: spacing.sm, textAlign: 'center', fontSize: 10 },
+  timelineTimestamp: { textAlign: 'center', fontSize: 9, marginTop: 2 },
   customerCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, gap: spacing.md },
   customerInfo: { flex: 1 },
   sectionTitle: { fontSize: 13, fontFamily: fontFamily.semiBold, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.md },
@@ -572,4 +760,10 @@ const styles = StyleSheet.create({
   addItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
   editActionsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   editActionBtn: { flex: 1 },
+  // Date picker modal
+  datePickerModal: { margin: spacing.lg, padding: spacing.lg, borderRadius: borderRadius.lg },
+  dateOptionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+  dateOptionChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.pill, borderWidth: 1 },
+  selectedDatePreview: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.lg },
+  datePickerActions: { flexDirection: 'row', gap: spacing.md },
 });

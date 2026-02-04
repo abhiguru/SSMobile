@@ -9,7 +9,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest, ServerCartItem, AddToCartRequest, CartSummary, OrderSummary, OrderStatusHistoryEntry, ProfileWithAddresses, DeleteAddressResponse } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest, ServerCartItem, AddToCartRequest, CartSummary, OrderSummary, OrderStatusHistoryEntry, ProfileWithAddresses, DeleteAddressResponse, FailureReason, DeliveryTrackingInfo, DeliveryLocationUpdate, UsersResponse, GetUsersParams } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
@@ -83,7 +83,7 @@ export const apiSlice = createApi({
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
       query: (options) => {
         const includeUnavailable = options?.includeUnavailable ?? false;
-        const base = '/rest/v1/products?select=*,weight_options(*)&is_active=eq.true';
+        const base = '/rest/v1/products?select=*&is_active=eq.true';
         return {
           url: includeUnavailable
             ? base
@@ -91,6 +91,17 @@ export const apiSlice = createApi({
         };
       },
       providesTags: ['Products'],
+      keepUnusedDataFor: 300, // 5 minutes cache
+    }),
+
+    // Get single product by ID - avoids N+1 query pattern
+    getProductById: builder.query<Product | null, string>({
+      query: (productId) => ({
+        url: `/rest/v1/products?id=eq.${productId}&select=*`,
+      }),
+      transformResponse: (response: Product[]) => response[0] || null,
+      providesTags: (_result, _error, id) => [{ type: 'Products', id }],
+      keepUnusedDataFor: 300,
     }),
 
     getCategories: builder.query<Category[], void>({
@@ -98,6 +109,7 @@ export const apiSlice = createApi({
         url: '/rest/v1/categories?is_active=eq.true&order=display_order',
       }),
       providesTags: ['Categories'],
+      keepUnusedDataFor: 300, // 5 minutes cache
     }),
 
     toggleProductAvailability: builder.mutation<
@@ -390,6 +402,7 @@ export const apiSlice = createApi({
         }
       },
       providesTags: ['Favorites'],
+      keepUnusedDataFor: 300, // 5 minutes cache
     }),
 
     // ── Orders ───────────────────────────────────────────────
@@ -457,12 +470,16 @@ export const apiSlice = createApi({
 
     updateOrderStatus: builder.mutation<
       void,
-      { orderId: string; status: OrderStatus }
+      { orderId: string; status: OrderStatus; estimated_delivery_at?: string }
     >({
-      query: ({ orderId, status }) => ({
+      query: ({ orderId, status, estimated_delivery_at }) => ({
         url: '/functions/v1/update-order-status',
         method: 'POST',
-        body: { order_id: orderId, status },
+        body: {
+          order_id: orderId,
+          status,
+          ...(estimated_delivery_at && { estimated_delivery_at }),
+        },
       }),
       invalidatesTags: (_result, _error, { orderId }) => [
         'Orders',
@@ -501,6 +518,46 @@ export const apiSlice = createApi({
         'Orders',
         { type: 'Order', id: orderId },
       ],
+    }),
+
+    markDeliveryFailed: builder.mutation<
+      { success: boolean; order: Order },
+      { orderId: string; reason: FailureReason; notes?: string }
+    >({
+      query: ({ orderId, reason, notes }) => ({
+        url: '/functions/v1/mark-delivery-failed',
+        method: 'POST',
+        body: { order_id: orderId, reason, notes },
+      }),
+      invalidatesTags: (_result, _error, { orderId }) => [
+        'Orders',
+        { type: 'Order', id: orderId },
+      ],
+    }),
+
+    getDeliveryTracking: builder.query<DeliveryTrackingInfo, string>({
+      query: (orderId) => ({
+        url: `/functions/v1/delivery-tracking?order_id=${orderId}`,
+      }),
+    }),
+
+    sendDeliveryLocation: builder.mutation<
+      { success: boolean },
+      DeliveryLocationUpdate
+    >({
+      query: (location) => ({
+        url: '/functions/v1/delivery-location',
+        method: 'POST',
+        body: location,
+      }),
+    }),
+
+    notifyArrival: builder.mutation<{ success: boolean }, string>({
+      query: (orderId) => ({
+        url: '/functions/v1/notify-arrival',
+        method: 'POST',
+        body: { order_id: orderId },
+      }),
     }),
 
     dispatchOrder: builder.mutation<
@@ -549,7 +606,10 @@ export const apiSlice = createApi({
           body: JSON.stringify({ p_order_id: orderId }),
         });
         if (response.ok) {
-          return { data: await response.json() };
+          const data = await response.json();
+          console.log('[apiSlice] getOrderRpc response for', orderId);
+          console.log('[apiSlice] estimated_delivery_at from backend:', data?.estimated_delivery_at);
+          return { data };
         }
         return { error: { status: response.status, data: 'Failed to load order' } };
       },
@@ -578,7 +638,15 @@ export const apiSlice = createApi({
           body: JSON.stringify({ p_order_id: orderId }),
         });
         if (response.ok) {
-          return { data: await response.json() };
+          const raw = await response.json();
+          // Backend returns to_status, map to status for frontend consistency
+          const data = raw.map((entry: { id: string; to_status: string; notes?: string; created_at: string }) => ({
+            id: entry.id,
+            status: entry.to_status,
+            notes: entry.notes,
+            created_at: entry.created_at,
+          }));
+          return { data };
         }
         return { data: [] };
       },
@@ -677,10 +745,31 @@ export const apiSlice = createApi({
     }),
 
     // ── Users (Admin) ─────────────────────────────────────────
-    getUsers: builder.query<User[], string | void>({
-      query: (search) => ({
-        url: search ? `/functions/v1/users?search=${encodeURIComponent(search)}` : '/functions/v1/users',
-      }),
+    getUsers: builder.query<UsersResponse, GetUsersParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.search) searchParams.set('search', params.search);
+        if (params?.role) searchParams.set('role', params.role);
+        if (params?.limit) searchParams.set('limit', String(params.limit));
+        if (params?.offset) searchParams.set('offset', String(params.offset));
+        const qs = searchParams.toString();
+        console.log('[getUsers] query URL:', `/functions/v1/users${qs ? `?${qs}` : ''}`);
+        return { url: `/functions/v1/users${qs ? `?${qs}` : ''}` };
+      },
+      transformResponse: (response: unknown) => {
+        console.log('[getUsers] raw response:', JSON.stringify(response));
+        // Handle both old format (array) and new format (object with data/pagination)
+        if (Array.isArray(response)) {
+          // Old format - wrap in new format
+          console.log('[getUsers] detected old array format, wrapping');
+          return {
+            data: response as User[],
+            pagination: { offset: 0, limit: response.length, total: response.length, hasMore: false },
+          };
+        }
+        // New format
+        return response as UsersResponse;
+      },
       providesTags: ['Users'],
     }),
 
@@ -758,6 +847,7 @@ export const apiSlice = createApi({
               { type: 'Addresses', id: 'LIST' },
             ]
           : [{ type: 'Addresses', id: 'LIST' }],
+      keepUnusedDataFor: 300, // 5 minutes cache
     }),
 
     addAddress: builder.mutation<
@@ -876,6 +966,7 @@ export const apiSlice = createApi({
         return { error: { status: response.status, data: 'Failed to load cart' } };
       },
       providesTags: ['Cart'],
+      keepUnusedDataFor: 60, // 1 minute cache for cart (more dynamic)
     }),
 
     addToCart: builder.mutation<ServerCartItem, AddToCartRequest>({
@@ -934,6 +1025,28 @@ export const apiSlice = createApi({
         }
         const data = await response.json();
         return { data };
+      },
+      invalidatesTags: ['Cart'],
+    }),
+
+    updateCartItemWeight: builder.mutation<
+      { success: boolean; merged?: boolean; error?: string },
+      { cart_item_id: string; new_weight_grams: number; new_quantity: number }
+    >({
+      queryFn: async ({ cart_item_id, new_weight_grams, new_quantity }) => {
+        const response = await authenticatedFetch('/rest/v1/rpc/update_cart_item_weight', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_cart_item_id: cart_item_id,
+            p_new_weight_grams: new_weight_grams,
+            p_new_quantity: new_quantity,
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { data };
+        }
+        return { error: { status: response.status, data: 'Failed to update cart item weight' } };
       },
       invalidatesTags: ['Cart'],
     }),
@@ -1272,6 +1385,7 @@ const injectedApi = apiSlice.injectEndpoints({
 
 export const {
   useGetProductsQuery,
+  useGetProductByIdQuery,
   useGetCategoriesQuery,
   useToggleProductAvailabilityMutation,
   useUpdateProductMutation,
@@ -1291,6 +1405,10 @@ export const {
   useUpdateOrderNotesMutation,
   useUpdateOrderItemsMutation,
   useVerifyDeliveryOtpMutation,
+  useMarkDeliveryFailedMutation,
+  useGetDeliveryTrackingQuery,
+  useSendDeliveryLocationMutation,
+  useNotifyArrivalMutation,
   useDispatchOrderMutation,
   // Orders RPC
   useGetOrdersRpcQuery,
@@ -1320,6 +1438,7 @@ export const {
   useUpdateCartQuantityMutation,
   useRemoveFromCartMutation,
   useClearServerCartMutation,
+  useUpdateCartItemWeightMutation,
   useGetCartSummaryQuery,
   useGetAppSettingsQuery,
   useSendOtpMutation,

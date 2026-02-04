@@ -5,14 +5,28 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Card, Text, Button, FAB } from 'react-native-paper';
 
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useGetAddressesQuery, useDeleteAddressMutation, useSetDefaultAddressMutation } from '../../../src/store/apiSlice';
 import { useAppSelector } from '../../../src/store';
 import { Address } from '../../../src/types';
+
+// #30: Icon mapping for address labels
+const ADDRESS_LABEL_ICONS: Record<string, string> = {
+  home: 'home-outline',
+  office: 'briefcase-outline',
+  work: 'briefcase-outline',
+  other: 'map-marker-outline',
+};
+
+const getAddressIcon = (label?: string | null): string => {
+  if (!label) return 'map-marker-outline';
+  const normalized = label.toLowerCase().trim();
+  return ADDRESS_LABEL_ICONS[normalized] || 'map-marker-outline';
+};
 import { EmptyState } from '../../../src/components/common/EmptyState';
 import { LoadingScreen } from '../../../src/components/common/LoadingScreen';
 import { FioriChip } from '../../../src/components/common/FioriChip';
 import { FioriDialog } from '../../../src/components/common/FioriDialog';
-import { useToast } from '../../../src/components/common/Toast';
 import { spacing, borderRadius } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme';
 
@@ -26,11 +40,9 @@ export default function AddressesScreen() {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const user = useAppSelector((state) => state.auth.user);
-  const { showToast } = useToast();
 
   const handleAddAddress = () => {
     if (!user?.name?.trim()) {
-      showToast({ message: t('addresses.errors.nameRequired'), type: 'error' });
       router.push('/(customer)/profile');
       return;
     }
@@ -48,7 +60,15 @@ export default function AddressesScreen() {
       <Card.Content>
         <View style={styles.addressHeader}>
           <View style={styles.labelContainer}>
-            <Text variant="titleSmall">{item.label || item.full_name}</Text>
+            {/* #30: Address label icon */}
+            <View style={[styles.labelIconBg, { backgroundColor: appColors.brandTint }]}>
+              <MaterialCommunityIcons
+                name={getAddressIcon(item.label) as any}
+                size={18}
+                color={appColors.brand}
+              />
+            </View>
+            <Text variant="titleSmall" style={styles.labelText}>{item.label || item.full_name}</Text>
             {item.is_default && <FioriChip label={t('addresses.default')} selected variant="positive" />}
           </View>
         </View>
@@ -99,6 +119,9 @@ const styles = StyleSheet.create({
   addressCard: { marginBottom: 12 },
   addressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   labelContainer: { flexDirection: 'row', alignItems: 'center' },
+  // #30: Address label icon styles
+  labelIconBg: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+  labelText: { marginRight: spacing.xs },
   actionButtons: { flexDirection: 'row', marginTop: 12, paddingTop: 12, borderTopWidth: 1, gap: spacing.xs },
   fab: { position: 'absolute', right: spacing.md, bottom: spacing.md },
 });

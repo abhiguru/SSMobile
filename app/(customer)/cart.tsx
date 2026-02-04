@@ -1,5 +1,5 @@
-import { useCallback, useState, useMemo } from 'react';
-import { View, StyleSheet, RefreshControl } from 'react-native';
+import { useCallback, useState, useMemo, useRef } from 'react';
+import { View, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -8,56 +8,46 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Swipeable } from 'react-native-gesture-handler';
 
 import { EmptyState } from '../../src/components/common/EmptyState';
-import { PriceText } from '../../src/components/common/PriceText';
 import { AppButton } from '../../src/components/common/AppButton';
 import { StepperControl } from '../../src/components/common/StepperControl';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { EditCartItemSheet } from '../../src/components/common/EditCartItemSheet';
-import { useToast } from '../../src/components/common/Toast';
 
 import {
   useGetCartQuery,
   useUpdateCartQuantityMutation,
   useRemoveFromCartMutation,
-  useGetProductsQuery,
+  useUpdateCartItemWeightMutation,
+  useToggleFavoriteMutation,
 } from '../../src/store/apiSlice';
-import { formatPrice, resolveImageSource, getProductImageUrl } from '../../src/constants';
+import { formatPrice, resolveImageSource } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
 import { useAppTheme } from '../../src/theme';
 import { hapticMedium, hapticSuccess } from '../../src/utils/haptics';
-import type { ServerCartItem, WeightOption } from '../../src/types';
-
-function formatWeight(grams: number, label?: string): string {
-  if (label) return label;
-  if (grams >= 1000) {
-    const kg = grams / 1000;
-    return Number.isInteger(kg) ? `${kg} kg` : `${kg.toFixed(1)} kg`;
-  }
-  return `${grams}g`;
-}
+import { formatWeight } from '../../src/utils/formatters';
+import type { ServerCartItem } from '../../src/types';
 
 export default function CartScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { appColors, appGradients } = useAppTheme();
-  const { showToast } = useToast();
   const isGujarati = i18n.language === 'gu';
 
   const { data: items = [], isLoading, isFetching, refetch } = useGetCartQuery();
-  const { data: products = [] } = useGetProductsQuery();
   const [updateQuantity, { isLoading: isUpdating }] = useUpdateCartQuantityMutation();
   const [removeItem, { isLoading: isRemoving }] = useRemoveFromCartMutation();
+  const [updateCartItemWeight] = useUpdateCartItemWeightMutation();
+  const [toggleFavorite] = useToggleFavoriteMutation();
 
   const [editingItem, setEditingItem] = useState<ServerCartItem | null>(null);
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
-  // Calculate total from cart items
+  // Calculate total from cart items (use line_total_paise from RPC)
   const total = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const price = item.weight_option?.price_paise ?? 0;
-      return sum + price * item.quantity;
-    }, 0);
+    return items.reduce((sum, item) => sum + item.line_total_paise, 0);
   }, [items]);
 
   const handleQuantityChange = useCallback(async (cartItemId: string, newQuantity: number) => {
@@ -66,118 +56,160 @@ export default function CartScreen() {
       try {
         await removeItem(cartItemId).unwrap();
       } catch {
-        showToast({ message: t('common.error'), type: 'error' });
+        // Error handling without toast
       }
     } else {
       try {
         await updateQuantity({ cart_item_id: cartItemId, quantity: newQuantity }).unwrap();
       } catch {
-        showToast({ message: t('common.error'), type: 'error' });
+        // Error handling without toast
       }
     }
-  }, [removeItem, updateQuantity, showToast, t]);
+  }, [removeItem, updateQuantity, t]);
 
   const handleRemove = useCallback(async (cartItemId: string) => {
     hapticMedium();
     try {
       await removeItem(cartItemId).unwrap();
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
-  }, [removeItem, showToast, t]);
+  }, [removeItem, t]);
 
   const handleDismissSheet = useCallback(() => {
     setEditingItem(null);
   }, []);
 
-  const handleUpdateItem = useCallback(async (newWeightOptionId: string, newQuantity: number) => {
+  // #12: Move item to favorites before removing from cart
+  const handleMoveToFavorites = useCallback(async (item: ServerCartItem) => {
+    hapticMedium();
+    try {
+      // Add to favorites
+      await toggleFavorite(item.product_id).unwrap();
+      // Remove from cart
+      await removeItem(item.id).unwrap();
+    } catch {
+      // Error handling without toast
+    }
+    // Close swipeable
+    swipeableRefs.current.get(item.id)?.close();
+  }, [toggleFavorite, removeItem, t]);
+
+  // #11: Swipe action render functions
+  const renderRightActions = useCallback((item: ServerCartItem) => {
+    return (
+      <View style={styles.swipeActionsRight}>
+        <Pressable
+          style={[styles.swipeAction, { backgroundColor: appColors.informative }]}
+          onPress={() => handleMoveToFavorites(item)}
+          accessibilityLabel={t('cart.moveToFavorites')}
+        >
+          <MaterialCommunityIcons name="heart-outline" size={22} color="#fff" />
+          <Text style={styles.swipeActionText}>{t('favorites.title')}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.swipeAction, { backgroundColor: appColors.negative }]}
+          onPress={() => handleRemove(item.id)}
+          accessibilityLabel={t('accessibility.removeItem')}
+        >
+          <MaterialCommunityIcons name="delete-outline" size={22} color="#fff" />
+          <Text style={styles.swipeActionText}>{t('common.delete')}</Text>
+        </Pressable>
+      </View>
+    );
+  }, [appColors, handleMoveToFavorites, handleRemove, t]);
+
+  const handleUpdateItem = useCallback(async (newWeightGrams: number, newQuantity: number) => {
     if (!editingItem) return;
 
     hapticSuccess();
 
-    // If weight option changed, we need to remove old item and add new one
-    if (newWeightOptionId !== editingItem.weight_option_id) {
-      // For now, just update the quantity if same weight option
-      // Weight option changes are handled by removing and re-adding
-      showToast({ message: t('cart.weightChangeNotSupported'), type: 'info' });
-      return;
-    }
+    const weightChanged = newWeightGrams !== editingItem.weight_grams;
 
     try {
-      await updateQuantity({
-        cart_item_id: editingItem.id,
-        quantity: newQuantity,
-      }).unwrap();
-      showToast({ message: t('cart.itemUpdated'), type: 'success' });
+      if (weightChanged) {
+        // Update weight in-place using RPC (preserves cart item order)
+        await updateCartItemWeight({
+          cart_item_id: editingItem.id,
+          new_weight_grams: newWeightGrams,
+          new_quantity: newQuantity,
+        }).unwrap();
+      } else {
+        // Just update quantity
+        await updateQuantity({
+          cart_item_id: editingItem.id,
+          quantity: newQuantity,
+        }).unwrap();
+      }
     } catch {
-      showToast({ message: t('common.error'), type: 'error' });
+      // Error handling without toast
     }
-  }, [editingItem, updateQuantity, showToast, t]);
+  }, [editingItem, updateCartItemWeight, updateQuantity, t]);
 
-  // Get available weight options for the editing item's product
-  const editingProductWeightOptions = useMemo((): WeightOption[] => {
-    if (!editingItem) return [];
-    const product = products.find((p) => p.id === editingItem.product_id);
-    if (!product?.weight_options) return [];
-    return product.weight_options
-      .filter((wo) => wo.is_available !== false)
-      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-  }, [editingItem, products]);
-
+  // #11: Swipe-to-delete with swipeable wrapper
   const renderItem = ({ item }: { item: ServerCartItem }) => {
-    const product = item.product;
-    const weightOption = item.weight_option;
-    const imgSource = product?.image_url
-      ? resolveImageSource(product.image_url, null)
+    // Fiori Object Cell: 44x44 thumbnails, request 88x88 for 2x retina
+    const imgSource = item.product_image_url
+      ? resolveImageSource(item.product_image_url, null, { width: 88, height: 88, quality: 60 })
       : null;
-    const itemPrice = weightOption?.price_paise ?? 0;
 
     return (
-      <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
-        <View style={[styles.cartItem, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level1]}>
-          <View style={styles.thumbnailContainer}>
-            {imgSource ? (
-              <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
-            ) : (
-              <LinearGradient
-                colors={appGradients.brand as unknown as [string, string]}
-                style={styles.thumbnail}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <MaterialCommunityIcons name="leaf" size={20} color="rgba(255,255,255,0.8)" />
-              </LinearGradient>
-            )}
+      <Swipeable
+        ref={(ref) => {
+          if (ref) swipeableRefs.current.set(item.id, ref);
+          else swipeableRefs.current.delete(item.id);
+        }}
+        renderRightActions={() => renderRightActions(item)}
+        overshootRight={false}
+        friction={2}
+      >
+        <AnimatedPressable onPress={() => setEditingItem(item)} scaleDown={0.98}>
+          <View style={[styles.cartItem, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level1]}>
+            <View style={styles.thumbnailContainer}>
+              {imgSource ? (
+                <Image source={imgSource} style={styles.thumbnail} contentFit="cover" />
+              ) : (
+                <LinearGradient
+                  colors={appGradients.brand as unknown as [string, string]}
+                  style={styles.thumbnail}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <MaterialCommunityIcons name="leaf" size={20} color="rgba(255,255,255,0.8)" />
+                </LinearGradient>
+              )}
+            </View>
+            <View style={styles.itemInfo}>
+              <Text variant="titleSmall" style={[styles.itemName, { color: appColors.text.primary }]}>
+                {isGujarati && item.product_name_gu ? item.product_name_gu : item.product_name}
+              </Text>
+              <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>
+                {formatWeight(item.weight_grams, { label: item.weight_label })}
+              </Text>
+              <Text variant="titleSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>
+                {formatPrice(item.unit_price_paise)}
+              </Text>
+            </View>
+            <View style={styles.rightSection}>
+              <IconButton
+                icon="delete-outline"
+                iconColor={appColors.negative}
+                size={18}
+                onPress={() => handleRemove(item.id)}
+                style={styles.deleteBtn}
+                disabled={isRemoving}
+                accessibilityLabel={t('accessibility.removeItem')}
+              />
+              <StepperControl
+                value={item.quantity}
+                onValueChange={(newQty) => handleQuantityChange(item.id, newQty)}
+                min={1}
+                max={99}
+              />
+            </View>
           </View>
-          <View style={styles.itemInfo}>
-            <Text variant="titleSmall" style={[styles.itemName, { color: appColors.text.primary }]}>
-              {isGujarati && product?.name_gu ? product.name_gu : product?.name}
-            </Text>
-            <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>
-              {formatWeight(weightOption?.weight_grams ?? 0, weightOption?.weight_label)}
-            </Text>
-            <Text variant="titleSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>
-              {formatPrice(itemPrice)}
-            </Text>
-          </View>
-          <View style={styles.rightSection}>
-            <IconButton
-              icon="delete-outline"
-              iconColor={appColors.negative}
-              size={18}
-              onPress={() => handleRemove(item.id)}
-              style={styles.deleteBtn}
-              disabled={isRemoving}
-            />
-            <StepperControl
-              value={item.quantity}
-              onValueChange={(newQty) => handleQuantityChange(item.id, newQty)}
-              min={1}
-              max={99}
-            />
-          </View>
-        </View>
-      </AnimatedPressable>
+        </AnimatedPressable>
+      </Swipeable>
     );
   };
 
@@ -212,15 +244,10 @@ export default function CartScreen() {
           />
         }
       />
-      <LinearGradient
-        colors={[appColors.surface + '00', appColors.surface]}
-        style={styles.footerGradient}
-        pointerEvents="none"
-      />
       <View style={[styles.footer, { backgroundColor: appColors.surface, borderTopColor: appColors.border }, elevation.level3]}>
         <View style={styles.totalRow}>
           <Text variant="titleMedium" style={[styles.totalLabel, { color: appColors.text.primary }]}>{t('cart.total')}</Text>
-          <PriceText paise={total} variant="headlineSmall" />
+          <Text style={[styles.totalValue, { color: appColors.text.primary }]}>{formatPrice(total)}</Text>
         </View>
         <AppButton
           variant="primary"
@@ -233,7 +260,6 @@ export default function CartScreen() {
       </View>
       <EditCartItemSheet
         item={editingItem}
-        weightOptions={editingProductWeightOptions}
         onDismiss={handleDismissSheet}
         onUpdate={handleUpdateItem}
       />
@@ -247,14 +273,19 @@ const styles = StyleSheet.create({
   listContent: { padding: spacing.lg, paddingBottom: 140 },
   cartItem: { borderRadius: borderRadius.lg, padding: spacing.lg, flexDirection: 'row', marginBottom: 12, borderWidth: 1 },
   thumbnailContainer: { marginRight: spacing.sm },
-  thumbnail: { width: 50, height: 50, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  // Fiori Object Cell: 44x44 image with 8pt radius
+  thumbnail: { width: 44, height: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   itemInfo: { flex: 1 },
   itemName: { fontFamily: fontFamily.regular, marginBottom: spacing.xs },
   itemWeight: { marginBottom: spacing.xs },
   rightSection: { alignItems: 'flex-end' },
   deleteBtn: { margin: 0, marginBottom: spacing.xs },
-  footerGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 30, zIndex: 1 },
   footer: { padding: spacing.lg, borderTopWidth: 1 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   totalLabel: { fontFamily: fontFamily.semiBold },
+  totalValue: { fontSize: 20, fontFamily: fontFamily.bold },
+  // #11: Swipe action styles
+  swipeActionsRight: { flexDirection: 'row', marginBottom: 12 },
+  swipeAction: { width: 72, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.sm },
+  swipeActionText: { color: '#fff', fontSize: 11, marginTop: 4, fontFamily: fontFamily.semiBold },
 });

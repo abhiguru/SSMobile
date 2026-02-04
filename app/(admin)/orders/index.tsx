@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -9,12 +9,13 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersQuery } from '../../../src/store/apiSlice';
 import { formatPrice, getOrderStatusColor } from '../../../src/constants';
-import { spacing, borderRadius, elevation, fontFamily, fontSize } from '../../../src/constants/theme';
+import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { Order } from '../../../src/types';
 import { StatusBadge } from '../../../src/components/common/StatusBadge';
 import { AnimatedPressable } from '../../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../../src/components/common/SkeletonLoader';
+import { FioriChip } from '../../../src/components/common/FioriChip';
 
 const STATUS_FILTERS = [
   'all', 'placed', 'confirmed', 'out_for_delivery',
@@ -51,16 +52,6 @@ export default function AdminOrdersScreen() {
   const { appColors } = useAppTheme();
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
   const [activeFilter, setActiveFilter] = useState<string>('all');
-
-  const PILL_COLORS: Record<string, { bg: string; text: string }> = {
-    all: { bg: appColors.brand, text: appColors.text.inverse },
-    placed: { bg: appColors.criticalLight, text: appColors.critical },
-    confirmed: { bg: appColors.informativeLight, text: appColors.informative },
-    out_for_delivery: { bg: appColors.informativeLight, text: appColors.informative },
-    delivered: { bg: appColors.positiveLight, text: appColors.positive },
-    cancelled: { bg: appColors.negativeLight, text: appColors.negative },
-    delivery_failed: { bg: appColors.negativeLight, text: appColors.negative },
-  };
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: orders.length };
@@ -107,50 +98,47 @@ export default function AdminOrdersScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: appColors.shell }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll} contentContainerStyle={styles.pillRow}>
-        {STATUS_FILTERS.map((filter) => {
-          const isActive = activeFilter === filter;
-          const count = statusCounts[filter] || 0;
-          const pillColor = PILL_COLORS[filter];
-          return (
-            <Pressable
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
-              style={({ pressed }) => [
-                styles.pill,
-                isActive
-                  ? { backgroundColor: pressed ? appColors.brandDark : pillColor.bg }
-                  : { backgroundColor: pressed ? appColors.neutralLight : appColors.fieldBackground },
-              ]}
-            >
-              <Text style={[styles.pillLabel, { color: isActive ? pillColor.text : appColors.text.secondary }]}>
-                {t(FILTER_LABEL_KEYS[filter])}
-              </Text>
-              {count > 0 && (
-                <View
-                  style={[
-                    styles.pillCount,
-                    { backgroundColor: isActive ? pillColor.text : appColors.neutralLight },
-                  ]}
-                >
-                  <Text style={[styles.pillCountText, { color: isActive ? appColors.text.inverse : appColors.text.secondary }]}>
-                    {count}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
+        {STATUS_FILTERS.map((filter) => (
+          <FioriChip
+            key={filter}
+            label={t(FILTER_LABEL_KEYS[filter])}
+            selected={activeFilter === filter}
+            count={statusCounts[filter] || 0}
+            onPress={() => setActiveFilter(filter)}
+          />
+        ))}
       </ScrollView>
       <View style={styles.listWrapper}>
-        <FlashList
-          data={filteredOrders}
-          renderItem={renderOrder}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshing={isFetching}
-          onRefresh={refetch}
-        />
+        {filteredOrders.length === 0 && !isLoading ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="package-variant-closed" size={64} color={appColors.neutral} />
+            <Text variant="titleMedium" style={[styles.emptyTitle, { color: appColors.text.primary }]}>
+              {activeFilter === 'all' ? t('admin.noOrdersTitle') : t('admin.noOrdersFilterTitle')}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.emptySubtitle, { color: appColors.text.secondary }]}>
+              {activeFilter === 'all' ? t('admin.noOrdersSubtitle') : t('admin.noOrdersFilterSubtitle')}
+            </Text>
+            {activeFilter !== 'all' && (
+              <Text
+                variant="labelLarge"
+                style={[styles.clearFilters, { color: appColors.brand }]}
+                onPress={() => setActiveFilter('all')}
+              >
+                {t('admin.clearFilters')}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <FlashList
+            data={filteredOrders}
+            renderItem={renderOrder}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshing={isFetching}
+            onRefresh={refetch}
+          />
+        )}
       </View>
     </View>
   );
@@ -158,33 +146,9 @@ export default function AdminOrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pillScroll: { flexGrow: 0 },
+  filterScroll: { flexGrow: 0 },
   listWrapper: { flex: 1 },
-  pillRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 32,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.pill,
-    gap: spacing.xs,
-  },
-  pillLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fontFamily.semiBold,
-  },
-  pillCount: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xs,
-  },
-  pillCountText: {
-    fontSize: 10,
-    fontFamily: fontFamily.bold,
-  },
+  filterRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
   listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg },
   orderCard: { flexDirection: 'row', borderRadius: borderRadius.lg, marginBottom: spacing.md, overflow: 'hidden', borderWidth: 1, ...elevation.level2 },
   statusStripe: { width: 4 },
@@ -194,4 +158,8 @@ const styles = StyleSheet.create({
   orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, paddingTop: spacing.md },
   orderPrice: { fontFamily: fontFamily.bold },
   skeletonCardLayout: { borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.md },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl },
+  emptyTitle: { fontFamily: fontFamily.semiBold, marginTop: spacing.lg, textAlign: 'center' },
+  emptySubtitle: { marginTop: spacing.sm, textAlign: 'center' },
+  clearFilters: { marginTop: spacing.lg, fontFamily: fontFamily.semiBold },
 });

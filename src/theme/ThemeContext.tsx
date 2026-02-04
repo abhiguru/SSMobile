@@ -46,7 +46,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({ mode, setMode, isDark, theme }), [mode, setMode, isDark, theme]);
 
-  if (!loaded) return null;
+  // Return default theme while loading to prevent flash/flicker
+  // Previously returned null which caused a blank screen during async load
+  if (!loaded) {
+    return (
+      <ThemeModeContext.Provider value={{ mode: 'system', setMode: () => {}, isDark: systemScheme === 'dark', theme: systemScheme === 'dark' ? darkPaperTheme : lightPaperTheme }}>
+        {children}
+      </ThemeModeContext.Provider>
+    );
+  }
 
   return (
     <ThemeModeContext.Provider value={value}>

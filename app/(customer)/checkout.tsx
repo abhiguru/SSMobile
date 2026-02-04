@@ -1,13 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-  LayoutChangeEvent,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,18 +14,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Text,
   TextInput,
-  Card,
-  RadioButton,
   Divider,
-  IconButton,
   ActivityIndicator,
 } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 
 import { useAppDispatch, useAppSelector } from '../../src/store';
 import { selectSelectedAddressId, setSelectedAddress } from '../../src/store/slices/addressesSlice';
@@ -45,23 +35,13 @@ import { Address } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriChip } from '../../src/components/common/FioriChip';
 import { SectionHeader } from '../../src/components/common/SectionHeader';
-import { KeyValueRow } from '../../src/components/common/KeyValueRow';
 import { useToast } from '../../src/components/common/Toast';
 import { Toolbar } from '../../src/components/common/Toolbar';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { hapticSuccess, hapticError } from '../../src/utils/haptics';
+import { formatWeight } from '../../src/utils/formatters';
 
-const SCROLL_OFFSET = 100;
-const STEP_SIZE = 40;
-
-function formatWeight(grams: number, label?: string): string {
-  if (label) return label;
-  if (grams >= 1000) {
-    const kg = grams / 1000;
-    return Number.isInteger(kg) ? `${kg} kg` : `${kg.toFixed(1)} kg`;
-  }
-  return `${grams}g`;
-}
+const NOTES_MAX_LENGTH = 200; // #17: Character limit for order notes
 
 export default function CheckoutScreen() {
   const { t, i18n } = useTranslation();
@@ -75,12 +55,9 @@ export default function CheckoutScreen() {
   const { data: items = [], isLoading: cartLoading } = useGetCartQuery();
   const [clearServerCart] = useClearServerCartMutation();
 
-  // Calculate subtotal from server cart
+  // Calculate subtotal from server cart (use line_total_paise from RPC)
   const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const price = item.weight_option?.price_paise ?? 0;
-      return sum + price * item.quantity;
-    }, 0);
+    return items.reduce((sum, item) => sum + item.line_total_paise, 0);
   }, [items]);
 
   const selectedAddressId = useAppSelector(selectSelectedAddressId);
@@ -91,82 +68,23 @@ export default function CheckoutScreen() {
   const [createOrder, { isLoading: ordersLoading }] = useCreateOrderMutation();
 
   const [notes, setNotes] = useState('');
-  const [currentStep, setCurrentStep] = useState(0);
-  const sectionYPositions = useRef<number[]>([0, 0, 0]);
+  const [notesExpanded, setNotesExpanded] = useState(false); // Notes collapsed by default
 
-  const STEPS = [
-    { label: t('checkout.step_address'), icon: 'map-marker-outline' as const },
-    { label: t('checkout.step_review'), icon: 'clipboard-text-outline' as const },
-    { label: t('checkout.step_confirm'), icon: 'check-circle-outline' as const },
-  ];
-
-  // Step indicator animations (explicit calls to avoid hooks-in-loop)
-  const s0 = useSharedValue(1);
-  const s1 = useSharedValue(1);
-  const s2 = useSharedValue(1);
-  const stepScales = [s0, s1, s2];
-  const sa0 = useAnimatedStyle(() => ({ transform: [{ scale: s0.value }] }));
-  const sa1 = useAnimatedStyle(() => ({ transform: [{ scale: s1.value }] }));
-  const sa2 = useAnimatedStyle(() => ({ transform: [{ scale: s2.value }] }));
-  const stepAnimStyles = [sa0, sa1, sa2];
-
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y + SCROLL_OFFSET;
-    const positions = sectionYPositions.current;
-    let newStep = 0;
-    if (y >= positions[2] && positions[2] > 0) newStep = 2;
-    else if (y >= positions[1] && positions[1] > 0) newStep = 1;
-
-    if (newStep !== currentStep) {
-      setCurrentStep(newStep);
-      stepScales[newStep].value = withSpring(1.2, { damping: 8, stiffness: 400 });
-      setTimeout(() => {
-        stepScales[newStep].value = withSpring(1, { damping: 10, stiffness: 300 });
-      }, 200);
-    }
-  }, [currentStep, stepScales]);
-
-  const handleSectionLayout = (index: number) => (e: LayoutChangeEvent) => {
-    sectionYPositions.current[index] = e.nativeEvent.layout.y;
+  // Navigate to address list to change address
+  const handleChangeAddress = () => {
+    router.push('/(customer)/addresses');
   };
 
-  const StepIndicator = () => (
-    <View style={[styles.stepContainer, { backgroundColor: appColors.surface }, elevation.level2]}>
-      {STEPS.map((step, index) => {
-        const isActive = index <= currentStep;
-        const isCurrent = index === currentStep;
-        const isCompleted = index < currentStep;
-        const circleColor = isCurrent ? appColors.brand : isCompleted ? appColors.positive : appColors.neutralLight;
-        const iconColor = isActive ? appColors.text.inverse : appColors.neutral;
-        return (
-          <View key={index} style={styles.stepWrapper}>
-            {index > 0 && (
-              <View style={[styles.stepLine, { backgroundColor: isActive ? appColors.positive : appColors.neutralLight }]} />
-            )}
-            <Animated.View style={[styles.stepCircle, { backgroundColor: circleColor }, stepAnimStyles[index]]}>
-              {isCompleted ? (
-                <MaterialCommunityIcons name="check" size={20} color={iconColor} />
-              ) : (
-                <MaterialCommunityIcons name={step.icon} size={20} color={iconColor} />
-              )}
-            </Animated.View>
-            <Text
-              variant="labelSmall"
-              style={[styles.stepLabel, { color: appColors.neutral }, isActive && { color: appColors.brand, fontFamily: fontFamily.semiBold }]}
-              accessibilityRole="header"
-            >
-              {step.label}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-  const shippingCharge = calculateShipping(subtotal, appSettings);
-  const total = subtotal + shippingCharge;
-  const minOrderMet = subtotal >= appSettings.min_order_paise;
+  const { selectedAddress, shippingCharge, total, minOrderMet } = useMemo(() => {
+    const addr = addresses.find((a) => a.id === selectedAddressId);
+    const shipping = calculateShipping(subtotal, appSettings);
+    return {
+      selectedAddress: addr,
+      shippingCharge: shipping,
+      total: subtotal + shipping,
+      minOrderMet: subtotal >= appSettings.min_order_paise,
+    };
+  }, [addresses, selectedAddressId, subtotal, appSettings]);
 
   useEffect(() => {
     if (!selectedAddressId && addresses.length > 0) {
@@ -175,7 +93,6 @@ export default function CheckoutScreen() {
     }
   }, [addresses, selectedAddressId, dispatch]);
 
-  const handleSelectAddress = (address: Address) => { dispatch(setSelectedAddress(address.id)); };
   const handleAddAddress = () => {
     if (!user?.name?.trim()) {
       showToast({ message: t('addresses.errors.nameRequired'), type: 'error' });
@@ -184,7 +101,6 @@ export default function CheckoutScreen() {
     }
     router.push('/(customer)/addresses/new');
   };
-  const handleEditAddress = (id: string) => { router.push(`/(customer)/addresses/${id}`); };
 
   const handlePlaceOrder = async () => {
     console.log('[checkout] handlePlaceOrder called');
@@ -212,10 +128,10 @@ export default function CheckoutScreen() {
       return;
     }
 
-    // Build order items from server cart (use weight_grams from weight_option for backend compatibility)
+    // Build order items from server cart (use weight_grams from flat structure)
     const orderItems = items.map((item) => ({
       product_id: item.product_id,
-      weight_grams: item.weight_option?.weight_grams ?? 0,
+      weight_grams: item.weight_grams,
       quantity: item.quantity,
     }));
 
@@ -252,109 +168,63 @@ export default function CheckoutScreen() {
     return <View style={[styles.centered, { backgroundColor: appColors.shell }]}><ActivityIndicator size="large" color={appColors.brand} /></View>;
   }
 
+  // No addresses: show empty state prompting to add address
+  if (addresses.length === 0) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: appColors.shell }]}>
+        <EmptyState
+          icon="map-marker-off"
+          title={t('addresses.empty')}
+          subtitle={t('checkout.noSavedAddresses')}
+          actionLabel={t('checkout.addAddress')}
+          onAction={handleAddAddress}
+        />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={[styles.root, { backgroundColor: appColors.shell }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         style={[styles.container, { backgroundColor: appColors.shell }]}
         contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={100}
       >
-        <StepIndicator />
+        {/* Selected Address Summary (1-line, tappable to change) */}
+        {selectedAddress && (
+          <Pressable
+            onPress={handleChangeAddress}
+            style={[styles.addressSummaryCard, { backgroundColor: appColors.surface, borderColor: appColors.border }, elevation.level1]}
+          >
+            <View style={styles.addressSummaryContent}>
+              <MaterialCommunityIcons name="map-marker" size={18} color={appColors.brand} />
+              <Text variant="bodyMedium" style={[styles.addressSummaryText, { color: appColors.text.primary }]} numberOfLines={1}>
+                {selectedAddress.label || selectedAddress.full_name}, {selectedAddress.address_line1}, {selectedAddress.city} - {selectedAddress.pincode}
+              </Text>
+            </View>
+            <View style={styles.addressSummaryAction}>
+              <Text variant="labelSmall" style={{ color: appColors.brand }}>{t('common.change')}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color={appColors.brand} />
+            </View>
+          </Pressable>
+        )}
 
-        {/* ── Address Section ────────────────────────────────────── */}
-        <View style={[styles.card, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(0)}>
-          <SectionHeader title={t('checkout.deliveryAddress')} actionLabel={t('checkout.addNew')} onAction={handleAddAddress} style={{ paddingHorizontal: 0 }} />
-          {addresses.length === 0 ? (
-            <EmptyState
-              icon="map-marker-off"
-              title={t('addresses.empty')}
-              subtitle={t('checkout.noSavedAddresses')}
-              actionLabel={t('checkout.addAddress')}
-              onAction={handleAddAddress}
-            />
-          ) : (
-            <RadioButton.Group
-              value={selectedAddressId || ''}
-              onValueChange={(value) => { const addr = addresses.find((a) => a.id === value); if (addr) handleSelectAddress(addr); }}
-            >
-              {addresses.map((address) => (
-                <Card
-                  key={address.id}
-                  mode="outlined"
-                  style={[styles.addressCard, selectedAddressId === address.id && { borderColor: appColors.brand, borderWidth: 2, backgroundColor: appColors.brandTint, borderRadius: borderRadius.lg }]}
-                  onPress={() => handleSelectAddress(address)}
-                >
-                  <Card.Content style={styles.addressCardContent}>
-                    <RadioButton value={address.id} />
-                    <View style={styles.addressContent}>
-                      <View style={styles.addressHeader}>
-                        <View style={styles.addressLabelRow}>
-                          <Text variant="titleSmall">{address.label || address.full_name}</Text>
-                          {address.is_default && (
-                            <FioriChip label={t('addresses.default')} selected variant="positive" />
-                          )}
-                        </View>
-                        <IconButton
-                          icon="pencil-outline"
-                          size={18}
-                          iconColor={appColors.brand}
-                          style={styles.editBtn}
-                          onPress={() => handleEditAddress(address.id)}
-                          accessibilityLabel={t('common.edit')}
-                        />
-                      </View>
-                      <Text variant="bodySmall" style={[styles.addressName, { color: appColors.text.primary }]}>{address.full_name}</Text>
-                      <Text variant="bodySmall" style={[styles.addressLine, { color: appColors.text.secondary }]}>
-                        {address.address_line1}{address.address_line2 ? `, ${address.address_line2}` : ''}
-                      </Text>
-                      <Text variant="bodySmall" style={[styles.addressLine, { color: appColors.text.secondary }]}>
-                        {address.city}{address.state ? `, ${address.state}` : ''} - {address.pincode}
-                      </Text>
-                      <Text variant="bodySmall" style={[styles.addressPhone, { color: appColors.text.secondary }]}>{address.phone}</Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-              ))}
-            </RadioButton.Group>
-          )}
-        </View>
-
-        {/* ── Notes Section ──────────────────────────────────────── */}
-        <View style={[styles.card, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(1)}>
-          <SectionHeader title={t('checkout.orderNotes')} style={{ paddingHorizontal: 0 }} />
-          <TextInput
-            mode="outlined"
-            placeholder={t('checkout.orderNotesPlaceholder')}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={3}
-            style={[styles.notesInput, { backgroundColor: appColors.surface }]}
-            contentStyle={styles.notesContent}
-            outlineColor={appColors.fieldBorder}
-            activeOutlineColor={appColors.brand}
-            outlineStyle={styles.notesOutline}
-          />
-        </View>
-
-        {/* ── Summary Section ────────────────────────────────────── */}
-        <View style={[styles.summaryCard, { backgroundColor: appColors.surface }, elevation.level2]} onLayout={handleSectionLayout(2)}>
+        {/* Order Summary */}
+        <View style={[styles.summaryCard, { backgroundColor: appColors.surface }, elevation.level2]}>
           <View style={styles.summaryBody}>
-            <SectionHeader title={`${t('checkout.orderSummary')} (${items.length})`} style={{ paddingHorizontal: 0 }} />
+            <SectionHeader
+              title={`${t('checkout.orderSummary')} (${items.length})`}
+              style={{ paddingHorizontal: 0 }}
+              actionLabel={t('common.edit')}
+              onAction={() => router.back()}
+            />
 
-            {/* ── Line Items ─────────────────────────────────────── */}
+            {/* Line Items */}
             {items.map((item, idx) => {
-              const itemPrice = item.weight_option?.price_paise ?? 0;
-              const weightLabel = formatWeight(
-                item.weight_option?.weight_grams ?? 0,
-                item.weight_option?.weight_label
-              );
               const isLast = idx === items.length - 1;
-              const imgSource = item.product?.image_url
-                ? resolveImageSource(item.product.image_url, null)
+              const imgSource = item.product_image_url
+                ? resolveImageSource(item.product_image_url, null)
                 : null;
-              const displayName = isGujarati && item.product?.name_gu ? item.product.name_gu : item.product?.name;
+              const displayName = isGujarati && item.product_name_gu ? item.product_name_gu : item.product_name;
               return (
                 <View key={item.id} style={[styles.orderItem, { borderBottomColor: appColors.border }, isLast && styles.orderItemLast]}>
                   <View style={styles.itemThumb}>
@@ -373,49 +243,102 @@ export default function CheckoutScreen() {
                   </View>
                   <View style={styles.itemInfo}>
                     <Text variant="bodyMedium" style={[styles.itemName, { color: appColors.text.primary }]} numberOfLines={1}>{displayName}</Text>
-                    <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>{weightLabel}</Text>
+                    <Text variant="bodySmall" style={[styles.itemWeight, { color: appColors.text.secondary }]}>{formatWeight(item.weight_grams, { label: item.weight_label })}</Text>
                   </View>
                   <View style={[styles.itemQtyBadge, { backgroundColor: appColors.informativeLight }]}>
                     <Text variant="labelSmall" style={[styles.itemQtyText, { color: appColors.informative }]}>x{item.quantity}</Text>
                   </View>
-                  <Text variant="bodyMedium" style={[styles.itemPrice, { color: appColors.text.primary }]}>{formatPrice(itemPrice * item.quantity)}</Text>
+                  <Text variant="bodyMedium" style={[styles.itemPrice, { color: appColors.text.primary }]}>{formatPrice(item.line_total_paise)}</Text>
                 </View>
               );
             })}
 
-            {/* ── Breakdown ──────────────────────────────────────── */}
+            {/* Breakdown - aligned with item prices */}
             <Divider style={styles.divider} />
-            <KeyValueRow label={t('checkout.subtotal')} value={formatPrice(subtotal)} />
-            <View style={styles.summaryRow}>
-              <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('checkout.shipping')}</Text>
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownLabel}>
+                <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('checkout.subtotal')}</Text>
+              </View>
+              <Text variant="bodyMedium" style={[styles.breakdownValue, { color: appColors.text.primary }]}>{formatPrice(subtotal)}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownLabel}>
+                <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('checkout.shipping')}</Text>
+              </View>
               {shippingCharge === 0 ? (
-                <View style={styles.freeShippingBadge}>
+                <View style={[styles.breakdownValue, styles.freeShippingBadge]}>
                   <MaterialCommunityIcons name="check-circle" size={14} color={appColors.positive} />
                   <Text variant="bodyMedium" style={{ color: appColors.positive, fontFamily: fontFamily.bold, marginLeft: spacing.xs }}>{t('checkout.free')}</Text>
                 </View>
               ) : (
-                <Text variant="bodyMedium" style={{ color: appColors.text.primary }}>{formatPrice(shippingCharge)}</Text>
+                <Text variant="bodyMedium" style={[styles.breakdownValue, { color: appColors.text.primary }]}>{formatPrice(shippingCharge)}</Text>
               )}
             </View>
 
-            {/* ── Min Order Warning ──────────────────────────────── */}
+            {/* Min Order Warning - Fiori Inline Validation (no background) */}
             {!minOrderMet && (
-              <View style={[styles.minOrderRow, { backgroundColor: appColors.negativeLight }]}>
+              <View style={styles.minOrderRow}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={16} color={appColors.negative} />
-                <Text variant="bodySmall" style={{ color: appColors.negative, marginLeft: spacing.sm }}>
+                <Text variant="bodySmall" style={{ color: appColors.negative, marginLeft: spacing.xs, flex: 1 }}>
                   {t('checkout.minOrderWarning', { amount: formatPrice(appSettings.min_order_paise) })}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* ── Total (full-bleed highlight) ──────────────────── */}
+          {/* Total (full-bleed highlight) */}
           <View style={[styles.totalHighlight, { backgroundColor: appColors.brandTint, borderTopColor: appColors.border }]}>
             <Text variant="titleMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>{t('cart.total')}</Text>
             <Text variant="headlineSmall" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(total)}</Text>
           </View>
         </View>
 
+        {/* Order Notes (Collapsible, default collapsed) */}
+        <View style={[styles.card, { backgroundColor: appColors.surface, padding: 0 }, elevation.level2]}>
+          <Pressable
+            onPress={() => setNotesExpanded(!notesExpanded)}
+            style={styles.notesHeader}
+          >
+            <View style={styles.notesHeaderLeft}>
+              <MaterialCommunityIcons name="note-text-outline" size={20} color={appColors.text.secondary} />
+              <Text variant="titleSmall" style={{ color: appColors.text.primary, marginLeft: spacing.sm }}>
+                {t('checkout.orderNotes')}
+              </Text>
+              {notes.length > 0 && (
+                <View style={{ marginLeft: spacing.sm }}>
+                  <FioriChip label={t('common.edit')} variant="informative" />
+                </View>
+              )}
+            </View>
+            <MaterialCommunityIcons
+              name={notesExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={appColors.text.secondary}
+            />
+          </Pressable>
+
+          {notesExpanded && (
+            <View style={styles.notesBody}>
+              <TextInput
+                mode="outlined"
+                placeholder={t('checkout.orderNotesPlaceholder')}
+                value={notes}
+                onChangeText={(text) => setNotes(text.slice(0, NOTES_MAX_LENGTH))}
+                multiline
+                numberOfLines={3}
+                maxLength={NOTES_MAX_LENGTH}
+                style={[styles.notesInput, { backgroundColor: appColors.surface }]}
+                contentStyle={styles.notesContent}
+                outlineColor={appColors.fieldBorder}
+                activeOutlineColor={appColors.brand}
+                outlineStyle={styles.notesOutline}
+              />
+              <Text variant="labelSmall" style={[styles.charCounter, { color: appColors.text.secondary }]}>
+                {notes.length}/{NOTES_MAX_LENGTH}
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
       <Toolbar>
         <View style={styles.toolbarInner}>
@@ -442,36 +365,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingTop: spacing.lg, paddingBottom: 100 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  // Step Indicator
-  stepContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    marginHorizontal: spacing.lg,
-    borderRadius: borderRadius.lg,
-  },
-  stepWrapper: { alignItems: 'center', flex: 1, position: 'relative' },
-  stepCircle: {
-    width: STEP_SIZE,
-    height: STEP_SIZE,
-    borderRadius: STEP_SIZE / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepLine: {
-    position: 'absolute',
-    top: STEP_SIZE / 2,
-    right: '50%',
-    left: undefined,
-    width: '100%',
-    height: 3,
-    zIndex: -1,
-  },
-  stepLabel: { marginTop: spacing.sm, textAlign: 'center' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Section Cards
   card: {
@@ -480,21 +374,13 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     borderRadius: borderRadius.lg,
   },
-  // Address Cards
-  addressCard: { marginBottom: spacing.sm, borderRadius: borderRadius.lg },
-  addressCardContent: { flexDirection: 'row', alignItems: 'flex-start' },
-  addressContent: { flex: 1, marginLeft: spacing.xs },
-  addressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  addressLabelRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  editBtn: { margin: 0 },
-  addressName: { marginBottom: spacing.xs },
-  addressLine: { lineHeight: 20 },
-  addressPhone: { marginTop: spacing.xs },
 
   // Notes
   notesInput: { minHeight: 88 },
   notesContent: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
   notesOutline: { borderRadius: borderRadius.md },
+  // #17: Character counter
+  charCounter: { textAlign: 'right', marginTop: spacing.xs },
 
   // Summary Card (split: body + total footer)
   summaryCard: {
@@ -517,7 +403,7 @@ const styles = StyleSheet.create({
   thumbImage: {
     width: 36,
     height: 36,
-    borderRadius: borderRadius.sm,
+    borderRadius: 8, // Fiori: 8pt for object images
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -537,15 +423,27 @@ const styles = StyleSheet.create({
   itemQtyText: { fontFamily: fontFamily.semiBold },
   itemPrice: { fontFamily: fontFamily.semiBold, minWidth: 64, textAlign: 'right' },
 
-  // Breakdown
+  // Breakdown (aligned with item prices)
   divider: { marginVertical: spacing.md },
-  summaryRow: {
+  breakdownRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    minHeight: 44, // Fiori Key-Value Cell min height
+    marginBottom: spacing.xs,
   },
-  freeShippingBadge: { flexDirection: 'row', alignItems: 'center' },
+  breakdownLabel: {
+    flex: 1,
+  },
+  breakdownValue: {
+    minWidth: 64,
+    textAlign: 'right',
+    fontFamily: fontFamily.semiBold,
+  },
+  freeShippingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
 
   // Total (full-bleed footer)
   totalHighlight: {
@@ -557,17 +455,56 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
 
-  // Validation
+  // Validation - Fiori Inline Validation (no background)
   minOrderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
     marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.sm,
   },
 
   // Toolbar
   toolbarInner: { flex: 1 },
+
+  // Address Summary
+  addressSummaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  addressSummaryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  addressSummaryText: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  addressSummaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  // Collapsible Notes
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  notesHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notesBody: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
 });

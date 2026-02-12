@@ -389,9 +389,9 @@ export const apiSlice = createApi({
             console.log('[Favorites:getFavorites] RPC returned', ids.length, 'ids');
             return { data: ids };
           }
-          // 401/403 likely means not authenticated yet - return empty rather than error
-          if (response.status === 401 || response.status === 403) {
-            console.log('[Favorites:getFavorites] not authenticated, returning empty');
+          // 401/403 not authenticated, 404 RPC not deployed yet - return empty
+          if (response.status === 401 || response.status === 403 || response.status === 404) {
+            console.log('[Favorites:getFavorites] returning empty for status:', response.status);
             return { data: [] };
           }
           console.log('[Favorites:getFavorites] RPC error:', response.status);
@@ -1053,12 +1053,16 @@ export const apiSlice = createApi({
 
     getCartSummary: builder.query<CartSummary, void>({
       queryFn: async () => {
-        const response = await authenticatedFetch('/rest/v1/rpc/get_cart_summary', {
-          method: 'POST',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          return { data };
+        try {
+          const response = await authenticatedFetch('/rest/v1/rpc/get_cart_summary', {
+            method: 'POST',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            return { data };
+          }
+        } catch {
+          // Not authenticated yet — return empty cart
         }
         return { data: { item_count: 0, subtotal_paise: 0 } };
       },
@@ -1070,6 +1074,13 @@ export const apiSlice = createApi({
       query: () => ({
         url: '/functions/v1/app-settings',
       }),
+      transformResponse: (response: unknown) => {
+        // Edge function wraps settings in { settings: {...} }
+        if (response && typeof response === 'object' && 'settings' in response) {
+          return (response as { settings: AppSettings }).settings;
+        }
+        return response as AppSettings;
+      },
       providesTags: ['AppSettings'],
     }),
 
@@ -1320,6 +1331,7 @@ const injectedApi = apiSlice.injectEndpoints({
         console.log('[Favorites:toggleFavorite] onQueryStarted — optimistic patch for:', productId);
         const patchResult = dispatch(
           apiSlice.util.updateQueryData('getFavorites', undefined, (draft) => {
+            if (!draft) return;
             const idx = draft.indexOf(productId);
             if (idx >= 0) {
               console.log('[Favorites:toggleFavorite] optimistic REMOVE from cache');

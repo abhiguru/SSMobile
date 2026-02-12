@@ -33,8 +33,8 @@ export function useDeliveryLocation(): UseDeliveryLocationReturn {
   // Check permissions on mount
   useEffect(() => {
     const checkPerms = async () => {
-      const perms = await checkLocationPermissions();
-      if (perms.foreground) {
+      const hasPermission = await checkLocationPermissions();
+      if (hasPermission) {
         setPermissionStatus('granted');
       } else {
         // Check if we've ever asked
@@ -43,11 +43,11 @@ export function useDeliveryLocation(): UseDeliveryLocationReturn {
       }
 
       // Check if already tracking
-      const tracking = await isLocationTrackingActive();
+      const tracking = isLocationTrackingActive();
       setIsTracking(tracking);
 
       // Get current location if we have permission
-      if (perms.foreground) {
+      if (hasPermission) {
         const loc = await getCurrentLocation();
         if (loc) {
           setCurrentLocation({
@@ -92,20 +92,15 @@ export function useDeliveryLocation(): UseDeliveryLocationReturn {
     };
   }, [sendLocation]);
 
-  const requestPermissions = useCallback(async (): Promise<boolean> => {
-    const perms = await requestLocationPermissions();
-    if (perms.foreground) {
-      setPermissionStatus('granted');
-      return true;
-    } else {
-      setPermissionStatus('denied');
-      return false;
-    }
+  const requestPermissionsFn = useCallback(async (): Promise<boolean> => {
+    const granted = await requestLocationPermissions();
+    setPermissionStatus(granted ? 'granted' : 'denied');
+    return granted;
   }, []);
 
   const startTrackingFn = useCallback(async (): Promise<boolean> => {
     if (permissionStatus !== 'granted') {
-      const granted = await requestPermissions();
+      const granted = await requestPermissionsFn();
       if (!granted) return false;
     }
 
@@ -134,7 +129,7 @@ export function useDeliveryLocation(): UseDeliveryLocationReturn {
       }
     }
     return success;
-  }, [permissionStatus, requestPermissions, sendLocation]);
+  }, [permissionStatus, requestPermissionsFn, sendLocation]);
 
   const stopTrackingFn = useCallback(async (): Promise<void> => {
     await stopLocationTracking();
@@ -147,6 +142,6 @@ export function useDeliveryLocation(): UseDeliveryLocationReturn {
     permissionStatus,
     startTracking: startTrackingFn,
     stopTracking: stopTrackingFn,
-    requestPermissions,
+    requestPermissions: requestPermissionsFn,
   };
 }

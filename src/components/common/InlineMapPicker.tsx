@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Alert, Linking, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, Linking, Platform, Keyboard } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -27,11 +27,13 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
   const mapRef = useRef<MapView>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emittedCoords = useRef<{ lat: number; lng: number } | null>(null);
+  const initialRenderRef = useRef(true);
 
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [resolvedDetails, setResolvedDetails] = useState<PlaceDetails | null>(null);
   const [isFetchingGps, setIsFetchingGps] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const centerLat = lat ?? DEFAULT_MAP_CENTER.latitude;
   const centerLng = lng ?? DEFAULT_MAP_CENTER.longitude;
@@ -71,6 +73,10 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
 
   const handleRegionChangeComplete = useCallback(
     (r: Region) => {
+      if (initialRenderRef.current) {
+        initialRenderRef.current = false;
+        return;
+      }
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => geocodeCenter(r), DEBOUNCE_MS);
     },
@@ -90,6 +96,7 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
   }, [resolvedDetails, applied, onUseAddress, onClearAddress]);
 
   const handleGpsPress = useCallback(async () => {
+    initialRenderRef.current = false;
     setIsFetchingGps(true);
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
@@ -134,6 +141,15 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
 
   return (
     <View style={styles.wrapper}>
+      {!expanded ? (
+        <Pressable
+          style={[styles.collapseButton, { borderColor: appColors.fieldBorder, backgroundColor: appColors.fieldBackground }]}
+          onPress={() => { Keyboard.dismiss(); setApplied(false); setResolvedDetails(null); setExpanded(true); }}
+        >
+          <MaterialCommunityIcons name="map-marker-outline" size={20} color={appColors.brand} />
+          <Text style={[styles.collapseText, { color: appColors.brand }]}>{t('addresses.pinOnMap')}</Text>
+        </Pressable>
+      ) : (
       <View style={[styles.mapContainer, { borderColor: appColors.fieldBackground }]}>
         <MapView
           ref={mapRef}
@@ -160,6 +176,15 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
             style={styles.pinIcon}
           />
         </View>
+
+        {/* Collapse map button */}
+        <Pressable
+          onPress={() => setExpanded(false)}
+          style={[styles.collapseMapButton, { backgroundColor: appColors.surface, ...elevation.level3 }]}
+        >
+          <MaterialCommunityIcons name="chevron-up" size={16} color={appColors.brand} />
+          <Text style={[styles.collapseMapText, { color: appColors.brand }]}>{t('addresses.collapseMap')}</Text>
+        </Pressable>
 
         {/* GPS FAB */}
         <Pressable
@@ -200,6 +225,7 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
           </Pressable>
         )}
       </View>
+      )}
     </View>
   );
 }
@@ -207,6 +233,35 @@ export function InlineMapPicker({ lat, lng, onUseAddress, onClearAddress }: Inli
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
+  },
+  collapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  collapseText: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: fontSize.body,
+  },
+  collapseMapButton: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+  },
+  collapseMapText: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: fontSize.sm,
   },
   mapContainer: {
     height: MAP_HEIGHT,

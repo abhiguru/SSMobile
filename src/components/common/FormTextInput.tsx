@@ -26,6 +26,8 @@ interface FormTextInputProps<T extends FieldValues> {
   style?: StyleProp<ViewStyle>;
   /** @deprecated Accepted for backward compat but ignored */
   mode?: string;
+  onChangeText?: (text: string) => void;
+  onFocus?: () => void;
 }
 
 const VALIDATION_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
@@ -51,6 +53,8 @@ export function FormTextInput<T extends FieldValues>({
   maxLength,
   style: _containerStyle,
   mode: _mode,
+  onChangeText: externalOnChangeText,
+  onFocus: externalOnFocus,
 }: FormTextInputProps<T>) {
   const [focused, setFocused] = useState(false);
   const { appColors } = useAppTheme();
@@ -92,9 +96,9 @@ export function FormTextInput<T extends FieldValues>({
             >
               <TextInput
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text: string) => { onChange(text); externalOnChangeText?.(text); }}
                 onBlur={() => { onBlur(); setFocused(false); }}
-                onFocus={() => setFocused(true)}
+                onFocus={() => { setFocused(true); externalOnFocus?.(); }}
                 placeholder={placeholder}
                 placeholderTextColor={appColors.text.secondary}
                 secureTextEntry={secureTextEntry}

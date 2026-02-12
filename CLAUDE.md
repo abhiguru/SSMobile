@@ -174,6 +174,14 @@ Handle these error responses from backend:
 - `CHECKOUT_002` - Pincode not serviceable
 - `DELIVERY_001` - Wrong delivery OTP
 
+## Backend Notes
+
+**Favorites RPCs** — After adding new DB functions, PostgREST (`masala-rest`) needs a schema cache reload (`SIGUSR1` or container restart) for them to become available through Kong. If RPCs return 404 for authenticated users but the functions exist in the DB, this is likely the cause. The client gracefully handles missing RPCs (returns empty arrays, undoes optimistic updates).
+
+## Do Not Touch Backend
+
+Do not restart, modify, or debug backend containers or database directly. Note issues here for the backend team instead.
+
 ## Configuration
 
 Before running, update these values in `src/constants/index.ts`:

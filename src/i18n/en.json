@@ -207,6 +207,8 @@
     "locationPermissionTitle": "Location Permission Required",
     "locationPermissionMessage": "Please enable location access in Settings to use this feature.",
     "openSettings": "Open Settings",
+    "pinOnMap": "Pin it on the map",
+    "collapseMap": "Collapse map",
     "fetchingLocation": "Getting your location...",
     "errors": {
       "fullNameRequired": "Full name is required",
@@ -217,7 +219,7 @@
       "pincodeRequired": "Pincode is required",
       "pincodeInvalid": "Please enter a valid 6-digit pincode",
       "saveFailed": "Failed to save address. Please try again.",
-      "nameRequired": "Please set your name in Profile before adding an address."
+      "nameRequired": "Please enter your name."
     }
   },
   "admin": {

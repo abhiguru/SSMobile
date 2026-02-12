@@ -1,12 +1,13 @@
-import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Keyboard, TextInput, findNodeHandle, UIManager } from 'react-native';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
-import { useAddAddressMutation, useGetAppSettingsQuery } from '../../../src/store/apiSlice';
+import { useAddAddressMutation, useGetAppSettingsQuery, useUpdateProfileMutation } from '../../../src/store/apiSlice';
 import { useAppSelector } from '../../../src/store';
 import { DEFAULT_APP_SETTINGS, isPincodeServiceable } from '../../../src/constants';
 import { spacing } from '../../../src/constants/theme';
@@ -25,21 +26,67 @@ export default function NewAddressScreen() {
   const { appColors } = useAppTheme();
   const { data: appSettings = DEFAULT_APP_SETTINGS } = useGetAppSettingsQuery();
   const [addAddress, { isLoading }] = useAddAddressMutation();
+  const [updateProfile] = useUpdateProfileMutation();
   const user = useAppSelector((state) => state.auth.user);
+  const needsName = !user?.name?.trim();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [mapKey, setMapKey] = useState(0);
 
-  const { control, handleSubmit, setError, setValue, watch } = useForm<AddressFormData>({
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      const focused = TextInput.State.currentlyFocusedInput();
+      if (!focused || !scrollViewRef.current) return;
+      const scrollNodeHandle = findNodeHandle(scrollViewRef.current);
+      if (!scrollNodeHandle) return;
+      UIManager.measureLayout(
+        findNodeHandle(focused)!,
+        scrollNodeHandle,
+        () => {},
+        (_x, y) => {
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+        },
+      );
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+
+  const labelTouchedRef = useRef(false);
+  const nameTouchedRef = useRef(false);
+
+  const { control, handleSubmit, setError, setValue, watch, reset } = useForm<AddressFormData>({
     resolver: yupResolver(addressSchema),
     defaultValues: { label: '', full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false, lat: null, lng: null, formatted_address: null },
   });
+
+  useFocusEffect(useCallback(() => {
+    reset();
+    labelTouchedRef.current = false;
+    nameTouchedRef.current = false;
+    setMapKey((k) => k + 1);
+  }, [reset]));
 
   const onSubmit = async (data: AddressFormData) => {
     console.log('[NewAddress] onSubmit called, data:', JSON.stringify(data));
     if (!isPincodeServiceable(data.pincode, appSettings)) { setError('pincode', { message: t('checkout.pincodeNotServiceable') }); return; }
     const fullName = data.full_name?.trim() || user?.name?.trim() || '';
-    const phone = data.phone?.trim() || user?.phone || '';
+    if (!fullName) { setError('full_name', { message: t('addresses.validation.nameRequired') }); return; }
+    let phone = data.phone?.trim() || user?.phone || '';
+    if (phone && !phone.startsWith('+')) {
+      phone = `+91${phone.replace(/\D/g, '').slice(-10)}`;
+    }
     const payload = { label: data.label?.trim() || undefined, full_name: fullName, phone, address_line1: data.address_line1.trim(), address_line2: data.address_line2?.trim() || undefined, city: data.city.trim(), state: data.state?.trim() || undefined, pincode: data.pincode.trim(), is_default: data.is_default, lat: data.lat ?? null, lng: data.lng ?? null, formatted_address: data.formatted_address ?? null };
     console.log('[NewAddress] API payload:', JSON.stringify(payload));
     try {
+      // If user had no name, save it to their profile too
+      if (needsName && fullName) {
+        updateProfile({ name: fullName }).catch(() => {});
+      }
       const result = await addAddress(payload).unwrap();
       console.log('[NewAddress] addAddress success:', JSON.stringify(result));
       router.back();
@@ -49,11 +96,14 @@ export default function NewAddressScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}>
-      <ScrollView style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
+      <ScrollView ref={scrollViewRef} style={[styles.container, { backgroundColor: appColors.shell }]} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + keyboardHeight }]}>
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
-          <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />
+          <FormTextInput control={control} name="label" mode="outlined" label={t('addresses.label')} placeholder={t('addresses.labelPlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} onChangeText={(text: string) => { labelTouchedRef.current = true; if (!nameTouchedRef.current) setValue('full_name', text); }} />
+          <FormTextInput control={control} name="full_name" mode="outlined" label={needsName ? `${t('addresses.fullName')} *` : t('addresses.fullName')} placeholder={t('addresses.fullNamePlaceholder')} style={[styles.input, { backgroundColor: appColors.surface }]} onChangeText={(text: string) => { nameTouchedRef.current = true; if (!labelTouchedRef.current) setValue('label', text); }} />
+          <FormTextInput control={control} name="phone" mode="outlined" label={t('addresses.phone')} placeholder={t('addresses.phonePlaceholder')} keyboardType="phone-pad" style={[styles.input, { backgroundColor: appColors.surface }]} />
           <InlineMapPicker
+            key={mapKey}
             lat={watch('lat')}
             lng={watch('lng')}
             onUseAddress={(details) => {
@@ -93,6 +143,16 @@ export default function NewAddressScreen() {
               }}
               label={`${t('checkout.addressLine1')} *`}
               placeholder={t('addresses.addressLine1Placeholder')}
+              onClear={watch('lat') != null ? () => {
+                onChange('');
+                setValue('address_line2', '');
+                setValue('city', '');
+                setValue('state', '');
+                setValue('pincode', '');
+                setValue('lat', null);
+                setValue('lng', null);
+                setValue('formatted_address', null);
+              } : undefined}
             />
           )} />
           <FormTextInput control={control} name="address_line2" mode="outlined" label={t('checkout.addressLine2')} placeholder={t('addresses.addressLine2Placeholder')} style={[styles.input, { backgroundColor: appColors.surface }]} />

@@ -25,6 +25,7 @@ interface PlacesAutocompleteProps {
   onPlaceSelected: (details: PlaceDetails) => void;
   placeholder?: string;
   label?: string;
+  onClear?: () => void;
 }
 
 interface Prediction {
@@ -43,7 +44,7 @@ const MAX_RESULTS = 5;
 const PLACES_AUTOCOMPLETE_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 const PLACES_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
 
-export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder, label }: PlacesAutocompleteProps) {
+export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, placeholder, label, onClear }: PlacesAutocompleteProps) {
   const { t } = useTranslation();
   const { appColors } = useAppTheme();
 
@@ -171,21 +172,26 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
 
   const rightIcon = isFetchingDetails || isSearching
     ? <TextInput.Icon icon={() => <ActivityIndicator size={16} color={appColors.brand} />} />
+    : onClear && value
+    ? <TextInput.Icon icon="close-circle" onPress={onClear} color={appColors.text.secondary} />
     : undefined;
 
   return (
     <View style={styles.container}>
+      {label && (
+        <Text style={[styles.externalLabel, { color: appColors.text.secondary }]}>{label}</Text>
+      )}
       <TextInput
         value={value}
         onChangeText={handleTextChange}
-        label={label}
         placeholder={placeholder}
         mode="outlined"
-        style={{ backgroundColor: appColors.surface }}
+        style={{ backgroundColor: appColors.surface, paddingTop: 4 }}
         right={rightIcon}
         outlineColor={appColors.border}
         activeOutlineColor={appColors.brand}
-        dense
+        multiline
+        numberOfLines={2}
         autoCorrect={false}
       />
       {showSuggestions && (
@@ -227,6 +233,13 @@ export function PlacesAutocomplete({ value, onChangeText, onPlaceSelected, place
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.sm,
+  },
+  externalLabel: {
+    fontSize: fontSize.label,
+    fontFamily: fontFamily.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
   },
   suggestions: {
     borderRadius: borderRadius.md,

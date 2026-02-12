@@ -7,7 +7,6 @@ import { Card, Text, Button, FAB } from 'react-native-paper';
 
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useGetAddressesQuery, useDeleteAddressMutation, useSetDefaultAddressMutation } from '../../../src/store/apiSlice';
-import { useAppSelector } from '../../../src/store';
 import { Address } from '../../../src/types';
 
 // #30: Icon mapping for address labels
@@ -39,13 +38,8 @@ export default function AddressesScreen() {
   const [setDefaultAddress] = useSetDefaultAddressMutation();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const user = useAppSelector((state) => state.auth.user);
 
   const handleAddAddress = () => {
-    if (!user?.name?.trim()) {
-      router.push('/(customer)/profile');
-      return;
-    }
     router.push('/(customer)/addresses/new');
   };
   const handleEditAddress = (id: string) => { router.push(`/(customer)/addresses/${id}`); };

@@ -476,7 +476,6 @@ export default function UsersScreen() {
         await updateRole(payload).unwrap();
         closeSheet();
       } catch (err: unknown) {
-        // Extract error code from response
         const errorCode = (err as { data?: string })?.data ?? '';
         setFormError(getErrorMessage(errorCode));
       }
@@ -926,6 +925,18 @@ export default function UsersScreen() {
               </AppButton>
             </View>
           </View>
+
+          <FioriDialog
+            visible={dialog !== null}
+            onDismiss={() => setDialog(null)}
+            title={dialog?.title ?? ''}
+            actions={[
+              { label: t('common.cancel'), onPress: () => setDialog(null), variant: 'text' },
+              { label: dialog?.confirmLabel ?? t('common.confirm'), onPress: () => dialog?.onConfirm(), variant: dialog?.variant ?? 'primary' },
+            ]}
+          >
+            <Text variant="bodyMedium">{dialog?.message}</Text>
+          </FioriDialog>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -1202,17 +1213,6 @@ export default function UsersScreen() {
         </View>
       </Modal>
 
-      <FioriDialog
-        visible={dialog !== null}
-        onDismiss={() => setDialog(null)}
-        title={dialog?.title ?? ''}
-        actions={[
-          { label: t('common.cancel'), onPress: () => setDialog(null), variant: 'text' },
-          { label: dialog?.confirmLabel ?? t('common.confirm'), onPress: () => dialog?.onConfirm(), variant: dialog?.variant ?? 'primary' },
-        ]}
-      >
-        <Text variant="bodyMedium">{dialog?.message}</Text>
-      </FioriDialog>
     </View>
   );
 }

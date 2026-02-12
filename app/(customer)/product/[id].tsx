@@ -150,14 +150,6 @@ export default function ProductDetailScreen() {
   // Determine if add button should be disabled
   const isAddDisabled = accumulatedGrams < 10 || isAddingToCart || !product?.is_available;
 
-  if (productLoading || !product) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={appColors.brand} />
-      </View>
-    );
-  }
-
   const carouselImages = useMemo(() => {
     if (productImages.length > 0) {
       return productImages.map((img) => ({
@@ -165,13 +157,14 @@ export default function ProductDetailScreen() {
         full: { uri: getProductImageUrl(img.storage_path) },
       }));
     }
+    if (!product) return [];
     const fallback = resolveImageSource(product.image_url, null, { width: 400, height: 400, quality: 75 });
     const fallbackFull = resolveImageSource(product.image_url);
     if (fallback && fallbackFull) {
       return [{ display: fallback, full: fallbackFull }];
     }
     return [];
-  }, [productImages, product.image_url]);
+  }, [productImages, product?.image_url]);
 
   const previewImages: PreviewImage[] = useMemo(
     () => carouselImages.map((img) => img.full),
@@ -183,6 +176,14 @@ export default function ProductDetailScreen() {
     const index = Math.round(offset / screenWidth);
     setActiveImageIndex(index);
   }, [screenWidth]);
+
+  if (productLoading || !product) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={appColors.brand} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: appColors.surface }]}>

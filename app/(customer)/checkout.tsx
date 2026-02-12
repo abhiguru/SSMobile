@@ -93,10 +93,6 @@ export default function CheckoutScreen() {
   }, [addresses, selectedAddressId, dispatch]);
 
   const handleAddAddress = () => {
-    if (!user?.name?.trim()) {
-      router.push('/(customer)/profile');
-      return;
-    }
     router.push('/(customer)/addresses/new');
   };
 
@@ -138,6 +134,8 @@ export default function CheckoutScreen() {
 
     const payload = { items: orderItems, address_id: selectedAddressId, notes: notes || undefined };
     console.log('[checkout] sending payload:', JSON.stringify(payload));
+    console.log('[checkout] address details:', JSON.stringify({ id: selectedAddress.id, full_name: selectedAddress.full_name, phone: selectedAddress.phone, pincode: selectedAddress.pincode, address_line1: selectedAddress.address_line1, city: selectedAddress.city }));
+    console.log('[checkout] user:', JSON.stringify({ id: user?.id, phone: user?.phone, name: user?.name }));
 
     try {
       const result = await createOrder(payload).unwrap();

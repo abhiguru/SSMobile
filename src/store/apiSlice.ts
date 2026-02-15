@@ -9,7 +9,7 @@ import {
   storeTokens,
   clearStoredTokens,
 } from '../services/supabase';
-import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest, ServerCartItem, AddToCartRequest, CartSummary, OrderSummary, OrderStatusHistoryEntry, ProfileWithAddresses, DeleteAddressResponse, FailureReason, DeliveryTrackingInfo, DeliveryLocationUpdate, UsersResponse, GetUsersParams } from '../types';
+import { Product, Category, Order, OrderStatus, Address, AdminAddress, AppSettings, User, UserRole, ProductImage, ConfirmImageResponse, DeliveryStaff, UpdateOrderItemsRequest, AccountDeletionRequest, ServerCartItem, AddToCartRequest, CartSummary, OrderSummary, OrderStatusHistoryEntry, ProfileWithAddresses, DeleteAddressResponse, FailureReason, DeliveryTrackingInfo, DeliveryLocationUpdate, UsersResponse, GetUsersParams, WeightOption } from '../types';
 import { API_BASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
@@ -83,7 +83,7 @@ export const apiSlice = createApi({
     getProducts: builder.query<Product[], { includeUnavailable?: boolean } | void>({
       query: (options) => {
         const includeUnavailable = options?.includeUnavailable ?? false;
-        const base = '/rest/v1/products?select=*&is_active=eq.true';
+        const base = '/rest/v1/products?select=*,weight_options(*)&is_active=eq.true';
         return {
           url: includeUnavailable
             ? base
@@ -97,7 +97,7 @@ export const apiSlice = createApi({
     // Get single product by ID - avoids N+1 query pattern
     getProductById: builder.query<Product | null, string>({
       query: (productId) => ({
-        url: `/rest/v1/products?id=eq.${productId}&select=*`,
+        url: `/rest/v1/products?id=eq.${productId}&select=*,weight_options(*)`,
       }),
       transformResponse: (response: Product[]) => response[0] || null,
       providesTags: (_result, _error, id) => [{ type: 'Products', id }],
@@ -126,7 +126,7 @@ export const apiSlice = createApi({
 
     updateProduct: builder.mutation<
       null,
-      { productId: string; updates: Partial<Pick<Product, 'name' | 'name_gu' | 'description' | 'description_gu' | 'price_per_kg_paise'>> }
+      { productId: string; updates: Partial<Pick<Product, 'name' | 'name_gu' | 'description' | 'description_gu' | 'price_per_kg_paise' | 'allow_mixed_weights'>> }
     >({
       query: ({ productId, updates }) => ({
         url: `/rest/v1/products?id=eq.${productId}`,
@@ -138,7 +138,7 @@ export const apiSlice = createApi({
 
     createProduct: builder.mutation<
       Product,
-      Pick<Product, 'name' | 'name_gu' | 'price_per_kg_paise' | 'category_id'> & { description?: string; description_gu?: string }
+      Pick<Product, 'name' | 'name_gu' | 'price_per_kg_paise' | 'category_id'> & { description?: string; description_gu?: string; allow_mixed_weights?: boolean }
     >({
       query: (body) => ({
         url: '/rest/v1/products',
@@ -157,6 +157,49 @@ export const apiSlice = createApi({
         method: 'PATCH',
         body: { is_active: false, is_available: false },
       }),
+      invalidatesTags: ['Products'],
+    }),
+
+    saveWeightOptions: builder.mutation<
+      null,
+      { productId: string; weightOptions: { weight_grams: number; label?: string; label_gu?: string; display_order: number; is_available: boolean }[] }
+    >({
+      queryFn: async ({ productId, weightOptions }) => {
+        try {
+          // Delete existing weight options for this product
+          const deleteResponse = await authenticatedFetch(
+            `/rest/v1/weight_options?product_id=eq.${productId}`,
+            { method: 'DELETE' }
+          );
+          if (!deleteResponse.ok && deleteResponse.status !== 204 && deleteResponse.status !== 404) {
+            return { error: { status: deleteResponse.status, data: 'Failed to clear existing weight options' } };
+          }
+
+          // Insert new weight options
+          if (weightOptions.length > 0) {
+            const rows = weightOptions.map((opt) => ({
+              product_id: productId,
+              ...opt,
+            }));
+            const insertResponse = await authenticatedFetch('/rest/v1/weight_options', {
+              method: 'POST',
+              body: JSON.stringify(rows),
+            });
+            if (!insertResponse.ok) {
+              return { error: { status: insertResponse.status, data: 'Failed to save weight options' } };
+            }
+          }
+
+          return { data: null };
+        } catch (error) {
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: error instanceof Error ? error.message : 'Failed to save weight options',
+            },
+          };
+        }
+      },
       invalidatesTags: ['Products'],
     }),
 
@@ -1403,6 +1446,7 @@ export const {
   useUpdateProductMutation,
   useCreateProductMutation,
   useDeactivateProductMutation,
+  useSaveWeightOptionsMutation,
   useGetProductImagesQuery,
   useUploadProductImageMutation,
   useDeleteProductImageMutation,

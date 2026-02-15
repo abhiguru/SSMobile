@@ -40,6 +40,19 @@ export interface AccountDeletionRequest {
   updated_at?: string;
 }
 
+// Weight option types
+export interface WeightOption {
+  id: string;
+  product_id: string;
+  weight_grams: number;
+  label: string | null;
+  label_gu: string | null;
+  display_order: number;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Product types
 export interface Product {
   id: string;
@@ -53,6 +66,8 @@ export interface Product {
   is_active?: boolean;
   display_order?: number;
   price_per_kg_paise: number;
+  allow_mixed_weights?: boolean;
+  weight_options?: WeightOption[];
 }
 
 export interface Category {

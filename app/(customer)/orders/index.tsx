@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useGetOrdersRpcQuery, useReorderMutation } from '../../../src/store/apiSlice';
+import { addNotificationListener } from '../../../src/services/notifications';
 import { hapticLight, hapticSuccess, hapticError } from '../../../src/utils/haptics';
 import { formatPrice, getOrderStatusColor } from '../../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
@@ -57,11 +58,39 @@ export default function OrdersScreen() {
   const router = useRouter();
   const { appColors } = useAppTheme();
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null);
+  // Poll every 10s to keep status bars current (push notifications unavailable in Expo Go)
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersRpcQuery(
-    statusFilter ? { status: statusFilter } : undefined
+    statusFilter ? { status: statusFilter } : undefined,
+    { pollingInterval: 10_000, refetchOnMountOrArgChange: true }
   );
   const [reorder, { isLoading: isReordering }] = useReorderMutation();
   const [reorderingOrderId, setReorderingOrderId] = useState<string | null>(null);
+
+  // Refetch immediately when a foreground notification arrives
+  useEffect(() => {
+    console.log('[OrdersScreen] registering notification listener');
+    const sub = addNotificationListener((notification) => {
+      const data = notification.request.content.data as Record<string, string> | undefined;
+      console.log('[OrdersScreen:notification] received — title:', notification.request.content.title);
+      console.log('[OrdersScreen:notification] data:', JSON.stringify(data));
+      console.log('[OrdersScreen:notification] current orders count:', orders.length, 'statuses:', orders.map((o) => `${o.order_number}:${o.status}`).join(', '));
+      console.log('[OrdersScreen:notification] calling refetch()...');
+      refetch()
+        .then((result) => {
+          console.log('[OrdersScreen:notification] refetch completed — status:', result.status);
+          if (result.data) {
+            console.log('[OrdersScreen:notification] new orders count:', result.data.length, 'statuses:', result.data.map((o: OrderSummary) => `${o.order_number}:${o.status}`).join(', '));
+          }
+        })
+        .catch((err) => {
+          console.log('[OrdersScreen:notification] refetch error:', err);
+        });
+    });
+    return () => {
+      console.log('[OrdersScreen] removing notification listener');
+      sub.remove();
+    };
+  }, [refetch, orders]);
 
   // #3: One-tap reorder handler
   const handleReorder = useCallback(async (orderId: string) => {

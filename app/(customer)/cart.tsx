@@ -1,7 +1,7 @@
-import { useCallback, useState, useMemo, useRef } from 'react';
+import { useCallback, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { View, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text, IconButton, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
@@ -15,6 +15,7 @@ import { AppButton } from '../../src/components/common/AppButton';
 import { StepperControl } from '../../src/components/common/StepperControl';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { EditCartItemSheet } from '../../src/components/common/EditCartItemSheet';
+import { FioriDialog } from '../../src/components/common/FioriDialog';
 
 import {
   useGetCartQuery,
@@ -22,6 +23,7 @@ import {
   useRemoveFromCartMutation,
   useUpdateCartItemWeightMutation,
   useToggleFavoriteMutation,
+  useClearServerCartMutation,
 } from '../../src/store/apiSlice';
 import { formatPrice, resolveImageSource } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
@@ -41,8 +43,41 @@ export default function CartScreen() {
   const [removeItem, { isLoading: isRemoving }] = useRemoveFromCartMutation();
   const [updateCartItemWeight] = useUpdateCartItemWeightMutation();
   const [toggleFavorite] = useToggleFavoriteMutation();
+  const [clearServerCart, { isLoading: isClearing }] = useClearServerCartMutation();
 
   const [editingItem, setEditingItem] = useState<ServerCartItem | null>(null);
+  const [clearDialogVisible, setClearDialogVisible] = useState(false);
+  const navigation = useNavigation();
+
+  const handleClearCart = useCallback(async () => {
+    setClearDialogVisible(false);
+    hapticMedium();
+    try {
+      await clearServerCart().unwrap();
+    } catch {
+      // Error handling without toast
+    }
+  }, [clearServerCart]);
+
+  useLayoutEffect(() => {
+    if (items.length > 0) {
+      navigation.setOptions({
+        headerRight: () => (
+          <IconButton
+            icon="delete-sweep-outline"
+            iconColor={appColors.negative}
+            size={22}
+            onPress={() => setClearDialogVisible(true)}
+            disabled={isClearing}
+            accessibilityLabel={t('cart.clearCart')}
+            style={{ marginRight: 4 }}
+          />
+        ),
+      });
+    } else {
+      navigation.setOptions({ headerRight: () => null });
+    }
+  }, [navigation, items.length, appColors, isClearing, t]);
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
   // Calculate total from cart items (use line_total_paise from RPC)
@@ -263,6 +298,19 @@ export default function CartScreen() {
         onDismiss={handleDismissSheet}
         onUpdate={handleUpdateItem}
       />
+      <FioriDialog
+        visible={clearDialogVisible}
+        onDismiss={() => setClearDialogVisible(false)}
+        title={t('cart.clearCartConfirmTitle')}
+        actions={[
+          { label: t('common.cancel'), onPress: () => setClearDialogVisible(false), variant: 'text' },
+          { label: t('cart.clearCart'), onPress: handleClearCart, variant: 'danger' },
+        ]}
+      >
+        <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>
+          {t('cart.clearCartConfirmMessage')}
+        </Text>
+      </FioriDialog>
     </View>
   );
 }

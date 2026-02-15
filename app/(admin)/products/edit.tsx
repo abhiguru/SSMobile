@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Text, TextInput, Switch } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
@@ -17,11 +17,14 @@ import {
   useUpdateProductMutation,
   useCreateProductMutation,
   useDeactivateProductMutation,
+  useSaveWeightOptionsMutation,
   useGetCategoriesQuery,
   useGetProductImagesQuery,
 } from '../../../src/store/apiSlice';
 import { getStoredTokens } from '../../../src/services/supabase';
 import { formatPrice, getProductImageUrl, SUPABASE_ANON_KEY } from '../../../src/constants';
+import { formatWeight } from '../../../src/utils/formatters';
+import { FioriChip } from '../../../src/components/common/FioriChip';
 import { spacing, borderRadius, elevation, fontFamily } from '../../../src/constants/theme';
 import { useAppTheme } from '../../../src/theme/useAppTheme';
 import { AppButton } from '../../../src/components/common/AppButton';
@@ -57,6 +60,7 @@ export default function EditProductScreen() {
   const [updateProduct, { isLoading: saving }] = useUpdateProductMutation();
   const [createProduct, { isLoading: creating }] = useCreateProductMutation();
   const [deactivateProduct, { isLoading: deactivating }] = useDeactivateProductMutation();
+  const [saveWeightOptions] = useSaveWeightOptionsMutation();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -69,6 +73,13 @@ export default function EditProductScreen() {
   const [imageUploading, setImageUploading] = useState(false);
   const handleUploadingChange = useCallback((v: boolean) => setImageUploading(v), []);
 
+  // Weight options state
+  const WEIGHT_PRESETS = [50, 100, 200, 500, 1000];
+  const [selectedWeights, setSelectedWeights] = useState<number[]>([]);
+  const [customWeights, setCustomWeights] = useState<number[]>([]);
+  const [customWeightInput, setCustomWeightInput] = useState('');
+  const [allowMixedWeights, setAllowMixedWeights] = useState(true);
+
   useEffect(() => {
     if (product) {
       setName(product.name);
@@ -76,6 +87,23 @@ export default function EditProductScreen() {
       setDescription(product.description ?? '');
       setDescriptionGu(product.description_gu ?? '');
       setPriceRupees((product.price_per_kg_paise / 100).toFixed(2));
+
+      setAllowMixedWeights(product.allow_mixed_weights ?? true);
+
+      // Initialize weight options from product data
+      const presets: number[] = [];
+      const custom: number[] = [];
+      if (product.weight_options && product.weight_options.length > 0) {
+        for (const wo of product.weight_options) {
+          if (WEIGHT_PRESETS.includes(wo.weight_grams)) {
+            presets.push(wo.weight_grams);
+          } else {
+            custom.push(wo.weight_grams);
+          }
+        }
+      }
+      setSelectedWeights(presets);
+      setCustomWeights(custom.sort((a, b) => a - b));
     }
   }, [product]);
 
@@ -120,20 +148,32 @@ export default function EditProductScreen() {
 
   const handleSave = async () => {
     const pricePaise = Math.round(parseFloat(priceRupees) * 100);
+    const weightOpts = [...selectedWeights, ...customWeights]
+      .sort((a, b) => a - b)
+      .map((grams, i) => ({
+        weight_grams: grams,
+        display_order: i,
+        is_available: true,
+      }));
+
     try {
       if (isCreateMode) {
         const defaultCategoryId = categories[0]?.id;
         if (!defaultCategoryId) {
           return;
         }
-        await createProduct({
+        const newProduct = await createProduct({
           name,
           name_gu: nameGu,
           description: description || undefined,
           description_gu: descriptionGu || undefined,
           price_per_kg_paise: pricePaise,
           category_id: defaultCategoryId,
+          allow_mixed_weights: allowMixedWeights,
         }).unwrap();
+        if (weightOpts.length > 0) {
+          await saveWeightOptions({ productId: newProduct.id, weightOptions: weightOpts }).unwrap();
+        }
         router.back();
       } else {
         if (!product) return;
@@ -145,8 +185,10 @@ export default function EditProductScreen() {
             description: description || undefined,
             description_gu: descriptionGu || undefined,
             price_per_kg_paise: isNaN(pricePaise) ? product.price_per_kg_paise : pricePaise,
+            allow_mixed_weights: allowMixedWeights,
           },
         }).unwrap();
+        await saveWeightOptions({ productId: product.id, weightOptions: weightOpts }).unwrap();
         router.back();
       }
     } catch {
@@ -167,7 +209,8 @@ export default function EditProductScreen() {
 
   // Validation
   const step0Valid = name.trim().length > 0 && nameGu.trim().length > 0;
-  const step1Valid = !isNaN(parseFloat(priceRupees)) && parseFloat(priceRupees) > 0;
+  const allWeights = [...selectedWeights, ...customWeights];
+  const step1Valid = !isNaN(parseFloat(priceRupees)) && parseFloat(priceRupees) > 0 && allWeights.length > 0;
 
   if (!isCreateMode && !product) return null;
 
@@ -291,6 +334,92 @@ export default function EditProductScreen() {
               outlineColor={appColors.border}
               activeOutlineColor={appColors.brand}
             />
+
+            {/* Weight Options */}
+            <Text variant="labelLarge" style={[styles.weightSectionLabel, { color: appColors.text.primary }]}>
+              {t('admin.weightOptionsLabel')}
+            </Text>
+            <View style={styles.weightChipsRow}>
+              {WEIGHT_PRESETS.map((grams) => {
+                const isSelected = selectedWeights.includes(grams);
+                return (
+                  <FioriChip
+                    key={grams}
+                    label={formatWeight(grams)}
+                    selected={isSelected}
+                    showCheckmark
+                    onPress={() => {
+                      setSelectedWeights((prev) =>
+                        isSelected ? prev.filter((g) => g !== grams) : [...prev, grams]
+                      );
+                    }}
+                  />
+                );
+              })}
+            </View>
+
+            {/* Custom weights */}
+            <View style={styles.customWeightRow}>
+              <TextInput
+                label={t('admin.customWeightGrams')}
+                value={customWeightInput}
+                onChangeText={setCustomWeightInput}
+                mode="outlined"
+                keyboardType="numeric"
+                style={[styles.customWeightInput, { backgroundColor: appColors.surface }]}
+                outlineColor={appColors.border}
+                activeOutlineColor={appColors.brand}
+              />
+              <AppButton
+                variant="outline"
+                size="md"
+                onPress={() => {
+                  const grams = parseInt(customWeightInput, 10);
+                  if (grams > 0 && !selectedWeights.includes(grams) && !customWeights.includes(grams)) {
+                    setCustomWeights((prev) => [...prev, grams].sort((a, b) => a - b));
+                    setCustomWeightInput('');
+                  }
+                }}
+                disabled={!customWeightInput || parseInt(customWeightInput, 10) <= 0}
+              >
+                {t('admin.addWeight')}
+              </AppButton>
+            </View>
+            {customWeights.length > 0 && (
+              <View style={styles.weightChipsRow}>
+                {customWeights.map((grams) => (
+                  <FioriChip
+                    key={grams}
+                    label={formatWeight(grams)}
+                    selected
+                    showCheckmark={false}
+                    onPress={() => setCustomWeights((prev) => prev.filter((g) => g !== grams))}
+                  />
+                ))}
+              </View>
+            )}
+            {/* Allow Mixed Weights toggle */}
+            <View style={styles.mixedWeightsRow}>
+              <View style={styles.mixedWeightsText}>
+                <Text variant="labelLarge" style={[styles.weightSectionLabel, { color: appColors.text.primary, marginBottom: 0 }]}>
+                  {t('admin.allowMixedWeights')}
+                </Text>
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>
+                  {t('admin.allowMixedWeightsHint')}
+                </Text>
+              </View>
+              <Switch
+                value={allowMixedWeights}
+                onValueChange={setAllowMixedWeights}
+                color={appColors.brand}
+              />
+            </View>
+
+            {allWeights.length === 0 && (
+              <Text variant="bodySmall" style={{ color: appColors.negative, marginTop: spacing.xs }}>
+                {t('admin.atLeastOneWeight')}
+              </Text>
+            )}
           </View>
         )}
 
@@ -329,11 +458,25 @@ export default function EditProductScreen() {
             <ReviewRow label={t('admin.descriptionGu')} value={descriptionGu || '—'} appColors={appColors} />
             <ReviewRow
               label={t('admin.pricePerKg')}
-              isLast
               appColors={appColors}
               value={
                 !isNaN(parseFloat(priceRupees))
                   ? formatPrice(Math.round(parseFloat(priceRupees) * 100))
+                  : '—'
+              }
+            />
+            <ReviewRow
+              label={t('admin.allowMixedWeights')}
+              value={allowMixedWeights ? t('common.yes', 'Yes') : t('common.no', 'No')}
+              appColors={appColors}
+            />
+            <ReviewRow
+              label={t('admin.weightOptionsLabel')}
+              isLast
+              appColors={appColors}
+              value={
+                allWeights.length > 0
+                  ? allWeights.sort((a, b) => a - b).map((g) => formatWeight(g)).join(', ')
                   : '—'
               }
             />
@@ -472,6 +615,36 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: spacing.md,
+  },
+  weightSectionLabel: {
+    fontFamily: fontFamily.semiBold,
+    marginBottom: spacing.sm,
+  },
+  weightChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  customWeightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  customWeightInput: {
+    flex: 1,
+  },
+  mixedWeightsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  mixedWeightsText: {
+    flex: 1,
+    marginRight: spacing.md,
   },
 
   // Review

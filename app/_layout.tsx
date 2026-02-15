@@ -92,12 +92,33 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     // Foreground: invalidate order caches so lists and detail screens auto-refresh
     const notificationSub = addNotificationListener((notification) => {
       const data = notification.request.content.data as Record<string, string> | undefined;
-      if (data?.type === 'order_update' || data?.type === 'new_order' || data?.type === 'delivery_assignment') {
+      console.log('[Notification:foreground] received — title:', notification.request.content.title);
+      console.log('[Notification:foreground] data:', JSON.stringify(data));
+
+      if (!data) {
+        console.log('[Notification:foreground] no data payload, skipping invalidation');
+        return;
+      }
+
+      // Invalidate on any order-related notification type, or any notification with an order_id
+      const isOrderRelated =
+        data.type === 'order_update' ||
+        data.type === 'order_status_update' ||
+        data.type === 'new_order' ||
+        data.type === 'delivery_assignment' ||
+        !!data.order_id;
+
+      console.log('[Notification:foreground] type:', data.type, 'order_id:', data.order_id, 'isOrderRelated:', isOrderRelated);
+
+      if (isOrderRelated) {
         const tags: Array<{ type: 'Order'; id: string } | 'Orders'> = ['Orders'];
         if (data.order_id) {
           tags.push({ type: 'Order', id: data.order_id });
         }
+        console.log('[Notification:foreground] invalidating tags:', JSON.stringify(tags));
         dispatch(apiSlice.util.invalidateTags(tags));
+      } else {
+        console.log('[Notification:foreground] not order-related, no invalidation');
       }
     });
 

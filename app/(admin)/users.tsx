@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Text, TextInput, RadioButton } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import { FlashList } from '@shopify/flash-list';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeInUp } from 'react-native-reanimated';
@@ -61,8 +61,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'admin.roleAdmin',
   delivery_staff: 'admin.roleDeliveryStaff',
 };
-
-const ALL_ROLES: UserRole[] = ['customer', 'admin', 'delivery_staff'];
 
 // Role filter options (null means "all")
 type RoleFilter = UserRole | null;
@@ -208,7 +206,6 @@ export default function UsersScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState<UserRole>('customer');
   const [formActive, setFormActive] = useState(true);
   const [formError, setFormError] = useState('');
 
@@ -312,7 +309,6 @@ export default function UsersScreen() {
   const openEditSheet = useCallback((user: User) => {
     setSelectedUser(user);
     setFormName(user.name || '');
-    setFormRole(user.role || 'customer');
     setFormActive(user.is_active !== false);
     setFormError('');
     setSheetVisible(true);
@@ -448,55 +444,34 @@ export default function UsersScreen() {
     });
   }, [selectedUser, deleteAdminAddress, t]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!selectedUser) return;
 
-    const origRole = selectedUser.role || 'customer';
     const origName = selectedUser.name || '';
     const origActive = selectedUser.is_active !== false;
 
     const nameChanged = formName.trim() !== origName;
-    const roleChanged = formRole !== origRole;
     const activeChanged = formActive !== origActive;
 
-    if (!nameChanged && !roleChanged && !activeChanged) {
+    if (!nameChanged && !activeChanged) {
       closeSheet();
       return;
     }
 
-    const payload: { user_id: string; name?: string; role?: UserRole; is_active?: boolean } = {
+    const payload: { user_id: string; name?: string; is_active?: boolean } = {
       user_id: selectedUser.id,
     };
     if (nameChanged) payload.name = formName.trim();
-    if (roleChanged) payload.role = formRole;
     if (activeChanged) payload.is_active = formActive;
 
-    const doSave = async () => {
-      try {
-        await updateRole(payload).unwrap();
-        closeSheet();
-      } catch (err: unknown) {
-        const errorCode = (err as { data?: string })?.data ?? '';
-        setFormError(getErrorMessage(errorCode));
-      }
-    };
-
-    if (roleChanged) {
-      const roleName = t(ROLE_LABELS[formRole]);
-      setDialog({
-        title: t('admin.roleChangeConfirmTitle'),
-        message: t('admin.roleChangeConfirmMessage', {
-          name: selectedUser.name || selectedUser.phone || '',
-          role: roleName,
-        }),
-        confirmLabel: t('common.confirm'),
-        variant: 'primary',
-        onConfirm: () => { setDialog(null); doSave(); },
-      });
-    } else {
-      doSave();
+    try {
+      await updateRole(payload).unwrap();
+      closeSheet();
+    } catch (err: unknown) {
+      const errorCode = (err as { data?: string })?.data ?? '';
+      setFormError(getErrorMessage(errorCode));
     }
-  }, [selectedUser, formName, formRole, formActive, updateRole, closeSheet, t]);
+  }, [selectedUser, formName, formActive, updateRole, closeSheet, getErrorMessage]);
 
   const handleToggleActive = useCallback((user: User) => {
     const isActive = user.is_active !== false;
@@ -801,37 +776,6 @@ export default function UsersScreen() {
                   </View>
                 );
               })()}
-
-              {/* Role picker */}
-              <Text variant="bodySmall" style={[styles.fieldLabel, { color: appColors.text.secondary }]}>{t('admin.userRole')}</Text>
-              <View style={[styles.roleCard, { borderColor: appColors.border }]}>
-                <RadioButton.Group
-                  value={formRole}
-                  onValueChange={(v) => setFormRole(v as UserRole)}
-                >
-                  {ALL_ROLES.map((role, index) => {
-                    const badgeStyle = ROLE_BADGE_STYLES[role];
-                    return (
-                      <Pressable
-                        key={role}
-                        style={({ pressed }) => [
-                          styles.roleOption,
-                          pressed && { backgroundColor: appColors.pressedSurface },
-                          index < ALL_ROLES.length - 1 && [styles.roleOptionBorder, { borderBottomColor: appColors.border }],
-                        ]}
-                        onPress={() => setFormRole(role)}
-                      >
-                        <RadioButton value={role} color={appColors.brand} />
-                        <View style={[styles.roleOptionBadge, { backgroundColor: badgeStyle.bg }]}>
-                          <Text style={[styles.roleOptionText, { color: badgeStyle.text }]}>
-                            {t(ROLE_LABELS[role])}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </RadioButton.Group>
-              </View>
 
               {/* Active toggle */}
               <View style={styles.activeRow}>
@@ -1396,31 +1340,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   fieldInput: {},
-  // Fiori card for role options
-  roleCard: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-  },
-  roleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 44,
-    paddingVertical: spacing.xs,
-  },
-  roleOptionBorder: {
-    borderBottomWidth: 1,
-  },
-  roleOptionBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginLeft: spacing.sm,
-  },
-  roleOptionText: {
-    fontSize: fontSize.sm,
-    fontFamily: fontFamily.semiBold,
-  },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',

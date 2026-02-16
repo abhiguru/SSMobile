@@ -42,20 +42,7 @@ export default function DeliveryLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: t('delivery.mapView'),
-          tabBarLabel: t('delivery.mapView'),
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'map' : 'map-outline'}
-              color={color}
-              size={size}
-            />
-          ),
-        }}
-      />
+      <Tabs.Screen name="map" options={{ href: null }} />
       <Tabs.Screen
         name="history"
         options={{
@@ -70,7 +57,21 @@ export default function DeliveryLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="[id]" options={{ href: null }} />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: t('profile.title'),
+          tabBarLabel: t('profile.title'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'cog' : 'cog-outline'}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen name="[id]" options={{ href: null, title: t('delivery.deliveryDetails') }} />
     </Tabs>
   );
 }

@@ -58,10 +58,9 @@ export default function OrdersScreen() {
   const router = useRouter();
   const { appColors } = useAppTheme();
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null);
-  // Poll every 10s to keep status bars current (push notifications unavailable in Expo Go)
   const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersRpcQuery(
     statusFilter ? { status: statusFilter } : undefined,
-    { pollingInterval: 10_000, refetchOnMountOrArgChange: true }
+    { refetchOnMountOrArgChange: true }
   );
   const [reorder, { isLoading: isReordering }] = useReorderMutation();
   const [reorderingOrderId, setReorderingOrderId] = useState<string | null>(null);
@@ -166,7 +165,7 @@ export default function OrdersScreen() {
               <Text variant="titleMedium" style={{ color: appColors.brand, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
             </View>
 
-            {item.status === 'out_for_delivery' && item.delivery_otp && (
+            {item.delivery_otp && ['confirmed', 'out_for_delivery'].includes(item.status) && (
               <View style={[styles.otpContainer, { borderTopColor: appColors.border }]}>
                 <Text variant="bodySmall" style={[styles.otpLabel, { color: appColors.text.secondary }]}>{t('orders.deliveryOtp')}:</Text>
                 <Text variant="titleLarge" style={[styles.otpCode, { color: appColors.positive }]}>{item.delivery_otp}</Text>

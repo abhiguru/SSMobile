@@ -54,7 +54,7 @@ export default function OrderDetailScreen() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  const canCancel = order?.status === 'placed' || order?.status === 'confirmed';
+  const canCancel = order?.status === 'placed';
 
   const handleReorder = async () => {
     if (!id) return;
@@ -235,8 +235,8 @@ export default function OrderDetailScreen() {
         </View>
       )}
 
-      {/* Delivery OTP Card */}
-      {order.status === 'out_for_delivery' && order.delivery_otp && (
+      {/* Delivery OTP Card — shown from confirmed onwards so customer has it ready */}
+      {order.delivery_otp && ['confirmed', 'out_for_delivery'].includes(order.status) && (
         <Animated.View
           entering={FadeIn.duration(400)}
           style={[styles.otpCard, { backgroundColor: appColors.positiveLight, borderColor: appColors.positive }]}

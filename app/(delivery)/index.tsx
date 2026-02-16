@@ -1,14 +1,18 @@
+import { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, Divider } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { useGetOrdersQuery } from '../../src/store/apiSlice';
+import { useGetOrdersRpcQuery } from '../../src/store/apiSlice';
+import { addNotificationListener } from '../../src/services/notifications';
+import { selectIsAuthenticated } from '../../src/store/slices/authSlice';
+import { useAppSelector } from '../../src/store';
 import { formatPrice } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
-import { Order } from '../../src/types';
+import { OrderSummary } from '../../src/types';
 import { StatusBadge } from '../../src/components/common/StatusBadge';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
@@ -34,12 +38,21 @@ export default function DeliveryScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const { appColors } = theme;
-  const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
-  const activeDeliveries = orders.filter(
-    (o) => o.status === 'out_for_delivery'
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersRpcQuery(
+    { status: 'out_for_delivery' },
+    { pollingInterval: 10_000, refetchOnMountOrArgChange: true, skip: !isAuthenticated }
   );
 
-  const renderOrder = ({ item, index }: { item: Order; index: number }) => (
+  // Refetch immediately when a foreground notification arrives
+  useEffect(() => {
+    const sub = addNotificationListener(() => {
+      refetch();
+    });
+    return () => sub.remove();
+  }, [refetch]);
+
+  const renderOrder = ({ item, index }: { item: OrderSummary; index: number }) => (
     <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
       <AnimatedPressable
         onPress={() => router.push(`/(delivery)/${item.id}`)}
@@ -48,19 +61,11 @@ export default function DeliveryScreen() {
         <View style={[styles.statusStripe, { backgroundColor: appColors.informative }]} />
         <View style={styles.orderContent}>
           <View style={styles.orderHeader}>
-            <Text variant="titleSmall" style={[styles.orderId, { color: appColors.text.primary }]}>#{item.id.slice(0, 8)}</Text>
+            <Text variant="titleSmall" style={[styles.orderId, { color: appColors.text.primary }]}>#{item.order_number || item.id.slice(0, 8)}</Text>
             <StatusBadge status={item.status} />
           </View>
-          <Divider style={styles.divider} />
-          <View style={styles.addressRow}>
-            <Text variant="labelSmall" style={[styles.addressLabel, { color: appColors.neutral }]}>{t('delivery.deliverTo')}</Text>
-            <Text variant="bodyMedium" numberOfLines={2} style={{ color: appColors.text.primary }}>{item.delivery_address}</Text>
-          </View>
-          {item.delivery_pincode && (
-            <Text variant="bodySmall" style={[styles.pincode, { color: appColors.text.secondary }]}>{t('common.pincode')}: {item.delivery_pincode}</Text>
-          )}
           <View style={[styles.orderFooter, { borderTopColor: appColors.border }]}>
-            <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.items?.length ?? 0} items</Text>
+            <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.item_count} items</Text>
             <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
           </View>
         </View>
@@ -69,12 +74,12 @@ export default function DeliveryScreen() {
   );
 
   if (isLoading && orders.length === 0) return <DeliverySkeleton />;
-  if (activeDeliveries.length === 0) return <EmptyState icon="truck-check" title={t('delivery.noActiveDeliveries')} />;
+  if (orders.length === 0) return <EmptyState icon="truck-check" title={t('delivery.noActiveDeliveries')} />;
 
   return (
     <View style={[styles.container, { backgroundColor: appColors.shell }]}>
       <FlashList
-        data={activeDeliveries}
+        data={orders}
         renderItem={renderOrder}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -93,10 +98,6 @@ const styles = StyleSheet.create({
   orderContent: { flex: 1, padding: spacing.lg },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   orderId: { fontFamily: fontFamily.semiBold },
-  divider: { marginBottom: 12 },
-  addressRow: { marginBottom: spacing.sm },
-  addressLabel: { marginBottom: spacing.xs, textTransform: 'uppercase' },
-  pincode: { marginBottom: 12 },
-  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, paddingTop: 12 },
+  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, paddingTop: 12, marginTop: spacing.sm },
   skeletonCard: { borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: 12 },
 });

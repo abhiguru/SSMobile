@@ -18,6 +18,7 @@ import {
   useUpdateUserRoleMutation,
   useGetDeletionRequestsQuery,
   useProcessAccountDeletionMutation,
+  useAdminDeleteUserMutation,
 } from '../../src/store/apiSlice';
 import { User, UserRole, AdminAddress, GetUsersParams } from '../../src/types';
 import { AppButton } from '../../src/components/common/AppButton';
@@ -198,6 +199,7 @@ export default function UsersScreen() {
   const pendingDeletionUserIds = new Set(deletionRequests.map((r) => r.user_id));
   const [updateRole, { isLoading: isUpdatingRole }] = useUpdateUserRoleMutation();
   const [processAccountDeletion, { isLoading: isProcessingDeletion }] = useProcessAccountDeletionMutation();
+  const [adminDeleteUser, { isLoading: isDeletingUser }] = useAdminDeleteUserMutation();
   const [addAdminAddress, { isLoading: isAddingAddress }] = useAddAdminAddressMutation();
   const [updateAdminAddress, { isLoading: isUpdatingAddress }] = useUpdateAdminAddressMutation();
   const [deleteAdminAddress] = useDeleteAdminAddressMutation();
@@ -844,6 +846,42 @@ export default function UsersScreen() {
                 </View>
               )}
 
+              {/* Delete user */}
+              {selectedUser && selectedUser.role !== 'admin' && (
+                <View style={[styles.dangerZone, { borderTopColor: appColors.border }]}>
+                  <AppButton
+                    variant="danger"
+                    size="md"
+                    fullWidth
+                    icon="delete-outline"
+                    disabled={isDeletingUser}
+                    loading={isDeletingUser}
+                    onPress={() => {
+                      const displayName = selectedUser.name || selectedUser.phone || '';
+                      setDialog({
+                        title: t('admin.deleteUserConfirmTitle'),
+                        message: t('admin.deleteUserConfirmMessage', { name: displayName }),
+                        confirmLabel: t('admin.deleteUser'),
+                        variant: 'danger' as ButtonVariant,
+                        onConfirm: async () => {
+                          setDialog(null);
+                          try {
+                            await adminDeleteUser({ user_id: selectedUser.id }).unwrap();
+                            closeSheet();
+                          } catch (err: unknown) {
+                            const errorData = (err as { data?: string })?.data || '';
+                            const msg = mapDeleteErrorCode(errorData, t);
+                            setFormError(msg);
+                          }
+                        },
+                      });
+                    }}
+                  >
+                    {t('admin.deleteUser')}
+                  </AppButton>
+                </View>
+              )}
+
               {/* Error text */}
               {formError ? (
                 <Text variant="bodySmall" style={[styles.formError, { color: appColors.critical }]}>{formError}</Text>
@@ -1161,6 +1199,15 @@ export default function UsersScreen() {
   );
 }
 
+function mapDeleteErrorCode(code: string, t: (key: string) => string): string {
+  switch (code) {
+    case 'USER_NOT_FOUND': return t('admin.userNotFound');
+    case 'CANNOT_DELETE_ADMIN': return t('admin.cannotDeleteAdmin');
+    case 'STAFF_HAS_ACTIVE_DELIVERY': return t('admin.staffHasActiveDeliveryDelete');
+    default: return code || t('admin.deleteUserFailed');
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1397,6 +1444,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginHorizontal: spacing.lg,
     textAlign: 'center',
+  },
+  dangerZone: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
   },
   // Address multi-step indicator
   addrStepContainer: {

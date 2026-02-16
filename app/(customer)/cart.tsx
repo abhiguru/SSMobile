@@ -82,7 +82,7 @@ export default function CartScreen() {
 
   // Calculate total from cart items (use line_total_paise from RPC)
   const total = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.line_total_paise, 0);
+    return items.reduce((sum, item) => sum + (item.line_total_paise || 0), 0);
   }, [items]);
 
   const handleQuantityChange = useCallback(async (cartItemId: string, newQuantity: number) => {

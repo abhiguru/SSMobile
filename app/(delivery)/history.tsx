@@ -1,15 +1,19 @@
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native-paper';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { useGetOrdersQuery } from '../../src/store/apiSlice';
+import { useGetOrdersRpcQuery } from '../../src/store/apiSlice';
+import { selectIsAuthenticated } from '../../src/store/slices/authSlice';
+import { useAppSelector } from '../../src/store';
 import { formatPrice } from '../../src/constants';
 import { spacing, borderRadius, elevation, fontFamily } from '../../src/constants/theme';
-import { Order } from '../../src/types';
+import { OrderSummary } from '../../src/types';
 import { StatusBadge } from '../../src/components/common/StatusBadge';
 import { EmptyState } from '../../src/components/common/EmptyState';
+import { AnimatedPressable } from '../../src/components/common/AnimatedPressable';
 import { SkeletonBox, SkeletonText } from '../../src/components/common/SkeletonLoader';
 import { useAppTheme } from '../../src/theme/useAppTheme';
 
@@ -29,9 +33,14 @@ function HistorySkeleton() {
 
 export default function DeliveryHistoryScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const theme = useAppTheme();
   const { appColors } = theme;
-  const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersQuery();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const { data: orders = [], isLoading, isFetching, refetch } = useGetOrdersRpcQuery(
+    undefined,
+    { pollingInterval: 30_000, refetchOnMountOrArgChange: true, skip: !isAuthenticated }
+  );
   const history = orders.filter(
     (o) => o.status === 'delivered' || o.status === 'delivery_failed'
   );
@@ -41,25 +50,28 @@ export default function DeliveryHistoryScreen() {
     delivery_failed: appColors.negative,
   };
 
-  const renderOrder = ({ item, index }: { item: Order; index: number }) => {
+  const renderOrder = ({ item, index }: { item: OrderSummary; index: number }) => {
     const stripeColor = STATUS_STRIPE_COLORS[item.status] || appColors.positive;
 
     return (
       <Animated.View entering={FadeInUp.delay(index * 60).duration(400)}>
-        <View style={[styles.orderCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}>
+        <AnimatedPressable
+          onPress={() => router.push(`/(delivery)/${item.id}`)}
+          style={[styles.orderCard, { backgroundColor: appColors.surface, borderColor: appColors.border }]}
+        >
           <View style={[styles.statusStripe, { backgroundColor: stripeColor }]} />
           <View style={styles.orderContent}>
             <View style={styles.orderHeader}>
-              <Text variant="titleSmall" style={[styles.orderId, { color: appColors.text.primary }]}>#{item.id.slice(0, 8)}</Text>
+              <Text variant="titleSmall" style={[styles.orderId, { color: appColors.text.primary }]}>#{item.order_number || item.id.slice(0, 8)}</Text>
               <StatusBadge status={item.status} />
             </View>
             <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{new Date(item.created_at).toLocaleDateString()}</Text>
             <View style={styles.orderFooter}>
-              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.items?.length ?? 0} items</Text>
+              <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{item.item_count} items</Text>
               <Text variant="titleMedium" style={{ color: theme.colors.primary, fontFamily: fontFamily.bold }}>{formatPrice(item.total_paise)}</Text>
             </View>
           </View>
-        </View>
+        </AnimatedPressable>
       </Animated.View>
     );
   };

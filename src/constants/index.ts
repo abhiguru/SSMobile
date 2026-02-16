@@ -62,7 +62,8 @@ export const toGujaratiNumerals = (num: number | string): string => {
 
 // Format price from paise to rupee string
 export const formatPrice = (paise: number, useGujarati?: boolean): string => {
-  const rupees = paise / PAISE_PER_RUPEE;
+  const safePaise = Number.isFinite(paise) ? paise : 0;
+  const rupees = safePaise / PAISE_PER_RUPEE;
   const formatted = rupees.toFixed(2);
   return `₹${useGujarati ? toGujaratiNumerals(formatted) : formatted}`;
 };

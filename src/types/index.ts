@@ -212,6 +212,8 @@ export interface Order {
   notes?: string;
   admin_notes?: string;
   delivery_staff_id?: string;
+  delivery_staff?: { id: string; name?: string; phone?: string };
+  failure_reason?: string;
   estimated_delivery_at?: string;
   created_at: string;
   updated_at: string;

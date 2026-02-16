@@ -55,7 +55,7 @@ export default function CheckoutScreen() {
 
   // Calculate subtotal from server cart (use line_total_paise from RPC)
   const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.line_total_paise, 0);
+    return items.reduce((sum, item) => sum + (item.line_total_paise || 0), 0);
   }, [items]);
 
   const selectedAddressId = useAppSelector(selectSelectedAddressId);
@@ -155,12 +155,12 @@ export default function CheckoutScreen() {
     }
   };
 
-  if ((addressesLoading && addresses.length === 0) || cartLoading) {
+  if (cartLoading && items.length === 0) {
     return <View style={[styles.centered, { backgroundColor: appColors.shell }]}><ActivityIndicator size="large" color={appColors.brand} /></View>;
   }
 
-  // No addresses: show empty state prompting to add address
-  if (addresses.length === 0) {
+  // No addresses: show empty state prompting to add address (wait for load first)
+  if (!addressesLoading && addresses.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: appColors.shell }]}>
         <EmptyState
@@ -181,6 +181,11 @@ export default function CheckoutScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Selected Address Summary (1-line, tappable to change) */}
+        {addressesLoading && !selectedAddress && (
+          <View style={[styles.addressSummaryCard, { backgroundColor: appColors.surface, borderColor: appColors.border, justifyContent: 'center' }, elevation.level1]}>
+            <ActivityIndicator size="small" color={appColors.brand} />
+          </View>
+        )}
         {selectedAddress && (
           <Pressable
             onPress={handleChangeAddress}

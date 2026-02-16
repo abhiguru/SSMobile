@@ -50,8 +50,8 @@ interface EditableItem {
 
 const STATUS_ACTIONS: Record<string, OrderStatus[]> = {
   placed: ['confirmed', 'cancelled'],
-  confirmed: [], // Handled by delivery type selector
-  out_for_delivery: ['delivered', 'delivery_failed'],
+  confirmed: ['cancelled'], // Dispatch handled by delivery type selector
+  out_for_delivery: ['delivered', 'delivery_failed', 'cancelled'],
 };
 
 export default function AdminOrderDetailScreen() {
@@ -417,6 +417,46 @@ export default function AdminOrderDetailScreen() {
         )}
       </View>
 
+      {/* Delivery failure reason */}
+      {order.status === 'delivery_failed' && order.failure_reason && (
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+          <SectionHeader title={t('admin.failureReason')} style={{ paddingHorizontal: 0 }} />
+          <View style={[styles.failureCard, { backgroundColor: appColors.negativeLight, borderColor: appColors.negative }]}>
+            <MaterialCommunityIcons name="alert-circle" size={20} color={appColors.negative} />
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text variant="bodyMedium" style={{ color: appColors.negative, fontFamily: fontFamily.semiBold }}>
+                {t(`delivery.reasons.${order.failure_reason.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`, { defaultValue: order.failure_reason })}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Delivery staff contact */}
+      {order.delivery_staff && (
+        <View style={[styles.section, { backgroundColor: appColors.surface }]}>
+          <SectionHeader title={t('admin.deliveryStaff')} style={{ paddingHorizontal: 0 }} />
+          <Pressable
+            onPress={() => order.delivery_staff?.phone && Linking.openURL(`tel:${order.delivery_staff.phone}`)}
+            disabled={!order.delivery_staff.phone}
+            style={[styles.customerCard, { backgroundColor: appColors.shell }]}
+          >
+            <MaterialCommunityIcons name="truck-delivery" size={24} color={appColors.brand} />
+            <View style={styles.customerInfo}>
+              <Text variant="bodyMedium" style={{ fontFamily: fontFamily.semiBold, color: appColors.text.primary }}>
+                {order.delivery_staff.name || t('admin.deliveryStaff')}
+              </Text>
+              {order.delivery_staff.phone && (
+                <Text variant="bodySmall" style={{ color: appColors.text.secondary }}>{order.delivery_staff.phone}</Text>
+              )}
+            </View>
+            {order.delivery_staff.phone && (
+              <MaterialCommunityIcons name="phone" size={24} color={appColors.positive} />
+            )}
+          </Pressable>
+        </View>
+      )}
+
       {/* Standard status actions for placed orders */}
       {order.status === 'placed' && (
         <View style={[styles.section, { backgroundColor: appColors.surface }]}>
@@ -750,6 +790,7 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', gap: spacing.md },
   actionButtonWrapper: { flex: 1 },
   cancelOption: { marginTop: spacing.md, alignItems: 'center' },
+  failureCard: { flexDirection: 'row', alignItems: 'flex-start', padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
   orderItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   totalDivider: { height: 1, marginTop: spacing.sm, marginBottom: spacing.md },

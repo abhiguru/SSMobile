@@ -550,12 +550,12 @@ export const apiSlice = createApi({
 
     verifyDeliveryOtp: builder.mutation<
       void,
-      { orderId: string; otp: string }
+      { orderId: string; otp: string; latitude?: number; longitude?: number }
     >({
-      query: ({ orderId, otp }) => ({
+      query: ({ orderId, otp, latitude, longitude }) => ({
         url: '/functions/v1/verify-delivery-otp',
         method: 'POST',
-        body: { order_id: orderId, otp },
+        body: { order_id: orderId, otp, latitude, longitude },
       }),
       invalidatesTags: (_result, _error, { orderId }) => [
         'Orders',
@@ -1315,6 +1315,15 @@ export const apiSlice = createApi({
       invalidatesTags: ['DeletionRequests', 'Users'],
     }),
 
+    adminDeleteUser: builder.mutation<null, { user_id: string }>({
+      query: (body) => ({
+        url: '/functions/v1/delete-user',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Users', 'DeletionRequests', 'DeliveryStaff'],
+    }),
+
     logout: builder.mutation<null, void>({
       queryFn: async () => {
         await logoutApi();
@@ -1506,6 +1515,7 @@ export const {
   useRequestAccountDeletionMutation,
   useGetDeletionRequestsQuery,
   useProcessAccountDeletionMutation,
+  useAdminDeleteUserMutation,
 } = apiSlice;
 
 export const {

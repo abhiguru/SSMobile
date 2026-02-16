@@ -11,8 +11,10 @@ import { useAppTheme } from '../../src/theme/useAppTheme';
 import {
   useGetAllDeliveryStaffQuery,
   useUpdateDeliveryStaffMutation,
+  useCreateDeliveryStaffMutation,
 } from '../../src/store/apiSlice';
 import { DeliveryStaff } from '../../src/types';
+import { PHONE_REGEX, PHONE_PREFIX } from '../../src/constants';
 import { AppButton } from '../../src/components/common/AppButton';
 import { FioriBottomSheet } from '../../src/components/common/FioriBottomSheet';
 import { FioriDialog } from '../../src/components/common/FioriDialog';
@@ -46,6 +48,12 @@ export default function StaffScreen() {
   const { appColors } = useAppTheme();
   const { data: staffList = [], isLoading, isFetching, isError, refetch } = useGetAllDeliveryStaffQuery();
   const [updateStaff, { isLoading: isUpdating }] = useUpdateDeliveryStaffMutation();
+  const [createStaff, { isLoading: isCreating }] = useCreateDeliveryStaffMutation();
+
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addError, setAddError] = useState('');
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingStaff, setEditingStaff] = useState<DeliveryStaff | null>(null);
@@ -76,6 +84,39 @@ export default function StaffScreen() {
     setSheetVisible(false);
     setEditingStaff(null);
   }, []);
+
+  const openAddSheet = useCallback(() => {
+    setAddName('');
+    setAddPhone('');
+    setAddError('');
+    setAddSheetVisible(true);
+  }, []);
+
+  const closeAddSheet = useCallback(() => {
+    setAddSheetVisible(false);
+  }, []);
+
+  const handleAddSubmit = useCallback(async () => {
+    const trimmedName = addName.trim();
+    const trimmedPhone = addPhone.trim();
+
+    if (!trimmedName) {
+      setAddError(t('admin.staffMissingName'));
+      return;
+    }
+    if (!PHONE_REGEX.test(trimmedPhone)) {
+      setAddError(t('admin.staffInvalidPhone'));
+      return;
+    }
+
+    try {
+      await createStaff({ name: trimmedName, phone: `${PHONE_PREFIX}${trimmedPhone}` }).unwrap();
+      closeAddSheet();
+    } catch (err: unknown) {
+      const errorData = (err as { data?: string })?.data || '';
+      setAddError(mapErrorCode(errorData, t));
+    }
+  }, [addName, addPhone, createStaff, closeAddSheet, t]);
 
   const handleSubmit = useCallback(async () => {
     const trimmedName = formName.trim();
@@ -225,7 +266,7 @@ export default function StaffScreen() {
         <View style={[styles.centered, { backgroundColor: appColors.shell }]}>
           <MaterialCommunityIcons name="account-group" size={64} color={appColors.neutral} />
           <Text variant="headlineSmall" style={[styles.emptyTitle, { color: appColors.text.primary }]}>{t('admin.noStaff')}</Text>
-          <Text variant="bodyMedium" style={{ color: appColors.text.secondary }}>{t('admin.noStaffSub')}</Text>
+          <Text variant="bodyMedium" style={{ color: appColors.text.secondary, textAlign: 'center' }}>{t('admin.noStaffSub')}</Text>
         </View>
       ) : (
         <FlashList
@@ -238,6 +279,14 @@ export default function StaffScreen() {
           onRefresh={refetch}
         />
       )}
+
+      {/* FAB */}
+      <Pressable
+        style={[styles.fab, { backgroundColor: appColors.brand }]}
+        onPress={openAddSheet}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color="#fff" />
+      </Pressable>
 
       <FioriDialog
         visible={toggleDialogVisible}
@@ -300,6 +349,60 @@ export default function StaffScreen() {
               fullWidth
             >
               {t('common.save')}
+            </AppButton>
+          </View>
+        </View>
+      </FioriBottomSheet>
+
+      {/* Add Staff Bottom Sheet */}
+      <FioriBottomSheet visible={addSheetVisible} onDismiss={closeAddSheet} title={t('admin.addStaff')}>
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <TextInput
+            label={t('admin.staffName')}
+            placeholder={t('admin.staffNamePlaceholder')}
+            value={addName}
+            onChangeText={(v) => { setAddName(v); setAddError(''); }}
+            mode="outlined"
+            style={[styles.input, { backgroundColor: appColors.surface }]}
+            autoCapitalize="words"
+            outlineColor={appColors.fieldBorder}
+            activeOutlineColor={appColors.brand}
+          />
+
+          <TextInput
+            label={t('admin.staffPhone')}
+            placeholder={t('admin.staffPhonePlaceholder')}
+            value={addPhone}
+            onChangeText={(v) => { setAddPhone(v.replace(/\D/g, '').slice(0, 10)); setAddError(''); }}
+            mode="outlined"
+            style={[styles.input, { backgroundColor: appColors.surface }]}
+            keyboardType="phone-pad"
+            left={<TextInput.Affix text="+91" />}
+            outlineColor={appColors.fieldBorder}
+            activeOutlineColor={appColors.brand}
+          />
+
+          {addError ? (
+            <Text variant="bodySmall" style={{ color: appColors.critical, marginBottom: spacing.md }}>{addError}</Text>
+          ) : null}
+        </ScrollView>
+
+        <View style={[styles.sheetFooter, { borderTopColor: appColors.border }]}>
+          <View style={styles.footerButton}>
+            <AppButton variant="secondary" size="md" onPress={closeAddSheet} fullWidth>
+              {t('common.cancel')}
+            </AppButton>
+          </View>
+          <View style={styles.footerButton}>
+            <AppButton
+              variant="primary"
+              size="md"
+              onPress={handleAddSubmit}
+              loading={isCreating}
+              disabled={isCreating}
+              fullWidth
+            >
+              {t('admin.addStaff')}
             </AppButton>
           </View>
         </View>
@@ -416,6 +519,17 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: spacing.xs,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    right: spacing.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...elevation.level3,
   },
   input: {
     marginBottom: spacing.md,
